@@ -1,0 +1,6 @@
+numpy
+pandas
+tqdm
+plotly
+kaleido
+h5py
