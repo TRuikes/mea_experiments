@@ -104,12 +104,12 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
                 burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
 
-                trial_onsets = trigger_high[trial_onsets_idx]
+                train_onsets = trigger_high[trial_onsets_idx]
                 burst_onsets = trigger_high[burst_onsets_idx]
                 burst_offsets = trigger_high[burst_offsets_idx]
 
                 trigger_data[rec][trigger_type] = dict(
-                    trial_onsets=trial_onsets,
+                    train_onsets=train_onsets,
                     burst_onsets=burst_onsets,
                     burst_offsets=burst_offsets,
                 )

@@ -1,4 +1,4 @@
-dataset_dir = r'E:\Photoacoustic\series_3'
+dataset_dir = r'F:\thijs\series_3'
 data_trigger_channels = dict(
     # dmd=None,
     laser=128,

@@ -7,7 +7,6 @@ import os
 import utils
 
 
-
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)
 
@@ -39,7 +38,6 @@ def recording_onsets(filepaths: FilePaths):
         - Wrong folders given as input
         - Mea number is wrong
     """
-
 
     # Detect which files were clustered
     clustered_files = []
@@ -99,10 +97,14 @@ def _extract_spiketimes(filepaths: FilePaths):
     cluster_overview = pd.read_csv(filepaths.proc_phy_cluster_info, sep='\t', header=0, index_col=0)
     cluster_overview = cluster_overview.query('group != "noise"')
 
+    for cluster_i, cluster_id in enumerate(cluster_overview.index.tolist()):
+        new_id = f'uid_{filepaths.sid.split("_")[0]}_{cluster_i:03d}'
+        cluster_overview.at[cluster_id, 'new_id'] = new_id
+
     spike_index_per_cluster = {}
     for cluster_id in cluster_overview.index:
         idx = np.where(spike_clusters == cluster_id)[0]
-        spike_index_per_cluster[cluster_id] = spike_indices[idx]
+        spike_index_per_cluster[cluster_overview.loc[cluster_id, 'new_id']] = spike_indices[idx]
 
     onsets = recording_onsets(filepaths)
 
@@ -115,16 +117,18 @@ def _extract_spiketimes(filepaths: FilePaths):
 
         # Find all spike indices for this cluster
         for cluster_id, cluster_info in cluster_overview.iterrows():
-            sp_idx = spike_index_per_cluster[cluster_id]
+            sp_idx = spike_index_per_cluster[cluster_info.new_id]
 
             # Find all spike indices for this cluster, in this recording
             idx = np.where((sp_idx >= rec_info.i0) & (sp_idx < rec_info.i1))[0]
             # Normalize spiketimes to onset of this recording, and convert to ms
             rec_spikes = ((sp_idx[idx] - rec_info.i0) / data_sample_rate) * 1000
             # Write the spiketimes to output dit
-            spiketimes_per_recording[rec][f'{cluster_id}'] = rec_spikes
+            spiketimes_per_recording[rec][cluster_info.new_id] = rec_spikes
 
     utils.store_nested_dict(filepaths.proc_pp_spiketimes, spiketimes_per_recording)
+
+    cluster_overview.set_index(['new_id'], inplace=True)
     cluster_overview.to_csv(filepaths.proc_pp_clusterinfo)
 
     n_clusters = cluster_overview.shape[0]

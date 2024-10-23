@@ -75,65 +75,90 @@ class FilePaths:
     slice_names = ('A', 'B', 'C', 'D')
     rec_names = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
 
-    def __init__(self, sid: str):
+    laser_calib_path = None
+    laser_calib_file = None
+    laser_calib_figure_dir = None
+
+    def __init__(self, sid=None, laser_calib_week=None):
         """
         session ids have shape DDMMYY_retslice
         """
         self.sid = sid
         self.dataset_dir = Path(dataset_dir)
-        self.date = extract_date(sid)
-        self.slice_nr = sid.split('_')[1]
+        self.laser_calib_week = laser_calib_week
+        self.dataset_out_dir = self.dataset_dir / 'dataset'
 
-        self.processed_dir = self.dataset_dir / sid / 'processed'
-        self.raw_dir = self.dataset_dir / sid / 'raw'
-        self.blocker = detect_blocker(self.raw_dir)
-        self.rec_nr = detect_rec_nr(self.raw_dir)
+        if sid is not None:
+            self.date = extract_date(sid)
+            self.slice_nr = sid.split('_')[1]
 
-        # define raw files
-        rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day}_{self.slice_nr}_{self.rec_nr}_{self.blocker}'
-        self.raw_mcd = self.raw_dir / (rec_code + '.mcd')
-        self.raw_raw = self.raw_dir / (rec_code + '.raw')
-        self.raw_trials = self.raw_dir / (rec_code + '_trials.csv')
-        self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
+            self.processed_dir = self.dataset_dir / sid / 'processed'
+            self.raw_dir = self.dataset_dir / sid / 'raw'
+            self.blocker = detect_blocker(self.raw_dir)
+            self.rec_nr = detect_rec_nr(self.raw_dir)
 
-        # define processed files
-        self.sorted_dir = self.processed_dir / 'sorted'
-        if self.sorted_dir.exists():
-            self.has_sorted_data = True
-            self.proc_sc_amplitudes = self.sorted_dir / 'amplitudes.npy'
-            self.proc_sc_channel_map = self.sorted_dir / 'channel_map.npy'
-            self.proc_sc_channel_positions = self.sorted_dir / 'channel_positions.npy'
-            self.proc_sc_similar_templates = self.sorted_dir / 'similar_templates.npy'
-            self.proc_sc_spike_times = self.sorted_dir / 'spike_times.npy'
-            self.proc_sc_template_ind = self.sorted_dir / 'template_ind.npy'
-            self.proc_sc_templates = self.sorted_dir / 'templates.npy'
-            self.proc_sc_whitening_mat = self.sorted_dir / 'whitening_mat.npy'
-            self.proc_sc_whitening_mat_inv = self.sorted_dir / 'whitening_mat_inv.npy'
-            self.proc_sc_params = self.sorted_dir / 'params.py'
+            # define raw files
+            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day}_{self.slice_nr}_{self.rec_nr}_{self.blocker}'
+            self.raw_mcd = self.raw_dir / (rec_code + '.mcd')
+            self.raw_raw = self.raw_dir / (rec_code + '.raw')
+            self.raw_trials = self.raw_dir / (rec_code + '_trials.csv')
+            self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
+            self.raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
 
-            self.proc_phy_cluster_group = self.sorted_dir / 'cluster_group.tsv'
+            # define processed files
+            self.sorted_dir = self.processed_dir / 'sorted'
+            if self.sorted_dir.exists():
+                self.has_sorted_data = True
+                self.proc_sc_amplitudes = self.sorted_dir / 'amplitudes.npy'
+                self.proc_sc_channel_map = self.sorted_dir / 'channel_map.npy'
+                self.proc_sc_channel_positions = self.sorted_dir / 'channel_positions.npy'
+                self.proc_sc_similar_templates = self.sorted_dir / 'similar_templates.npy'
+                self.proc_sc_spike_times = self.sorted_dir / 'spike_times.npy'
+                self.proc_sc_template_ind = self.sorted_dir / 'template_ind.npy'
+                self.proc_sc_templates = self.sorted_dir / 'templates.npy'
+                self.proc_sc_whitening_mat = self.sorted_dir / 'whitening_mat.npy'
+                self.proc_sc_whitening_mat_inv = self.sorted_dir / 'whitening_mat_inv.npy'
+                self.proc_sc_params = self.sorted_dir / 'params.py'
 
-            if self.proc_phy_cluster_group.exists():
-                self.has_manual_sorted_data = True
+                self.proc_phy_cluster_group = self.sorted_dir / 'cluster_group.tsv'
 
-                self.proc_phy_cluster_info = self.sorted_dir / 'cluster_info.tsv'
-                self.proc_phy_spike_clusters = self.sorted_dir / 'spike_clusters.npy'
-                self.proc_phy_cluster_purity = self.sorted_dir / 'cluster_purity.tsv'
+                if self.proc_phy_cluster_group.exists():
+                    self.has_manual_sorted_data = True
+
+                    self.proc_phy_cluster_info = self.sorted_dir / 'cluster_info.tsv'
+                    self.proc_phy_spike_clusters = self.sorted_dir / 'spike_clusters.npy'
+                    self.proc_phy_cluster_purity = self.sorted_dir / 'cluster_purity.tsv'
+
+                else:
+                    self.has_manual_sorted_data = False
 
             else:
-                self.has_manual_sorted_data = False
+                self.has_sorted_data = False
 
+            # define pipeline extracted files
+            self.proc_pp_triggers = self.processed_dir / 'triggers.h5'
+            self.proc_pp_spiketimes = self.processed_dir / 'spiketimes.h5'
+            self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
+            self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'
+            self.proc_pp_figure_output = self.processed_dir / 'figures'
+
+            # define trails file
+            self.proc_pp_trials = self.processed_dir / 'trials.csv'
+
+            # Define the final dataset file
+            self.dataset_file = self.dataset_out_dir / f'{self.sid}.h5'
+
+            self.get_recording_names_from_rawfiles()
+
+        self.set_laser_calib_files()
+
+    def set_laser_calib_files(self):
+        if self.laser_calib_week is None:
+            return
         else:
-            self.has_sorted_data = False
-
-        # define pipeline extracted files
-        self.proc_pp_triggers = self.processed_dir / 'triggers.h5'
-        self.proc_pp_spiketimes = self.processed_dir / 'spiketimes.h5'
-        self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
-        self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'
-        self.proc_pp_figure_output = self.processed_dir / 'figures'
-
-        self.get_recording_names_from_rawfiles()
+            self.laser_calib_path = self.dataset_dir / 'laser_calibration' / self.laser_calib_week
+            self.laser_calib_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}.csv'
+            self.laser_calib_figure_dir = self.laser_calib_path / 'figures'
 
     def check_data(self):
         print(f'Checking if all data is available for {self.sid}:')

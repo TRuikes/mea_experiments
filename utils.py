@@ -62,12 +62,9 @@ def _store_nested_dict(hdf5_group, dictionary):
             # If the value is a NumPy array, create a dataset
             hdf5_group.create_dataset(key, data=value)
 
-
 def load_nested_dict(filename):
     with h5py.File(filename.as_posix(), 'r') as f:
         return _load_nested_dict(f)
-
-
 
 def _load_nested_dict(hdf5_group):
     result = {}
