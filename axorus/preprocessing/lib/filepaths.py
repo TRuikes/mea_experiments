@@ -30,13 +30,12 @@ def detect_blocker(raw_dir: Path):
     raise FileNotFoundError(f'Cant find rawfile in {raw_dir}')
 
 
-def detect_rec_nr(raw_dir: Path):
+def detect_rec_nrs(raw_dir: Path):
+    rec_nrs = []
     for f in raw_dir.iterdir():
         if f.suffix == '.raw':
-            rec_nr = f.name.split('_')[2].split('.')[0]
-            return rec_nr
-
-    raise FileNotFoundError(f'Cant find rawfile in {raw_dir}')
+            rec_nrs.append(f.name.split('_')[2].split('.')[0])
+    return rec_nrs
 
 
 class FilePaths:
@@ -95,12 +94,14 @@ class FilePaths:
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
             self.blocker = detect_blocker(self.raw_dir)
-            self.rec_nr = detect_rec_nr(self.raw_dir)
+            recording_nrs = detect_rec_nrs(self.raw_dir)
+            self.recording_nrs = recording_nrs
+            # self.rec_nr = detect_rec_nr(self.raw_dir)
 
             # define raw files
-            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day}_{self.slice_nr}_{self.rec_nr}_{self.blocker}'
-            self.raw_mcd = self.raw_dir / (rec_code + '.mcd')
-            self.raw_raw = self.raw_dir / (rec_code + '.raw')
+            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day}_{self.slice_nr}'
+            self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
+            self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
             self.raw_trials = self.raw_dir / (rec_code + '_trials.csv')
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
             self.raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
@@ -166,12 +167,11 @@ class FilePaths:
         assert self.raw_dir.exists()
         assert self.blocker in self.blocker_names
         assert self.slice_nr in self.slice_names
-        assert self.rec_nr in self.rec_names
 
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
-        assert self.raw_raw.exists(), f'{self.raw_raw} does not exist'
-        assert self.raw_trials.exists()
-        assert self.raw_protocols.exists()
+        for f in self.raw_raws:
+            assert f.exists()
+        assert self.raw_trials.exists(), f'{self.raw_trials} does not exist'
 
         print(f'\tall raw data is there!')
 
@@ -207,11 +207,11 @@ class FilePaths:
 
         if len(recording_names) == 0:
             # check if there are rawfiles
-            if (self.recording_dir / 'raw').is_dir():
-                recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if
-                                        'raw' in f.name]
-            else:
-                raise FileNotFoundError
+            recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if
+                                    'raw' in f.name]
+
+        if len(recording_names) == 0:
+            raise ValueError('no recordings found')
 
         recnames_int = [int(r.split('_')[2]) for r in recording_names]
         self.recording_names = [recording_names[i] for i in np.argsort(recnames_int)]

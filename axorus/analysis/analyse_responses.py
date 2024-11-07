@@ -8,13 +8,15 @@ import numpy as np
 from scipy.stats import bootstrap
 import utils
 from scipy.signal import medfilt
+import sys
 
 
 def main():
     """
     Main handles
     """
-    dataset_dir = Path(r'F:\thijs\series_3\dataset')
+    dataset_dir = Path(r'D:\Axorus\ex_vivo_series_3\dataset')
+    assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
     data_io.load_session(data_io.sessions[0])
@@ -40,9 +42,9 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
         'response_type',
     ]
     columns = []
-    for tid in data_io.train_df.train_id.unique():
+    for burst_id in data_io.burst_df.train_id.unique():
         for n in names_to_register:
-            columns.append((tid,n))
+            columns.append((burst_id,n))
     multi_index = pd.MultiIndex.from_tuples(columns)
 
     cell_responses = pd.DataFrame(index=data_io.cluster_df.index.values, columns=multi_index)
@@ -159,6 +161,7 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
     if len(tasks) == 0:
         return
 
+    # Check if we are in debugging mode
     with tqdm(total=len(tasks)) as progress_bar:
         for _ in range(num_threads):
             t = threading.Thread(target=thread_task, args=(tasks, progress_bar, lock))
@@ -167,6 +170,11 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
 
         for t in threads:
             t.join()
+
+    # UNCOMMENT THIS TO DEBUG
+    # n_tasks = len(tasks)
+    # for i in range(n_tasks):
+    #     thread_task(tasks, None, lock)
 
 
 def thread_task(tasks, progress_bar, lock):
@@ -186,9 +194,8 @@ def thread_task(tasks, progress_bar, lock):
         bootstrap_data(**task)
 
         with lock:
-            # for tid in res.keys():
-            #     cell_responses.at[task['cluster_id'], (tid, 'is_significant')] = res[tid]['is_significant']
-            progress_bar.update(1)
+            if progress_bar is not None:
+                progress_bar.update(1)
 
 
 # noinspection PyTypedDict
@@ -207,8 +214,8 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
     baseline = [-200, -100]
 
     output_data = {}
-    for tid in data_io.train_df.train_id.unique():
-        output_data[tid] = dict(
+    for train_id in data_io.burst_df.train_id.unique():
+        output_data[train_id] = dict(
             bins=None,
             bin_size=None,
             binned_sp=None,
@@ -223,7 +230,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
         )
 
         # Detect recording file of the current trial
-        rec_id = data_io.train_df.query('train_id == @tid').iloc[0].rec_id
+        rec_id = data_io.burst_df.query('train_id == @train_id').iloc[0].rec_id
 
         # Detect nr of bins
         n_bins = bin_centres.size
@@ -232,7 +239,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
         baseline_idx = np.where((bin_centres >= baseline[0]) & (bin_centres <= baseline[1]))[0]
 
         # Detect burst onsets for this train
-        burst_onsets = data_io.train_df.query('train_id == @tid').burst_onset.values
+        burst_onsets = data_io.burst_df.query('train_id == @train_id').burst_onset.values
         n_trains = len(burst_onsets)
 
         # Get spiketrain
@@ -256,13 +263,13 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
                 idx = np.where((spiketrain >= t0) & (spiketrain < t1))[0]
                 binned_sp[burst_i, bin_i] = idx.size
 
-        output_data[tid]['bins'] = bin_centres
-        output_data[tid]['bin_size'] = binwidth
-        output_data[tid]['binned_sp'] = binned_sp
-        output_data[tid]['spike_times'] = spike_times
+        output_data[train_id]['bins'] = bin_centres
+        output_data[train_id]['bin_size'] = binwidth
+        output_data[train_id]['binned_sp'] = binned_sp
+        output_data[train_id]['spike_times'] = spike_times
 
         if np.sum(binned_sp) < 1 * 3:  # if there are less than 10 spikes don't bother
-            output_data[tid]['reason'] = 'not enough spikes'
+            output_data[train_id]['reason'] = 'not enough spikes'
             continue
 
         # Bootstrap confidence intervals for each bin
@@ -290,7 +297,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
             has_btrp = False
 
         if not has_btrp:
-            output_data[tid]['reason'] = 'bootstrap failed'
+            output_data[train_id]['reason'] = 'bootstrap failed'
             continue
 
         ci_baseline = [np.nanmean(ci_low[baseline_idx]), np.nanmean(ci_high[baseline_idx])]
@@ -306,16 +313,16 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
         stepsize = np.diff(bin_centres)[0]
 
         # Determine if the response was truly significant
-        output_data[tid]['is_sig'] = True if len(sig_idx) * stepsize >= 25 else False
-        output_data[tid]['significant_bins'] = sig_idx
+        output_data[train_id]['is_sig'] = True if len(sig_idx) * stepsize >= 25 else False
+        output_data[train_id]['significant_bins'] = sig_idx
 
         firing_rate = np.mean(binned_sp, axis=0) / (binwidth / 1000)
         firing_rate_ci_high = ci_high / (binwidth / 1000)
         firing_rate_ci_low = ci_low / (binwidth / 1000)
 
-        output_data[tid]['firing_rate'] = firing_rate
-        output_data[tid]['firing_rate_ci_low'] = firing_rate_ci_low
-        output_data[tid]['firing_rate_ci_high'] = firing_rate_ci_high
+        output_data[train_id]['firing_rate'] = firing_rate
+        output_data[train_id]['firing_rate_ci_low'] = firing_rate_ci_low
+        output_data[train_id]['firing_rate_ci_high'] = firing_rate_ci_high
 
     utils.save_obj(output_data, savefile)
 

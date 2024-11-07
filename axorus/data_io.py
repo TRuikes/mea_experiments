@@ -7,7 +7,7 @@ import threading
 class DataIO:
     sessions = []
     recording_ids = []
-    train_df = pd.DataFrame()
+    burst_df = pd.DataFrame()
     cluster_df = pd.DataFrame()
     spiketimes = {}
     session_id = None
@@ -28,7 +28,7 @@ class DataIO:
 
         self.session_id = session_id
 
-        train_df = pd.DataFrame()
+        burst_df = pd.DataFrame()
         cluster_df = pd.DataFrame()
         spiketimes = {}
         rec_ids = []
@@ -40,8 +40,8 @@ class DataIO:
                 for burst_id in f[rec_id]['laser'].keys():
                     new_id = f'{rec_id}-{burst_id}'
 
-                    train_df.at[new_id, 'rec_id'] = rec_id
-                    train_df.at[new_id, 'burst_id'] = burst_id
+                    burst_df.at[new_id, 'rec_id'] = rec_id
+                    burst_df.at[new_id, 'burst_id'] = burst_id
 
                     for k, v in f[rec_id]['laser'][burst_id].items():
                         if k in ['train_id']:
@@ -49,7 +49,7 @@ class DataIO:
                         else:
                             v_out = v[()]
 
-                        train_df.at[new_id, k] = v_out
+                        burst_df.at[new_id, k] = v_out
 
                 spiketimes[rec_id] = {}
                 for cluster_id in f[rec_id]['clusters'].keys():
@@ -61,7 +61,11 @@ class DataIO:
                         else:
                             cluster_df.at[cluster_id, k] = v[()]
 
-        self.train_df = train_df
+        for i, r in burst_df.iterrows():
+            rn = r.recording_name
+            burst_df.at[i, 'recording_name'] = str(rn).split("'")[1]
+
+        self.burst_df = burst_df
         self.cluster_df = cluster_df
         self.spiketimes = spiketimes
         self.recording_ids = rec_ids

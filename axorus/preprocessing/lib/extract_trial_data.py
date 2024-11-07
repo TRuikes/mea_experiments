@@ -21,10 +21,20 @@ def extract_trial_data(filepaths: FilePaths):
         tid = f'tid_{filepaths.sid}_{train_i:03d}'
         df.at[i, 'train_id_index'] = tid
         df.at[i, 'train_id'] = tid
-        df.at[i, 'train_i'] = int(train_i)
         train_i += 1
 
+        rec_nr = r.recording_number
+        blocker = r.blockers
+        recording_name = f'{filepaths.sid}_{rec_nr}_{blocker}'
+        df.at[i, 'recording_name'] = recording_name
+
     df.set_index('train_id_index', inplace=True)
+
+    for rec_name, df_rec in df.groupby('recording_name'):
+        ri = 0
+        for i, r in df_rec.iterrows():
+            df.at[i, 'rec_train_i'] = ri
+            ri += 1
 
     # Add x,y position of laser to data
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
@@ -34,11 +44,21 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'laser_y'] = p.y
 
     # Add laser stim specs to data
+
+    # try:
     laser_specs = pd.read_csv(filepaths.laser_calib_file, index_col=0, header=0)
 
     for i, r in df.iterrows():
         if filepaths.sid == '161024_A':
             fiber_connection = dataset_sessions[filepaths.sid]['fiber_connection']
+        elif 'connected_fiber' in df.columns:
+            cb = r.connected_fiber
+            att = r.attenuator
+
+            if att == 1.4:
+                fiber_connection = f'CB1_14_{cb}'
+            else:
+                raise ValueError('implement this')
         else:
             raise ValueError('implement this')
 
@@ -78,5 +98,7 @@ def extract_trial_data(filepaths: FilePaths):
         irradiance = power / area  # W / mm2
 
         df.at[i, 'irradiance'] = irradiance
+    # except:
+    #     print(f'ERROR IN LASER POWER DATAFRAME, FIX THIS')
 
     df.to_csv(filepaths.proc_pp_trials)

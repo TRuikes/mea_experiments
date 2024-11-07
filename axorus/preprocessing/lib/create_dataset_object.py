@@ -39,70 +39,76 @@ def create_dataset_object(filepaths: FilePaths):
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
 
-    rec_id = '241016_A_1_noblocker'
-    stimes_rec = spiketimes[rec_id]
-    laser_rec = triggers[rec_id]['laser']
+    n_trials_triggers = 0
+    n_bursts_triggers = 0
+    for rec_id in filepaths.recording_names:
+        train_onsets = triggers[rec_id]['laser']['train_onsets']
+        n_trials_triggers += len(train_onsets)
 
-    train_onsets = laser_rec['train_onsets']
-    burst_onsets = laser_rec['burst_onsets']
-    burst_offsets = laser_rec['burst_offsets']
+        burst_onsets = triggers[rec_id]['laser']['burst_onsets']
+        n_bursts_triggers += len(burst_onsets)
 
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
-    assert train_onsets.size == train_df.shape[0]
-    n_trials = train_onsets.size
-
+    assert n_trials_triggers == train_df.shape[0]
     assert len(train_df.train_count.unique()) == 1
     burst_count = train_df.iloc[0].train_count
-    n_bursts = n_trials * burst_count
+    n_bursts = n_trials_triggers * burst_count
 
-    assert burst_onsets.size == n_bursts
+    assert n_bursts_triggers == n_bursts
 
     with h5py.File(filepaths.dataset_file, 'w') as f:
 
-        grp = f.create_group(rec_id)
+        for rec_id in filepaths.recording_names:
+            grp = f.create_group(rec_id)
 
-        # Store laser trigger data
-        for train_id, trial_info in train_df.iterrows():
+            train_rec_df = train_df.query('recording_name == @rec_id')
+            assert train_rec_df.shape[0] > 0
 
-            for burst_i in range(burst_count):
-                burst_id = f'{train_id}-{burst_i}'
-                trigger_i = int(trial_info.train_i * burst_count + burst_i)
+            # Store laser trigger data
+            for train_id, trial_info in train_rec_df.iterrows():
+                train_onsets = triggers[rec_id]['laser']['train_onsets']
+                burst_onsets = triggers[rec_id]['laser']['burst_onsets']
+                burst_offsets = triggers[rec_id]['laser']['burst_offsets']
 
-                burst = grp.create_group(f'laser/{burst_id}')
+                for burst_i in range(burst_count):
+                    burst_id = f'{train_id}-{burst_i}'
+                    trigger_i = int(trial_info.rec_train_i * burst_count + burst_i)
 
-                to_store = dict(
-                    train_onset=train_onsets[int(trial_info.train_i)],
-                    burst_onset=burst_onsets[trigger_i],
-                    burst_offset=burst_offsets[trigger_i],
-                    **trial_info,
-                )
+                    burst = grp.create_group(f'laser/{burst_id}')
 
-                for k, v in to_store.items():
+                    to_store = dict(
+                        train_onset=train_onsets[int(trial_info.rec_train_i)],
+                        burst_onset=burst_onsets[trigger_i],
+                        burst_offset=burst_offsets[trigger_i],
+                        **trial_info,
+                    )
+
+                    for k, v in to_store.items():
+                        if isinstance(v, str):
+                            burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
+                        elif k in names_as_int:
+                            burst.create_dataset(k, data=int(v), dtype='int')
+                        else:
+                            burst.create_dataset(k, data=v, dtype='float')
+
+            # Store spiketimes
+            for cluster_id, cinfo in cluster_info.iterrows():
+
+                cluster = grp.create_group(f'clusters/{cluster_id}')
+
+                for k, v in cinfo.items():
                     if isinstance(v, str):
-                        burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
+                        cluster.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
                     elif k in names_as_int:
-                        burst.create_dataset(k, data=int(v), dtype='int')
+                        cluster.create_dataset(k, data=int(v), dtype='int')
                     else:
-                        burst.create_dataset(k, data=v, dtype='float')
+                        cluster.create_dataset(k, data=v, dtype='float')
 
-        # Store spiketimes
-        for cluster_id, cluster_info in cluster_info.iterrows():
+                cluster.create_dataset('spiketimes', data=spiketimes[rec_id][cluster_id])
 
-            cluster = grp.create_group(f'clusters/{cluster_id}')
-
-            for k, v in cluster_info.items():
-                if isinstance(v, str):
-                    cluster.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
-                elif k in names_as_int:
-                    cluster.create_dataset(k, data=int(v), dtype='int')
-                else:
-                    cluster.create_dataset(k, data=v, dtype='float')
-
-            cluster.create_dataset('spiketimes', data=spiketimes[rec_id][cluster_id])
-
-            ch = cluster_info.ch
-            cluster.create_dataset('cluster_x', data=int(mea_position.loc[ch+1].x))
-            cluster.create_dataset('cluster_y', data=int(mea_position.loc[ch+1].y))
+                ch = cinfo.ch
+                cluster.create_dataset('cluster_x', data=int(mea_position.loc[ch+1].x))
+                cluster.create_dataset('cluster_y', data=int(mea_position.loc[ch+1].y))
 
         print(f'saved datasetfile: {filepaths.dataset_file}')

@@ -1,14 +1,16 @@
 from axorus.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import numpy as np
-from axorus.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate
+from axorus.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
 from pathlib import Path
 import os
 import utils
+from tqdm import tqdm
 
 
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)
+    _extract_waveforms(filepaths, update=update)
 
 
 def get_spikedata(filepaths: FilePaths, update):
@@ -65,14 +67,15 @@ def recording_onsets(filepaths: FilePaths):
     onsets = pd.DataFrame(columns=['i0', 'i1'])
 
     for rec in clustered_files:
-        assert rec.exists()
+        local_name = filepaths.raw_dir / rec.name
+        assert local_name.exists(), f''
 
         # Derive name of recording
-        recname = rec.name.split('.')[0]
+        recname = local_name.name.split('.')[0]
 
         onsets.at[recname, 'i0'] = np.copy(cursor)
 
-        file_stats = os.stat(rec)
+        file_stats = os.stat(local_name)
         cursor += int(file_stats.st_size / (nb_bytes_by_datapoint * data_nb_channels))
         onsets.at[recname, 'i1'] = np.copy(cursor)
     return onsets
@@ -135,5 +138,82 @@ def _extract_spiketimes(filepaths: FilePaths):
     print(f'\textracted spike for {n_clusters} clusters!')
 
 
-def extract_waveforms(filepaths: FilePaths, update):
-    return
+def _extract_waveforms(filepaths: FilePaths, update):
+    print(f'\nProcessing waveforms')
+    if filepaths.proc_pp_waveforms.exists() and not update:
+        print(f'\twaveforms allready extracted!')
+        return
+
+    onsets = recording_onsets(filepaths)
+    spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
+    cluster_overview = pd.read_csv(filepaths.proc_pp_clusterinfo,
+                                   index_col=0, header=0)
+
+    recnames = onsets.index.tolist()
+
+    NWAVEFORMS = 1000  # nr of waveforms to extract
+    NPRE = 5  # time in ms
+    NPOST = 10  # time in ms
+    NSAMPLES = int(((NPRE + NPOST) / 1000) * data_sample_rate)
+
+
+    n_samples_pre = (NPRE / 1000) * data_sample_rate
+    recording_channel_nrs = cluster_overview.ch.unique()
+
+    cluster_waveforms = dict()
+
+    print('\textracting waveforms...')
+
+    for rname in recnames:
+        input_file = filepaths.raw_dir / f'{rname}.raw'
+        if not input_file.is_file():
+            raise ValueError(f'\twaveforms: cant find file: {input_file}')
+
+        # Open datafile
+        m = np.memmap(input_file.as_posix(), dtype=data_type)
+
+        # Add key for current recording
+        cluster_waveforms[rname] = dict()
+
+        # Load data from per channel
+        for channel_nr in tqdm(recording_channel_nrs):
+            channel_index = np.arange(channel_nr, m.size, data_nb_channels)
+
+            # Find all clustres on current channel
+            cluster_ids = cluster_overview.query('ch == @channel_nr').index.tolist()
+
+            for cluster_id in cluster_ids:
+                spike_times_rec = spiketimes[rname][cluster_id]
+
+                # Draw a NWAVEFORMS random spiketimes
+                idx = np.arange(0, spike_times_rec.size)
+                if spike_times_rec.size > NWAVEFORMS:
+                    idx = np.sort(np.random.choice(idx, NWAVEFORMS, replace=False))
+
+                # Load data per spike time
+                all_idx = []
+                for si, spike_time in enumerate(spike_times_rec[idx]):
+                    sref = (spike_time / 1000) * data_sample_rate
+                    i0 = int(sref - n_samples_pre)
+                    if i0 < 0:
+                        continue
+                    i1 = int(i0 + NSAMPLES)
+
+                    all_idx.append(np.arange(i0,i1,1))
+                if len(all_idx) == 0:
+                    cluster_waveforms[rname][cluster_id] = np.array([])
+                    continue
+
+                try:
+                    all_idx = np.hstack(all_idx)
+                    wf = m[channel_index[all_idx]].copy()
+                    wf = wf.reshape([idx.size, NSAMPLES])
+
+                    wf = wf * data_voltage_resolution - 4096  # this is in uV now
+                    cluster_waveforms[rname][cluster_id] = wf
+                except ValueError:
+                    cluster_waveforms[rname][cluster_id] = np.array([])
+                    continue
+
+    utils.store_nested_dict(filepaths.proc_pp_waveforms, cluster_waveforms)
+    print(f'\tStored waveforms: {filepaths.proc_pp_waveforms}')

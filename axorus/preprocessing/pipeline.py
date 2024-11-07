@@ -19,8 +19,9 @@ for sid, s_specs in dataset_sessions.items():
     # Extract trial data
     extract_trial_data(filepaths)
 
+    # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=True)
+        extract_phy_data(filepaths, update=False)
 
     create_dataset_object(filepaths)
 
