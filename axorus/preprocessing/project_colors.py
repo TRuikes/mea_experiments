@@ -17,6 +17,11 @@ class ProjectColors:
         r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[laser_level, :]
         return f'rgba({r}, {g}, {b}, {alpha})'
 
+    @staticmethod
+    def random_color(clr_i):
+        r, g, b = cmaps.sinebow_dark.discrete(10).colors[clr_i, :]
+        return f'rgba({r}, {g}, {b}, 1)'
+
 
 if __name__ == '__main__':
     p = ProjectColors()

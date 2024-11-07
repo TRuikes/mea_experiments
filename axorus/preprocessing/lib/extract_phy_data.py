@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import utils
 from tqdm import tqdm
+from phylib.io.model import load_model
 
 
 def extract_phy_data(filepaths: FilePaths, update=False):
@@ -95,6 +96,9 @@ def _extract_spiketimes(filepaths: FilePaths):
 
     """
 
+
+    # model = load_model(filepaths.proc_sc_params)
+    # model.get_cluster_channels()
     spike_clusters = np.load(filepaths.proc_phy_spike_clusters)
     spike_indices = np.load(filepaths.proc_sc_spike_times)
     cluster_overview = pd.read_csv(filepaths.proc_phy_cluster_info, sep='\t', header=0, index_col=0)
@@ -103,6 +107,7 @@ def _extract_spiketimes(filepaths: FilePaths):
     for cluster_i, cluster_id in enumerate(cluster_overview.index.tolist()):
         new_id = f'uid_{filepaths.sid.split("_")[0]}_{cluster_i:03d}'
         cluster_overview.at[cluster_id, 'new_id'] = new_id
+        cluster_overview.at[cluster_id, 'phy_cluster_id'] = cluster_id
 
     spike_index_per_cluster = {}
     for cluster_id in cluster_overview.index:
@@ -155,7 +160,6 @@ def _extract_waveforms(filepaths: FilePaths, update):
     NPRE = 5  # time in ms
     NPOST = 10  # time in ms
     NSAMPLES = int(((NPRE + NPOST) / 1000) * data_sample_rate)
-
 
     n_samples_pre = (NPRE / 1000) * data_sample_rate
     recording_channel_nrs = cluster_overview.ch.unique()

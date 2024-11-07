@@ -10,6 +10,7 @@ class DataIO:
     burst_df = pd.DataFrame()
     cluster_df = pd.DataFrame()
     spiketimes = {}
+    waveforms = {}
     session_id = None
 
     def __init__(self, datadir: Path):
@@ -31,6 +32,7 @@ class DataIO:
         burst_df = pd.DataFrame()
         cluster_df = pd.DataFrame()
         spiketimes = {}
+        waveforms = {}
         rec_ids = []
 
         with h5py.File(self.datadir / f'{session_id}.h5', 'r') as f:
@@ -52,11 +54,15 @@ class DataIO:
                         burst_df.at[new_id, k] = v_out
 
                 spiketimes[rec_id] = {}
+                waveforms[rec_id] = {}
                 for cluster_id in f[rec_id]['clusters'].keys():
 
                     for k, v in f[rec_id]['clusters'][cluster_id].items():
                         if k == 'spiketimes':
                             spiketimes[rec_id][cluster_id] = v[()]
+
+                        elif k == 'waveforms':
+                            waveforms[rec_id][cluster_id] = v[()]
 
                         else:
                             cluster_df.at[cluster_id, k] = v[()]
@@ -68,6 +74,7 @@ class DataIO:
         self.burst_df = burst_df
         self.cluster_df = cluster_df
         self.spiketimes = spiketimes
+        self.waveforms = waveforms
         self.recording_ids = rec_ids
 
     def lock_modification(self):

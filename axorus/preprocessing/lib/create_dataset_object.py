@@ -33,8 +33,11 @@ class Dataset:
 
 
 def create_dataset_object(filepaths: FilePaths):
+    print('\nCreating dataset object')
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
     spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
+    waveforms = utils.load_nested_dict(filepaths.proc_pp_waveforms)
+
     triggers = utils.load_nested_dict(filepaths.proc_pp_triggers)
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
@@ -60,6 +63,7 @@ def create_dataset_object(filepaths: FilePaths):
     with h5py.File(filepaths.dataset_file, 'w') as f:
 
         for rec_id in filepaths.recording_names:
+            print(f'\tloading {rec_id}')
             grp = f.create_group(rec_id)
 
             train_rec_df = train_df.query('recording_name == @rec_id')
@@ -110,5 +114,6 @@ def create_dataset_object(filepaths: FilePaths):
                 ch = cinfo.ch
                 cluster.create_dataset('cluster_x', data=int(mea_position.loc[ch+1].x))
                 cluster.create_dataset('cluster_y', data=int(mea_position.loc[ch+1].y))
+                cluster.create_dataset('waveforms', data=waveforms[rec_id][cluster_id])
 
         print(f'saved datasetfile: {filepaths.dataset_file}')
