@@ -1,10 +1,12 @@
-dataset_dir = r'F:\Axorus\ex_vivo_series_3'
+dataset_dir = r'D:\Axorus\ex_vivo_series_3'
 data_trigger_channels = dict(
-    # dmd=None,
+    dmd=127,
     laser=128,
 )
 data_trigger_thresholds = dict(
     laser=1000,
+    dmd=1000,
+
 )
 
 data_sample_rate = 2e4

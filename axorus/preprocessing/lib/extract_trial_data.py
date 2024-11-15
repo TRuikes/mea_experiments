@@ -23,9 +23,16 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'train_id'] = tid
         train_i += 1
 
+        if 'dmd' in r.protocol:
+            tail = '_dmd'
+        elif 'pa' in r.protocol:
+            tail = '_pa'
+        else:
+            raise ValueError('dunno')
+
         rec_nr = r.recording_number
         blocker = r.blockers
-        recording_name = f'{filepaths.sid}_{rec_nr}_{blocker}'
+        recording_name = f'{filepaths.sid}_{rec_nr}_{blocker}{tail}'
         df.at[i, 'recording_name'] = recording_name
 
     df.set_index('train_id_index', inplace=True)
@@ -39,6 +46,11 @@ def extract_trial_data(filepaths: FilePaths):
     # Add x,y position of laser to data
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
     for i, r in df.iterrows():
+        if pd.isna(r.electrode):
+            if 'dmd' in r.protocol:
+                continue
+            else:
+                raise ValueError('error??')
         p = mea_position.loc[r.electrode]
         df.at[i, 'laser_x'] = p.x
         df.at[i, 'laser_y'] = p.y
@@ -49,6 +61,9 @@ def extract_trial_data(filepaths: FilePaths):
     laser_specs = pd.read_csv(filepaths.laser_calib_file, index_col=0, header=0)
 
     for i, r in df.iterrows():
+        if 'dmd' in r.protocol:
+            continue
+
         if filepaths.sid == '161024_A':
             fiber_connection = dataset_sessions[filepaths.sid]['fiber_connection']
         elif 'connected_fiber' in df.columns:
@@ -62,20 +77,32 @@ def extract_trial_data(filepaths: FilePaths):
         else:
             raise ValueError('implement this')
 
-        slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
-        slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
-        inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
-        inter_intercept = laser_specs.loc[fiber_connection]['inter_intercept']
-        fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
-        fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
-        fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
-        fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
-
         laser_level = r.laser_level
         duty_cycle = r.duty_cycle
 
-        power_slope = slope_intercept + slope_slope * laser_level
-        power_inter = inter_intercept + inter_slope * laser_level
+        # I did not fit the slope/intercept in 2D if I recorded the power for
+        # too few sessions
+        if 'slop_slope' in laser_specs.loc[fiber_connection].keys():
+            slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
+            slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
+            inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
+            inter_intercept = laser_specs.loc[fiber_connection]['inter_intercept']
+            fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
+            fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
+            fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
+            fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
+
+            power_slope = slope_intercept + slope_slope * laser_level
+            power_inter = inter_intercept + inter_slope * laser_level
+
+        else:
+            power_slope = laser_specs.loc[fiber_connection]['power_slope']
+            power_inter = laser_specs.loc[fiber_connection]['power_intercept']
+            fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
+            fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
+            fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
+            fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
+
 
         power = power_inter + power_slope * duty_cycle
 

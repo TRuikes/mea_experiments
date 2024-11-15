@@ -19,7 +19,7 @@ def main():
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
-    data_io.load_session(data_io.sessions[0])
+    data_io.load_session('241108_A')
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
@@ -153,8 +153,8 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile = output_dir / f'bootstrap_{cluster_id}.pkl'
-        if savefile.exists():
-            continue
+        # if savefile.exists():
+        #     continue
         tasks.append(dict(data_io=data_io, cluster_id=cluster_id,
                           savefile=savefile))
 
@@ -215,6 +215,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
 
     output_data = {}
     for train_id in data_io.burst_df.train_id.unique():
+
         output_data[train_id] = dict(
             bins=None,
             bin_size=None,

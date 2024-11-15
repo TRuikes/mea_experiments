@@ -45,6 +45,11 @@ def create_dataset_object(filepaths: FilePaths):
     n_trials_triggers = 0
     n_bursts_triggers = 0
     for rec_id in filepaths.recording_names:
+        if 'dmd' in rec_id:
+            print('not adding DMD data')
+            n_trials_triggers += 1
+            continue
+
         train_onsets = triggers[rec_id]['laser']['train_onsets']
         n_trials_triggers += len(train_onsets)
 
@@ -54,52 +59,59 @@ def create_dataset_object(filepaths: FilePaths):
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
     assert n_trials_triggers == train_df.shape[0]
-    assert len(train_df.train_count.unique()) == 1
-    burst_count = train_df.iloc[0].train_count
-    n_bursts = n_trials_triggers * burst_count
+    assert n_bursts_triggers == train_df.train_count.sum()
 
-    assert n_bursts_triggers == n_bursts
 
     with h5py.File(filepaths.dataset_file, 'w') as f:
 
         for rec_id in filepaths.recording_names:
             print(f'\tloading {rec_id}')
-            grp = f.create_group(rec_id)
+            # grp = f.create_group(rec_id)
 
             train_rec_df = train_df.query('recording_name == @rec_id')
             assert train_rec_df.shape[0] > 0
 
-            # Store laser trigger data
-            for train_id, trial_info in train_rec_df.iterrows():
-                train_onsets = triggers[rec_id]['laser']['train_onsets']
-                burst_onsets = triggers[rec_id]['laser']['burst_onsets']
-                burst_offsets = triggers[rec_id]['laser']['burst_offsets']
+            if 'pa' in rec_id:
+                # Store laser trigger data
+                burst_offset = 0
+                for train_id, trial_info in train_rec_df.iterrows():
+                    train_onsets = triggers[rec_id]['laser']['train_onsets']
+                    burst_onsets = triggers[rec_id]['laser']['burst_onsets']
+                    burst_offsets = triggers[rec_id]['laser']['burst_offsets']
 
-                for burst_i in range(burst_count):
-                    burst_id = f'{train_id}-{burst_i}'
-                    trigger_i = int(trial_info.rec_train_i * burst_count + burst_i)
+                    burst_count = int(trial_info.train_count)
 
-                    burst = grp.create_group(f'laser/{burst_id}')
+                    for burst_i in range(burst_count):
+                        burst_id = f'{train_id}-{burst_i}'
+                        trigger_i = int(burst_offset + burst_i)
 
-                    to_store = dict(
-                        train_onset=train_onsets[int(trial_info.rec_train_i)],
-                        burst_onset=burst_onsets[trigger_i],
-                        burst_offset=burst_offsets[trigger_i],
-                        **trial_info,
-                    )
+                        burst = f.create_group(f'{rec_id}/laser/{burst_id}')
 
-                    for k, v in to_store.items():
-                        if isinstance(v, str):
-                            burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
-                        elif k in names_as_int:
-                            burst.create_dataset(k, data=int(v), dtype='int')
-                        else:
-                            burst.create_dataset(k, data=v, dtype='float')
+                        to_store = dict(
+                            train_onset=train_onsets[int(trial_info.rec_train_i)],
+                            burst_onset=burst_onsets[trigger_i],
+                            burst_offset=burst_offsets[trigger_i],
+                            **trial_info,
+                        )
+
+                        for k, v in to_store.items():
+                            if isinstance(v, str):
+                                burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
+                            elif k in names_as_int:
+                                burst.create_dataset(k, data=int(v), dtype='int')
+                            else:
+                                burst.create_dataset(k, data=v, dtype='float')
+                    burst_offset += burst_count
+
+            elif 'dmd' in rec_id:
+                print(f'need to add dmd still...')
+            else:
+                raise ValueError('?')
 
             # Store spiketimes
             for cluster_id, cinfo in cluster_info.iterrows():
 
-                cluster = grp.create_group(f'clusters/{cluster_id}')
+                cluster = f.create_group(f'{rec_id}/clusters/{cluster_id}')
 
                 for k, v in cinfo.items():
                     if isinstance(v, str):

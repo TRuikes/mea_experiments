@@ -39,19 +39,23 @@ class DataIO:
 
             for rec_id in f.keys():
                 rec_ids.append(rec_id)
-                for burst_id in f[rec_id]['laser'].keys():
-                    new_id = f'{rec_id}-{burst_id}'
 
-                    burst_df.at[new_id, 'rec_id'] = rec_id
-                    burst_df.at[new_id, 'burst_id'] = burst_id
+                if 'laser' in f[rec_id].keys():
+                    for burst_id in f[rec_id]['laser'].keys():
+                        new_id = f'{rec_id}-{burst_id}'
 
-                    for k, v in f[rec_id]['laser'][burst_id].items():
-                        if k in ['train_id']:
-                            v_out = str(v[()]).split("'")[1]
-                        else:
-                            v_out = v[()]
+                        burst_df.at[new_id, 'rec_id'] = rec_id
+                        burst_df.at[new_id, 'burst_id'] = burst_id
 
-                        burst_df.at[new_id, k] = v_out
+                        for k, v in f[rec_id]['laser'][burst_id].items():
+                            if v.dtype == 'int64':
+                                v_out = int(v[()])
+                            elif v.dtype == 'float64':
+                                v_out = float(v[()])
+                            else:
+                                v_out = str(v[()]).split("'")[1]
+
+                            burst_df.at[new_id, k] = v_out
 
                 spiketimes[rec_id] = {}
                 waveforms[rec_id] = {}
@@ -67,9 +71,9 @@ class DataIO:
                         else:
                             cluster_df.at[cluster_id, k] = v[()]
 
-        for i, r in burst_df.iterrows():
-            rn = r.recording_name
-            burst_df.at[i, 'recording_name'] = str(rn).split("'")[1]
+        # for i, r in burst_df.iterrows():
+        #     rn = r.recording_name
+        #     burst_df.at[i, 'recording_name'] = str(rn).split("'")[1]
 
         self.burst_df = burst_df
         self.cluster_df = cluster_df

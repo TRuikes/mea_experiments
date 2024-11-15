@@ -7,9 +7,9 @@ import numpy as np
 def extract_date(sid: str):
     # Extract day, month, and year from the string
     sid_split = sid.split('_')[0]
-    day = sid_split[:2]
+    day = sid_split[4:]
     month = sid_split[2:4]
-    year = sid_split[4:]
+    year = sid_split[:2]
 
     # Convert the two-digit year to four digits
     year = '20' + year if int(year) <= 99 else '19' + year
@@ -78,7 +78,7 @@ class FilePaths:
     laser_calib_file = None
     laser_calib_figure_dir = None
 
-    def __init__(self, sid=None, laser_calib_week=None):
+    def __init__(self, sid=None, laser_calib_week=None, local_raw_dir=None):
         """
         session ids have shape DDMMYY_retslice
         """
@@ -86,6 +86,8 @@ class FilePaths:
         self.dataset_dir = Path(dataset_dir)
         self.laser_calib_week = laser_calib_week
         self.dataset_out_dir = self.dataset_dir / 'dataset'
+        if local_raw_dir is not None:
+            self.local_raw_dir = Path(local_raw_dir)
 
         if sid is not None:
             self.date = extract_date(sid)
@@ -99,7 +101,7 @@ class FilePaths:
             # self.rec_nr = detect_rec_nr(self.raw_dir)
 
             # define raw files
-            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day}_{self.slice_nr}'
+            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day:02d}_{self.slice_nr}'
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
             self.raw_trials = self.raw_dir / (rec_code + '_trials.csv')

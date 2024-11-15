@@ -8,7 +8,7 @@ from axorus.preprocessing.lib.create_dataset_object import create_dataset_object
 for sid, s_specs in dataset_sessions.items():
 
     # Load the filepaths for the dataset
-    filepaths = FilePaths(sid, laser_calib_week=s_specs['laser_calib_week'])
+    filepaths = FilePaths(sid, laser_calib_week=s_specs['laser_calib_week'], local_raw_dir=s_specs['local_dir'])
 
     # Verify all files are there for this session
     filepaths.check_data()
@@ -21,7 +21,7 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=True)
+        extract_phy_data(filepaths, update=False)
 
     create_dataset_object(filepaths)
 

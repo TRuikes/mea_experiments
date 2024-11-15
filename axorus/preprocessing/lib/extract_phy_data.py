@@ -169,7 +169,11 @@ def _extract_waveforms(filepaths: FilePaths, update):
     print('\textracting waveforms...')
 
     for rname in recnames:
-        input_file = filepaths.raw_dir / f'{rname}.raw'
+        if filepaths.local_raw_dir is not None:
+            input_file = filepaths.local_raw_dir / f'{rname}.raw'
+        else:
+            input_file = filepaths.raw_dir / f'{rname}.raw'
+
         if not input_file.is_file():
             raise ValueError(f'\twaveforms: cant find file: {input_file}')
 
