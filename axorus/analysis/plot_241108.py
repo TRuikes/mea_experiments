@@ -9,7 +9,7 @@ import numpy as np
 from axorus.preprocessing.params import data_sample_rate, data_type, data_nb_channels
 
 session_id = '241108_A'
-data_dir = Path(r'D:\Axorus\ex_vivo_series_3\dataset')
+data_dir = Path(r'F:\Axorus\ex_vivo_series_3\dataset')
 figure_dir = Path(r'C:\Axorus\figures')
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
@@ -39,15 +39,12 @@ ymax = data_io.cluster_df.cluster_y.max()
 xbins = np.arange(xmin, xmax + 35, 30)
 ybins = np.arange(ymin, ymax + 35, 30)
 
-
-
 xmap = np.zeros((xbins.size, ybins.size))
 ymap = np.zeros((xbins.size, ybins.size))
 for i in range(xmap.shape[1]):
     xmap[:, i] = xbins
 for i in range(ymap.shape[0]):
     ymap[i, :] = ybins
-
 
 
 def weighted_center(heatmap):
@@ -227,9 +224,213 @@ fig.update_yaxes(
 sname = figure_dir / session_id / 'mea_scan' / f'wc_distances'
 utils.save_fig(fig, sname, display=True)
 
+#%%
+
+weighted_centres['d'] = np.sqrt(
+    (weighted_centres['xc']-weighted_centres['laser_bin_x'])**2 +
+    (weighted_centres['yc']-weighted_centres['laser_bin_y'])**2
+) * 30
 
 
+fig = utils.simple_fig(
+    equal_width_height='y',
+    width=1,
+    height=1,
+)
+
+fig.add_scatter(
+    x=weighted_centres['laser_bin_x'].values * 30,
+    y=weighted_centres['d'].values,
+    mode='markers',
+    marker=dict(color='orange', size=6),
+)
+
+fig.update_xaxes(
+    tickvals=np.arange(0, 300, 60),
+    range=[0, 350],
+    title_text='laser pos on x-axis [um]'
+)
+
+fig.update_yaxes(
+    tickvals=np.arange(0, 400, 20),
+    range=[0, 110],
+    title_text=f'd (resp. - laser.) [um]'
+)
+
+sname = figure_dir / session_id / 'mea_scan' / f'dist_from_laser_centre'
+utils.save_fig(fig, sname, display=True)
 
 
+#%% heatmaps
+
+heatmap_df = pd.DataFrame()
+row_i = 0
+
+for train_id in trials.train_id.unique():
+
+    train_info = trials.query(f'train_id == "{train_id}"')
+    train_laser_x = train_info.iloc[0].laser_x
+    train_laser_y = train_info.iloc[0].laser_y
+
+    x_idx = int(np.argwhere(laser_x == train_laser_x)[0][0])
+    y_idx = int(np.argwhere(laser_y == train_laser_y)[0][0])
+    row = x_idx + 1
+    col = y_idx + 1
+    pos = dict(row=col, col=row)
+
+    fr_sum = np.zeros((xbins.size, ybins.size))
+    fr_count = np.zeros((xbins.size, ybins.size))
+    fr_map = np.zeros((xbins.size, ybins.size))
+
+    for i, r in data_io.cluster_df.iterrows():
+        lx = r.cluster_x
+        ly = r.cluster_y
+        d = np.sqrt((lx - train_laser_x)**2 + (ly - train_laser_y)**2)
+
+        x_rel = lx - train_laser_x
+        y_rel = ly - train_laser_y
+
+        if i not in cells_df.index.values:
+            continue
+
+        fr = cells_df.loc[i, (train_id, 'response_firing_rate')]
+        is_sig = cells_df.loc[i, (train_id, 'is_significant')]
+
+        if pd.isna(fr):
+            continue
+
+        heatmap_df.at[row_i, 'uid'] = i
+        heatmap_df.at[row_i, 'tid'] = train_id
+        heatmap_df.at[row_i, 'fr'] = fr
+        heatmap_df.at[row_i, 'is_sig'] = is_sig
+        heatmap_df.at[row_i, 'd'] = d
+        heatmap_df.at[row_i, 'x_rel'] = x_rel
+        heatmap_df.at[row_i, 'y_rel'] = y_rel
+
+        row_i += 1
+
+#%%
+from scipy.ndimage import gaussian_filter
 
 
+x = heatmap_df.x_rel.values
+y = heatmap_df.y_rel.values
+z = heatmap_df.fr.values
+
+
+grid_binwidth = 15
+axlen = 500
+xmin = -axlen
+xmax = axlen
+ymin = -axlen
+ymax = axlen
+# binwidth = 50
+n = int((xmax - xmin) / grid_binwidth)
+xi = np.linspace(xmin, xmax, n+1)
+yi = np.linspace(ymin, ymax, n+1)
+
+# Create a grid for the heatmap
+grid_size = 100
+xi, yi = np.meshgrid(xi, yi)
+xi = xi.astype(float)
+yi = yi.astype(float)
+zi = np.zeros_like(xi)
+zi_count = np.zeros_like(xi)
+
+# Populate the grid with the z values using nearest points
+for i in range(len(x)):
+    xi_idx = np.abs(xi[0] - x[i]).argmin()
+    yi_idx = np.abs(yi[:, 0] - y[i]).argmin()
+    if pd.notna(z[i]):
+        zi[yi_idx, xi_idx] += z[i]
+        zi_count[yi_idx, xi_idx] += 1
+
+idx = zi_count > 0
+zi[idx] = zi[idx] / zi_count[idx]
+
+# Apply Gaussian filter to smooth the grid
+zi = gaussian_filter(zi, sigma=3)
+
+
+fig = utils.simple_fig(
+    equal_width_height='y',
+    width=0.5,
+    height=1,
+)
+
+# Plot the heatmap
+fig.add_heatmap(
+    z=zi,
+    x=xi[0],  # x-axis values
+    y=yi[:, 0],  # y-axis values
+    colorscale='Viridis',
+    showscale=False,
+)
+
+for i in np.arange(-axlen, axlen, 250):
+    fig.add_scatter(
+        x=[i, i], y=[-axlen, axlen+1],
+        mode='lines', line=dict(color='gold', dash='2px', width=0.5),
+        showlegend=False,
+    )
+    fig.add_scatter(
+        y=[i, i], x=[-axlen, axlen+1],
+        mode='lines', line=dict(color='gold', dash='2px', width=0.5),
+        showlegend=False,
+    )
+
+fig.update_xaxes(
+    tickvals=np.arange(-axlen, axlen, 250),
+    range=[-axlen, axlen]
+)
+
+
+fig.update_yaxes(
+    tickvals=np.arange(-axlen, axlen, 250),
+    range = [-axlen, axlen],
+)
+
+
+sname = figure_dir / session_id / 'mea_scan' / f'heatmap'
+utils.save_fig(fig, sname, display=True)
+
+
+#%%
+
+
+fig = utils.simple_fig(
+    equal_width_height='y',
+    width=0.5,
+    height=1,
+)
+
+clr = []
+for i, r in heatmap_df.iterrows():
+    if r.is_sig:
+        clr.append('green')
+    else:
+        clr.append('black')
+
+
+fig.add_scatter(
+    x=heatmap_df.d.values,
+    y=heatmap_df.fr.values,
+    mode='markers',
+    marker=dict(color=clr, size=2)
+)
+
+fig.update_xaxes(
+    range=[0, 500],
+    tickvals=np.arange(0, 500, 100),
+    title_text=f'd. from laser [um]'
+)
+
+fig.update_yaxes(
+    range=[0, 200],
+    tickvals=np.arange(0, 200, 50),
+    title_text=f'fr [Hz]'
+)
+
+
+sname = figure_dir / session_id / 'mea_scan' / f'fr_vs_dist'
+utils.save_fig(fig, sname, display=True)

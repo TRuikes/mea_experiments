@@ -61,7 +61,6 @@ def create_dataset_object(filepaths: FilePaths):
     assert n_trials_triggers == train_df.shape[0]
     assert n_bursts_triggers == train_df.train_count.sum()
 
-
     with h5py.File(filepaths.dataset_file, 'w') as f:
 
         for rec_id in filepaths.recording_names:
@@ -82,7 +81,7 @@ def create_dataset_object(filepaths: FilePaths):
                     burst_count = int(trial_info.train_count)
 
                     for burst_i in range(burst_count):
-                        burst_id = f'{train_id}-{burst_i}'
+                        burst_id = f'{train_id}-{burst_i:02d}'
                         trigger_i = int(burst_offset + burst_i)
 
                         burst = f.create_group(f'{rec_id}/laser/{burst_id}')

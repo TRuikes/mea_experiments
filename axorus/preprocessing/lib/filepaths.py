@@ -144,6 +144,7 @@ class FilePaths:
             self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
             self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'
             self.proc_pp_figure_output = self.processed_dir / 'figures'
+            self.proc_pp_artefact_positions = self.processed_dir / 'artefact_positions.csv'
 
             # define trails file
             self.proc_pp_trials = self.processed_dir / 'trials.csv'
