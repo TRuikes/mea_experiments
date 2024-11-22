@@ -6,8 +6,6 @@ from pathlib import Path
 import os
 import utils
 from tqdm import tqdm
-from phylib.io.model import load_model
-
 
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)

@@ -11,23 +11,22 @@ for sid, s_specs in dataset_sessions.items():
     # Load the filepaths for the dataset
     filepaths = FilePaths(sid, laser_calib_week=s_specs['laser_calib_week'], local_raw_dir=s_specs['local_dir'])
 
-    # # Verify all files are there for this session
-    # filepaths.check_data()
-    #
-    # # Extract stimulation triggers
-    # extract_triggers(filepaths, update=False, visualize_detection=False)
-    #
-    # # Extract trial data
-    # extract_trial_data(filepaths)
-    #
-    # # Extract manually sorted data
-    # if filepaths.has_manual_sorted_data:
-    #     extract_phy_data(filepaths, update=False)
-    #
-    # create_dataset_object(filepaths)
-    #
+    # Verify all files are there for this session
+    filepaths.check_data()
+
+    # Extract stimulation triggers
+    extract_triggers(filepaths, update=False, visualize_detection=False)
+
+    # Extract trial data
+    extract_trial_data(filepaths)
+
+    # Extract manually sorted data
+    if filepaths.has_manual_sorted_data:
+        extract_phy_data(filepaths, update=False)
+
+    create_dataset_object(filepaths)
 
     # Detect laser position
-    detect_laser_position(filepaths)   # doesnt work yet
+    # detect_laser_position(filepaths)   # doesnt work yet
 
 
