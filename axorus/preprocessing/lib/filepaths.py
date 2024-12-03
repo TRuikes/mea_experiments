@@ -83,6 +83,8 @@ class FilePaths:
         session ids have shape DDMMYY_retslice
         """
         self.sid = sid
+        if not Path(dataset_dir).is_dir():
+            raise ValueError(f'Cannot find datasetdir: {dataset_dir}')
         self.dataset_dir = Path(dataset_dir)
         self.laser_calib_week = laser_calib_week
         self.dataset_out_dir = self.dataset_dir / 'dataset'
@@ -162,6 +164,7 @@ class FilePaths:
         else:
             self.laser_calib_path = self.dataset_dir / 'laser_calibration' / self.laser_calib_week
             self.laser_calib_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}.csv'
+            self.laser_calib_power_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}_power.csv'
             self.laser_calib_figure_dir = self.laser_calib_path / 'figures'
 
     def check_data(self):

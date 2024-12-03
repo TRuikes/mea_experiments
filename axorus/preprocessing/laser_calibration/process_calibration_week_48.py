@@ -1,16 +1,14 @@
-from pathlib import Path
 import pandas as pd
 import utils
 import numpy as np
-from scipy.signal import find_peaks, medfilt
 from axorus.preprocessing.lib.filepaths import FilePaths
 from axorus.preprocessing.project_colors import ProjectColors
 from axorus.preprocessing.laser_calibration.oscilloscope_processing import (read_oscilloscope_data,
                                                                             plot_oscilloscope_data, measure_repfreq)
 
 
-def process_calibration_week_45():
-    filepaths = FilePaths(laser_calib_week='week_45')
+def process_calibration_week_48():
+    filepaths = FilePaths(laser_calib_week='week_48')
     clrs = ProjectColors()
 
     dataframes = []
@@ -28,7 +26,7 @@ def process_calibration_week_45():
         elif 'C6' in r.fiber_connection:
             diameter = 50 / 1e3  # mm
         elif 'C7' in r.fiber_connection:
-            diameter = 50 / 1e3
+            diameter = 50 / 1e3  # mm
         else:
             raise ValueError()
 
@@ -46,7 +44,7 @@ def process_calibration_week_45():
             subplot_titles={1: [f'']}
         )
 
-        for laser_level, ldf in fdf.groupby('laser_level'):
+        for n_turns, ldf in fdf.groupby('n_turns'):
             x = ldf.duty_cycle.values
             y = ldf.measured_power.values
 
@@ -54,21 +52,18 @@ def process_calibration_week_45():
                 x=x,
                 y=y,
                 mode='lines+markers',
-                line=dict(width=1, color=clrs.laser_level(laser_level, 1)),
-                marker=dict(size=5, color=clrs.laser_level(laser_level, 1)),
-                name=f'L={laser_level}',
+                line=dict(width=1, color=clrs.n_turns(n_turns, 1)),
+                marker=dict(size=5, color=clrs.n_turns(n_turns, 1)),
+                name=f'n={n_turns}',
             )
 
         fig.update_xaxes(
             tickvals=power_df.duty_cycle.unique(),
             title_text='Controller duty cycle [no unit]',
         )
-        if 'C6' in fiber_connection:
-            ymax = 50
-            ytick = 10
-        else:
-            ymax = 50
-            ytick = 10
+
+        ymax = 60
+        ytick = 10
 
         fig.update_yaxes(
             range=[0, ymax],
@@ -80,7 +75,7 @@ def process_calibration_week_45():
             legend_y=0.3,
         )
         # break
-        utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'av_pwr_per_laser_level_{fiber_connection}')
+        utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'av_pwr_per_n_turns_{fiber_connection}')
 
     # Plot irradiance per cable connection and laser level
     for fiber_connection, fdf in power_df.groupby('fiber_connection'):
@@ -101,7 +96,7 @@ def process_calibration_week_45():
             subplot_titles={1: [f'fbr: {cbl}, att: {att}']}
         )
 
-        for laser_level, ldf in fdf.groupby('laser_level'):
+        for n_turns, ldf in fdf.groupby('n_turns'):
             x = ldf.duty_cycle.values
             y = ldf.irradiance.values  # W / mm2
 
@@ -109,9 +104,9 @@ def process_calibration_week_45():
                 x=x,
                 y=y,
                 mode='lines+markers',
-                line=dict(width=1, color=clrs.laser_level(laser_level, 1)),
-                marker=dict(size=5, color=clrs.laser_level(laser_level, 1)),
-                name=f'L={laser_level}',
+                line=dict(width=1, color=clrs.n_turns(n_turns, 1)),
+                marker=dict(size=5, color=clrs.n_turns(n_turns, 1)),
+                name=f'n={n_turns}',
             )
 
         fig.update_xaxes(
@@ -120,20 +115,9 @@ def process_calibration_week_45():
             range=[0, 85]
         )
 
-        if 'C1' in fiber_connection:
-            ystep = 5
-        elif 'C6' in fiber_connection and att == '14':
-            ystep = 5
-        elif 'C7' in fiber_connection and att == '14':
-            ystep = 5
-        elif 'C6' in fiber_connection and att == '04':
-            ystep = 5
-        else:
-            raise ValueError('error?')
-
         fig.update_yaxes(
-            range=[0, 30],
-            tickvals=np.arange(0, 1200, ystep),
+            range=[0, 3],
+            tickvals=np.arange(0, 1200, 1),
             title_text='Irradiance [W/mm2]',
         )
         fig.update_layout(
@@ -141,7 +125,7 @@ def process_calibration_week_45():
             legend_y=0.3,
         )
         # break
-        utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'irradiance_per_laser_level_{fiber_connection}')
+        utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'irradiance_per_n_turns_{fiber_connection}')
 
     # Read frep files
     frep_data = pd.DataFrame()
@@ -310,7 +294,7 @@ def process_calibration_week_45():
             subplot_titles={1: [f'']}
         )
 
-        for laser_level, ldf in fdf.groupby('laser_level'):
+        for n_turns, ldf in fdf.groupby('n_turns'):
 
             x = ldf.duty_cycle.values
             y = ldf.energy_pulse.values
@@ -327,10 +311,10 @@ def process_calibration_week_45():
                 x=x,
                 y=y,
                 mode='markers+lines',
-                line=dict(width=1, color=clrs.laser_level(laser_level, 1),
+                line=dict(width=1, color=clrs.n_turns(n_turns, 1),
                           dash=dash),
-                marker=dict(size=5, color=clrs.laser_level(laser_level, 1)),
-                name=f'L={laser_level}',
+                marker=dict(size=5, color=clrs.n_turns(n_turns, 1)),
+                name=f'L={n_turns}',
                 showlegend=False,
             )
 
@@ -358,91 +342,12 @@ def process_calibration_week_45():
         utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'pulse_energy_{fiber_connection}')
 
         power_df.to_csv(filepaths.laser_calib_power_file)
-        print(f'saved laser calibration: {filepaths.laser_calib_power_file}')
+        print(f'saved laser calibration: {filepaths.laser_calib_file}')
 
-        # To export
-        coeffs_fit = pd.DataFrame()
+        filepaths_45 = FilePaths(laser_calib_week='week_45')
 
-        for fc in power_df.fiber_connection.unique():
+        power_df_45 = pd.read_csv(filepaths_45.laser_calib_power_file, index_col=0, header=0)
 
-            fig = utils.simple_fig(
-                height=1.5,
-                width=1,
-                subplot_titles={1: [f'{fc}']}
-            )
-
-            data_to_fit = pd.DataFrame()
-            # Find the slope and intercept for each laser level
-
-            for laser_level, ldf in power_df.query('fiber_connection == @fc').groupby('laser_level'):
-                idx =  np.where(ldf.duty_cycle.values < 90)[0]
-                x = ldf.duty_cycle.values[idx]
-                y = ldf.measured_power.values[idx]
-                idx = np.where(pd.notna(y))[0]
-
-                slope, intercept = np.polyfit(x[idx], y[idx], 1)
-                data_to_fit.at[laser_level, 'power_slope'] = slope
-                data_to_fit.at[laser_level, 'power_intercept'] = intercept
-
-                fig.add_scatter(
-                    x=x,
-                    y=y,
-                    mode='markers+lines',
-                    line=dict(width=1, color=clrs.laser_level(laser_level, 1),
-                              dash='solid'),
-                    marker=dict(size=5, color=clrs.laser_level(laser_level, 1)),
-                    name=f'L={laser_level}',
-                    showlegend=False,
-                )
-
-            coeffs_fit.at[fc, 'power_slope'] = data_to_fit.loc[85].power_slope
-            coeffs_fit.at[fc, 'power_intercept'] = data_to_fit.loc[85].power_intercept
-            coeffs_fit.at[fc, 'fr_slope_slope'] = fr_slope_slope
-            coeffs_fit.at[fc, 'fr_slope_intercept'] = fr_slope_intercept
-            coeffs_fit.at[fc, 'fr_inter_slope'] = fr_inter_slope
-            coeffs_fit.at[fc, 'fr_inter_intercept'] = fr_inter_intercept
-
-
-            for l_test in [85]:
-                s = coeffs_fit.loc[fc, 'power_slope']
-                i = coeffs_fit.loc[fc, 'power_intercept']
-
-                x = np.arange(0, 100, 20)
-                y = s * x + i
-                fig.add_scatter(
-                    x=x,
-                    y=y,
-                    mode='markers+lines',
-                    line=dict(width=1, color=clrs.laser_level(l_test, 1),
-                              dash='1px'),
-                    marker=dict(size=5, color=clrs.laser_level(l_test, 1)),
-                    name=f'L={l_test}',
-                    showlegend=False,
-                )
-
-            fig.update_xaxes(
-                tickvals=power_df.duty_cycle.unique(),
-                title_text='Controller duty cycle [no unit]',
-            )
-
-            if fc == 'CB1_26_C1':
-                ymax = 500
-            else:
-                ymax = 50
-
-            fig.update_yaxes(
-                range=[0, ymax],
-                tickvals=np.arange(0, 1200, ymax/10),
-                title_text='Average power [mW]',
-            )
-
-            utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'fit_power_curves_{fc}')
-
-        coeffs_fit.to_csv(filepaths.laser_calib_file)
-        print(f'saved: {filepaths.laser_calib_file}')
-        # measured_power as function of dc, per laser level
-        # repetition frequency as function of dc, per laser level
-
-
+        x1 = power_df_
 if __name__ == '__main__':
-    process_calibration_week_45()
+    process_calibration_week_48()

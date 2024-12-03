@@ -9,7 +9,7 @@ import numpy as np
 
 # Load data
 session_id = '241108_A'
-data_dir = Path(r'F:\Axorus\ex_vivo_series_3\dataset')
+data_dir = Path(r'D:\Axorus\ex_vivo_series_3\dataset')
 figure_dir = Path(r'C:\Axorus\figures')
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
@@ -80,9 +80,7 @@ for cluster_id, cinfo in data_io.cluster_df.iterrows():
 
 #%% 2 PA MIN MAX SERIES
 
-#%% 2.1 single cell fr vs pulse rate
-
-
+# 2.1 single cell fr vs pulse rate
 burst_df = data_io.burst_df.query('protocol == "pa_dc_min_max_series"')
 
 # General setup of figure
@@ -559,7 +557,6 @@ bins = np.arange(0, d_max + d_width, d_width)
 # Assign each row in 'd' to a bin
 distance_df['bin'] = pd.cut(distance_df['d'], bins=bins, right=False, include_lowest=True)
 
-#%%
 
 # Compute bin centers
 bin_centers = bins[:-1] + d_width / 2  # Exclude the last bin edge and calculate centers
@@ -678,6 +675,10 @@ for train_id in trials.train_id.unique():
     col = y_idx + 1
     pos = dict(row=col, col=row)
 
+    fr_sum = np.zeros((xbins.size, ybins.size))
+    fr_count = np.zeros((xbins.size, ybins.size))
+    fr_map = np.zeros((xbins.size, ybins.size))
+
     for yy, yclr in zip([120, 180, 240], ['gold', 'gold', 'gold']):
         # dx = np.abs(xbins - 120)
         dy = np.abs(ybins - yy)
@@ -690,10 +691,6 @@ for train_id in trials.train_id.unique():
             showlegend=False,
             **pos,
         )
-
-    fr_sum = np.zeros((xbins.size, ybins.size))
-    fr_count = np.zeros((xbins.size, ybins.size))
-    fr_map = np.zeros((xbins.size, ybins.size))
 
     for i, r in data_io.cluster_df.iterrows():
         lx = r.cluster_x
@@ -1131,14 +1128,13 @@ fs = 1000  # Sampling frequency in Hz (adjust to your actual sampling frequency)
 cutoff = 50  # Cutoff frequency in Hz
 order = 4  # Filter order
 
-filepaths = FilePaths('241108_A', local_raw_dir=r'E:\Axorus\tmp')
+filepaths = FilePaths('241108_A', local_raw_dir=r'C:\Axorus\tmp')
 
 uid = 'uid_081124_001'
 cluster_info = data_io.cluster_df.loc[uid]
 cluster_channel = cluster_info.ch
-bursts = data_io.burst_df.query('protocol == "pa_dc_min_max_series"')
 
-to_plot = data_io.burst_df.query('electrode == 47')
+to_plot = data_io.burst_df.query('electrode == 47 and protocol == "pa_dc_min_max_series"')
 
 for tid, df in to_plot.groupby('train_id'):
     # bursts = data_io.burst_df.query('protocol == "pa_temporal_series"')
@@ -1159,7 +1155,7 @@ for tid, df in to_plot.groupby('train_id'):
                               dtype=int)
 
     # Extract a burst
-    burst_onset = bursts.iloc[2].burst_onset / 1000  # in [s]
+    burst_onset = df.iloc[2].burst_onset / 1000  # in [s]
     t_pre = 1  # [s]
     t_after = 1  # [s]
     n_pre = t_pre * data_sample_rate  # [samples]
@@ -1213,13 +1209,15 @@ for tid, df in to_plot.groupby('train_id'):
         width=1, height=1.2,
         x_domains=x_domains,
         y_domains=y_domains,
+        subplot_titles={1: [f'duty cycle:{df.iloc[0].duty_cycle:.0f}, '
+                            f'train period: {df.iloc[0].train_period:.0f}']}
     )
 
     time = ((np.arange(i0, i1, 1) / data_sample_rate) - burst_onset ) * 1000
 
     fig.add_scatter(
         x=time, y=burst_data,
-        mode='lines', line=dict(color='black', width=1),
+        mode='lines', line=dict(color='black', width=0.2),
         showlegend=False,
     )
 
@@ -1237,8 +1235,11 @@ for tid, df in to_plot.groupby('train_id'):
 
     fig.update_yaxes(
         range=[y_min, y_max],
+        tickvals=np.arange(y_min, y_max, 1000),
+        ticktext=[f'{t:.0f}' for t in np.arange(y_min, y_max, 1000) / 1000],
     )
 
-    sname = figure_dir / session_id / 'temporal_series' / 'raw_data' / f'{uid}_{tid}'
+    sname = figure_dir / session_id / 'temporal_series' / 'raw_data' / (f'{uid}_duty_cycle_{df.iloc[0].duty_cycle:.0f}_'
+                                                                        f'train_period_{df.iloc[0].train_period:.0f}_{tid}')
     utils.save_fig(fig, sname, display=False)
 

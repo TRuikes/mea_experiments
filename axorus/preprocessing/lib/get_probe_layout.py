@@ -7,7 +7,7 @@ def get_probe_layout(probe_name):
     # Define a dictionary to store the variables
     variables = {}
 
-    file = r'F:\Axorus\ex_vivo_series_3' + f'\\{probe_name}.prb'
+    file = r'D:\Axorus\ex_vivo_series_3' + f'\\{probe_name}.prb'
 
     # Open the file in read mode
     with open(file, 'r') as f:

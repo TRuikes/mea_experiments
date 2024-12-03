@@ -1,4 +1,4 @@
-dataset_dir = r'F:\Axorus\ex_vivo_series_3'
+dataset_dir = r'E:\Axorus\ex_vivo_series_3'
 data_trigger_channels = dict(
     dmd=127,
     laser=128,
