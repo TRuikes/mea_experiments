@@ -11,7 +11,8 @@ import multiprocessing as mp
 import plotly
 import sys
 import h5py
-
+from pptx import Presentation
+from pptx.util import Inches
 
 FIG_SCALE = 5
 
@@ -521,3 +522,29 @@ def hex_to_rgba(hx, opacity, as_array=False):
         res = res.split('(')[1].split(')')[0].split(',')
         res.append(opacity)
         return [int(r) for r in res]
+
+
+def create_ppt_with_figures_2_row_1_col(image_paths, output_pptx):
+    """Creates a PowerPoint presentation with Plotly figures in a 2x2 grid per slide."""
+    positions = [
+        (Inches(0.5), Inches(0.5)),  # Top-left
+        # (Inches(5), Inches(0.5)),  # Top-right
+        (Inches(0.5), Inches(4)),  # Bottom-left
+        # (Inches(5), Inches(4))  # Bottom-right
+    ]
+
+    prs = Presentation()
+    # Group images into chunks of 4
+    for slide_i in tqdm(range(0, len(image_paths), 2), 'creating waveforms ppt'):
+
+        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Use blank slide layout
+        for frame_j in range(2):
+            if slide_i + frame_j > len(image_paths) - 1 :
+                continue
+            slide.shapes.add_picture(
+                image_paths[slide_i  + frame_j],
+                positions[frame_j][0], positions[frame_j][1],
+                width=Inches(8), height=Inches(3))
+
+    prs.save(output_pptx)
+    print(f"PowerPoint saved to {output_pptx}")

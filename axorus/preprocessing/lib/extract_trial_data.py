@@ -103,10 +103,9 @@ def extract_trial_data(filepaths: FilePaths):
             fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
             fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
 
+        power = power_inter + power_slope * duty_cycle  # mW
 
-        power = power_inter + power_slope * duty_cycle
-
-        frep_slope = fr_slope_intercept + fr_slope_slope * laser_level
+        frep_slope = fr_slope_intercept + fr_slope_slope * laser_level  # Hz
         frep_inter = fr_inter_intercept + fr_inter_slope * laser_level
 
         frep = frep_inter + frep_slope * duty_cycle
@@ -117,14 +116,20 @@ def extract_trial_data(filepaths: FilePaths):
 
         if '_C6' in fiber_connection:
             diameter = 50 / 1e3  # mm
+            large_diameter = 150 / 1e3  # mm
         else:
             diameter = 200 / 1e3  # mm
+            large_diameter = 600 / 1e3
 
         area = np.pi * (diameter / 2) ** 2
+        large_area = np.pi * (large_diameter / 2) ** 2
         power = power / 1000  # W
         irradiance = power / area  # W / mm2
 
         df.at[i, 'irradiance'] = irradiance
+        df.at[i, 'irradiance_exact_fiber_diameter'] = irradiance  # irradiane at exact fiber diameter
+        df.at[i, 'irradiance_3x_fiber_diameter'] = power / large_area  # W / mm2
+
     # except:
     #     print(f'ERROR IN LASER POWER DATAFRAME, FIX THIS')
 
