@@ -1,8 +1,6 @@
-#%%
 import os
 import cv2
 import numpy as np
-import plotly.graph_objects as go
 import utils
 import pandas as pd
 from axorus.preprocessing.lib.filepaths import FilePaths
@@ -48,8 +46,9 @@ def find_boundaries_array(x, y, target_area=0.9):
     return x[left_index], x[right_index]
 
 
+# Function to annotate extracted data to images
 def annotate_image(im, cntr, r_pxl, d_um):
-    # Write circle to miage
+    # Write circle to image
     im_out = cv2.circle(im,
                         (int(cntr[0]), int(cntr[1])),
                         int(r_pxl),
@@ -67,6 +66,7 @@ def annotate_image(im, cntr, r_pxl, d_um):
     return im_out
 
 
+# Function to generate a circle of points based on a radius
 def generate_circle_points(radius, num_points=100):
     """
     Generate x, y points for a circle with given radius.
@@ -89,34 +89,32 @@ def generate_circle_points(radius, num_points=100):
     return x, y
 
 
-#%%
 # General setup
 filepaths = FilePaths(laser_calib_week='week_48')
 
 # Define the directory and threshold
 directory = r"F:\Axorus\ex_vivo_series_3\laser_calibration\week_48\spotsizes\calibration_c7"
-threshold_value = 50  # User-defined threshold
 
 # Measure resolution of image
-# points = annotate_points(r"F:\Axorus\ex_vivo_series_3\laser_calibration\week_48\spotsizes\calibration_c7\mea.tif")
-# df = points.copy()
-#
-# # Extract the x and y coordinates
-# coords = df[['x', 'y']].values
-#
-# # Compute the pairwise distances
-# distances = np.sqrt(((coords[:, None, :] - coords[None, :, :]) ** 2).sum(axis=2))
-#
-# # Set the diagonal (distance to itself) to infinity to exclude self-comparison
-# np.fill_diagonal(distances, np.inf)
-#
-# # Find the minimum distance for each point
-# nearest_distances = distances.min(axis=1)
-#
-# mean_distance = np.mean(nearest_distances)
+points = annotate_points(r"F:\Axorus\ex_vivo_series_3\laser_calibration\week_48\spotsizes\calibration_c7\mea.tif")
+df = points.copy()
 
-# resolution_px_to_um = 30 / mean_distance  # um / pxl
-resolution_px_to_um = 2.10
+# Extract the x and y coordinates
+coords = df[['x', 'y']].values
+
+# Compute the pairwise distances
+distances = np.sqrt(((coords[:, None, :] - coords[None, :, :]) ** 2).sum(axis=2))
+
+# Set the diagonal (distance to itself) to infinity to exclude self-comparison
+np.fill_diagonal(distances, np.inf)
+
+# Find the minimum distance for each point
+nearest_distances = distances.min(axis=1)
+
+mean_distance = np.mean(nearest_distances)
+
+resolution_px_to_um = 30 / mean_distance  # um / pxl
+# resolution_px_to_um = 2.10
 
 #%% Read MEA image
 

@@ -50,6 +50,12 @@ class ProjectColors:
         r, g, b = cmaps.torch.cut(0.2, 'left').cut(0.2, 'right').discrete(100).colors[int(duty_cycle), :]
         return f'rgba({r}, {g}, {b}, 1)'
 
+    @staticmethod
+    def min_max_map(val, min_val, max_val):
+        rel_i = int((val - min_val) / (max_val - min_val) * 100)
+        r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[rel_i, :]
+        return f'rgba({r}, {g}, {b}, {1})'
+
 
 if __name__ == '__main__':
     # p = ProjectColors()

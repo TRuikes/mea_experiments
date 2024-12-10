@@ -8,3 +8,6 @@ scipy
 colormaps
 matplotlib
 phylib
+python-pptx
+opencv-python
+pyqt5
