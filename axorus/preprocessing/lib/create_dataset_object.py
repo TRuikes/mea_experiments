@@ -45,11 +45,10 @@ def create_dataset_object(filepaths: FilePaths):
     n_trials_triggers = 0
     n_bursts_triggers = 0
     for rec_id in filepaths.recording_names:
-        if 'dmd' in rec_id:
+        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
             print('not adding DMD data')
             n_trials_triggers += 1
             continue
-
         train_onsets = triggers[rec_id]['laser']['train_onsets']
         n_trials_triggers += len(train_onsets)
 
@@ -102,7 +101,7 @@ def create_dataset_object(filepaths: FilePaths):
                                 burst.create_dataset(k, data=v, dtype='float')
                     burst_offset += burst_count
 
-            elif 'dmd' in rec_id:
+            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
                 print(f'need to add dmd still...')
             else:
                 raise ValueError('?')

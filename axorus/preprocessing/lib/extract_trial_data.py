@@ -11,7 +11,11 @@ def extract_trial_data(filepaths: FilePaths):
     else:
         dataframes = []
         for f in filepaths.raw_trials:
-            dataframes.append(pd.read_csv(f, index_col=0, header=0))
+            df_read = pd.read_csv(f, index_col=0, header=0)
+            if df_read.shape[1] == 0:
+                df_read = pd.read_csv(f, index_col=0, header=0, delimiter=';')
+            df_read = df_read.loc[pd.notna(df_read.index)]
+            dataframes.append(df_read)
         df = pd.concat(dataframes, ignore_index=True)
 
     if df.shape[1] == 0:  # use another delimiter
@@ -29,6 +33,9 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'train_id'] = tid
         train_i += 1
 
+        if pd.isna(r.protocol):
+            print(i)
+
         if 'dmd' in r.protocol:
             tail = '_dmd'
         elif 'pa' in r.protocol:
@@ -38,7 +45,13 @@ def extract_trial_data(filepaths: FilePaths):
 
         rec_nr = r.recording_number
         blocker = r.blockers
-        recording_name = f'{filepaths.sid}_{rec_nr}_{blocker}{tail}'
+        recording_name = None
+
+        for rr in filepaths.recording_names:
+            if f'_{rec_nr:.0f}_' in rr:
+                recording_name = rr
+        assert recording_name is not None
+
         df.at[i, 'recording_name'] = recording_name
 
     df.set_index('train_id_index', inplace=True)
@@ -61,8 +74,6 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'laser_x'] = p.x
         df.at[i, 'laser_y'] = p.y
 
-    # Add laser stim specs to data
-
     # try:
     laser_specs = pd.read_csv(filepaths.laser_calib_file, index_col=0, header=0)
 
@@ -76,8 +87,10 @@ def extract_trial_data(filepaths: FilePaths):
             cb = r.connected_fiber
             att = r.attenuator
 
-            if att == 1.4:
+            if att == 1.4 or att == '1.4':
                 fiber_connection = f'CB1_14_{cb}'
+            elif att == 'CA':
+                fiber_connection = f'CB1_CA_{cb}_{r.n_turns:.0f}'
             else:
                 raise ValueError('implement this')
         else:
@@ -88,6 +101,8 @@ def extract_trial_data(filepaths: FilePaths):
 
         # I did not fit the slope/intercept in 2D if I recorded the power for
         # too few sessions
+
+
         if 'slop_slope' in laser_specs.loc[fiber_connection].keys():
             slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
             slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']

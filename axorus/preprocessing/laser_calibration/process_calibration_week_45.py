@@ -374,7 +374,7 @@ for fiber_connection, fdf in power_df.groupby('fiber_connection'):
         # Find the slope and intercept for each laser level
 
         for laser_level, ldf in power_df.query('fiber_connection == @fc').groupby('laser_level'):
-            idx =  np.where(ldf.duty_cycle.values < 90)[0]
+            idx = np.where(ldf.duty_cycle.values < 90)[0]
             x = ldf.duty_cycle.values[idx]
             y = ldf.measured_power.values[idx]
             idx = np.where(pd.notna(y))[0]
@@ -437,11 +437,7 @@ for fiber_connection, fdf in power_df.groupby('fiber_connection'):
 
         utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'fit_power_curves_{fc}')
 
-    coeffs_fit.to_csv(filepaths.laser_calib_file)
-    print(f'saved: {filepaths.laser_calib_file}')
-    # measured_power as function of dc, per laser level
-    # repetition frequency as function of dc, per laser level
-
-
-if __name__ == '__main__':
-    process_calibration_week_45()
+coeffs_fit.to_csv(filepaths.laser_calib_file)
+print(f'saved: {filepaths.laser_calib_file}')
+# measured_power as function of dc, per laser level
+# repetition frequency as function of dc, per laser level

@@ -6,7 +6,7 @@ import numpy as np
 from axorus.preprocessing.lib.filepaths import FilePaths
 from axorus.preprocessing.project_colors import ProjectColors
 from axorus.preprocessing.laser_calibration.oscilloscope_processing import (read_oscilloscope_data,
-                                                                        plot_oscilloscope_data, measure_repfreq)
+                                                                            plot_oscilloscope_data, measure_repfreq)
 filepaths = FilePaths(laser_calib_week='week_49')
 clrs = ProjectColors()
 
@@ -27,7 +27,7 @@ for i, r in power_df.iterrows():
     power_df.at[i, 'attenuator'] = attenuator
     power_df.at[i, 'fiber_2'] = fiber_2
 
-    if fiber_2 ==  'C3':
+    if fiber_2 == 'C3':
         diameter = 300 / 1e3  # mm
     elif fiber_2 == 'C7':
         diameter = 100 / 1e3  # mm
@@ -43,6 +43,10 @@ for i, r in power_df.iterrows():
     irradiance = power / area  # W / mm2
 
     power_df.at[i, 'irradiance'] = irradiance
+
+    if attenuator == 'CA':
+        n_turns = r.n_turns
+        power_df.at[i, 'fiber_connection'] = f'{r.fiber_connection}_{n_turns:.0f}'
 
 
 #%% Read repeition frequency data
@@ -347,13 +351,11 @@ for laser_level in laser_levels:
             **pos,
         )
 
-
     fig.update_yaxes(
         tickvals=np.arange(0, 35, 1),
         title_text='Pe [uJ]',
         **pos,
     )
-
 
     fig.update_xaxes(
         tickvals=np.arange(21, 35, 2),
@@ -362,5 +364,37 @@ for laser_level in laser_levels:
     )
 
     utils.save_fig(fig, filepaths.laser_calib_figure_dir / f'power_per_number_of_turns_laser_level_{laser_level:.0f}')
+
+
+#%% Fit power parameters and write to dataframe wtih repfreq fit data
+
+coeffs_fit = pd.DataFrame()
+
+for fc in power_df.fiber_connection.unique():
+
+    data_to_fit = pd.DataFrame()
+    # Find the slope and intercept for each laser level
+
+    for laser_level, ldf in power_df.query('fiber_connection == @fc').groupby('laser_level'):
+        idx = np.where(ldf.duty_cycle.values < 90)[0]
+        x = ldf.duty_cycle.values[idx]
+        y = ldf.measured_power.values[idx]
+        idx = np.where(pd.notna(y))[0]
+
+        slope, intercept = np.polyfit(x[idx], y[idx], 1)
+        data_to_fit.at[laser_level, 'power_slope'] = slope
+        data_to_fit.at[laser_level, 'power_intercept'] = intercept
+
+    # Power is in [mW]
+    coeffs_fit.at[fc, 'power_slope'] = data_to_fit.loc[85].power_slope  # mW
+    coeffs_fit.at[fc, 'power_intercept'] = data_to_fit.loc[85].power_intercept  # mW
+    coeffs_fit.at[fc, 'fr_slope_slope'] = fr_slope_slope
+    coeffs_fit.at[fc, 'fr_slope_intercept'] = fr_slope_intercept
+    coeffs_fit.at[fc, 'fr_inter_slope'] = fr_inter_slope
+    coeffs_fit.at[fc, 'fr_inter_intercept'] = fr_inter_intercept
+
+coeffs_fit.to_csv(filepaths.laser_calib_file)
+print(f'saved: {filepaths.laser_calib_file}')
+
 
 

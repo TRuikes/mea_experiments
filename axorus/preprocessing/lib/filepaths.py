@@ -107,7 +107,10 @@ class FilePaths:
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
 
-            self.raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+            sort_idx = np.argsort(raw_t_nrs)
+            self.raw_trials = [raw_trials[s] for s in sort_idx]
 
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
             self.raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
