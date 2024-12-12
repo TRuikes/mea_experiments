@@ -38,10 +38,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         if 'pa' in rec:
             trigger_type = 'laser'
-        elif 'dmd' in rec:
+        elif 'dmd' in rec or 'checkerboard' in rec or 'chirp':
             trigger_type = 'dmd'
         else:
-            raise ValueError('error!')
+            raise ValueError(f'{rec}: error!')
 
         trigger_channel = data_trigger_channels[trigger_type]
 

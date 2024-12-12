@@ -106,7 +106,9 @@ class FilePaths:
             rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day:02d}_{self.slice_nr}'
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
-            self.raw_trials = self.raw_dir / (rec_code + '_trials.csv')
+
+            self.raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
             self.raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
 
@@ -177,7 +179,6 @@ class FilePaths:
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
         for f in self.raw_raws:
             assert f.exists()
-        assert self.raw_trials.exists(), f'{self.raw_trials} does not exist'
 
         print(f'\tall raw data is there!')
 

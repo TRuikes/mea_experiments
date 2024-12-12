@@ -6,7 +6,13 @@ import numpy as np
 
 def extract_trial_data(filepaths: FilePaths):
 
-    df = pd.read_csv(filepaths.raw_trials, index_col=0, header=0)
+    if len(filepaths.raw_trials) == 1:
+        df = pd.read_csv(filepaths.raw_trials, index_col=0, header=0)
+    else:
+        dataframes = []
+        for f in filepaths.raw_trials:
+            dataframes.append(pd.read_csv(f, index_col=0, header=0))
+        df = pd.concat(dataframes, ignore_index=True)
 
     if df.shape[1] == 0:  # use another delimiter
         df = pd.read_csv(
