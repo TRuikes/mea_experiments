@@ -10,7 +10,7 @@ import axorus.analysis.figure_library as fl
 # Load data
 session_id = '241213_A'
 # data_dir = Path(r'E:\Axorus\ex_vivo_series_3\dataset')
-data_dir = Path(r'C:\axorus\dataset')
+data_dir = Path(r'E:\Axorus\dataset_series_3')
 figure_dir = Path(r'C:\Axorus\figures')
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
@@ -23,7 +23,13 @@ INCLUDE_RANGE = 50  # include cells at max distance = 50 um
 #%% 1 WAVEFORMS
 
 savedir = figure_dir / session_id / 'waveforms'
-fl.plot_session_waveforms(data_io, savedir, rec_nrs=[1, 3])
+d2 = DataIO(data_dir)
+d2.load_session(session_id, load_pickle=False, load_waveforms=True)
+
+print(d2.recording_ids)
+#%%
+
+fl.plot_session_waveforms(d2, savedir, rec_nrs=[1, 3])
 
 
 #%% 2 PA MIN MAX SERIES
@@ -83,6 +89,7 @@ utils.save_fig(fig, sname, display=True)
 
 
 #%% 2.2 fraction of cells responding, firing rate and latency, per electrode
+
 burst_df = data_io.burst_df.query('protocol == "pa_dc_min_max_series"')
 
 
@@ -945,6 +952,7 @@ def poisson_test(n_baseline, t_baseline, n_stim, t_stim):
     p_value = 1 - poisson.cdf(n_stim - 1, lambda_baseline * t_stim)
     return p_value
 
+
 def detect_burst_significance(spiketrain, t_1):
     b_0 = -50
     b_1 = 0
@@ -1005,7 +1013,7 @@ for electrode in clusters_per_electrode.keys():
     for cluster in clusters_per_electrode[electrode]:
 
         print(f'loading cluster: {cluster}')
-        cluster_data = utils.load_obj(Path(r'E:\Axorus\ex_vivo_series_3\dataset\bootstrapped') / f'bootstrap_{cluster}.pkl')
+        cluster_data = utils.load_obj(data_dir / 'bootstrapped' / f'bootstrap_{cluster}.pkl')
 
         fig = utils.make_figure(
             width=1,
@@ -1049,11 +1057,15 @@ for electrode in clusters_per_electrode.keys():
                 if is_sig:
                     xp_sig.append([xmin, xmin, xmax, xmax, None])
                     yp_sig.append([burst_i, burst_i + 1, burst_i + 1, burst_i, None])
+                    n_sig += 1
 
             x_plot = np.hstack(x_plot)
             y_plot = np.hstack(y_plot)
 
+            n_bursts = len(stimes)
 
+            if train_period == 1000:
+                perc_success = n_sig / n_bursts
 
             if len(xp_sig) > 0:
                 xp_sig = np.hstack(xp_sig)
@@ -1081,7 +1093,17 @@ for electrode in clusters_per_electrode.keys():
                 **p
             )
 
-        sname = figure_dir / session_id / 'temporal_series' / f'{electrode:.0f}_{cluster}'
+            fig.update_yaxes(
+                title_text='burst nr' if p['col'] == 1 else '',
+                range=[0, len(stimes)],
+                **p,
+            )
+
+        if perc_success > 0.7:
+            subdir = 'sig'
+        else:
+            subdir = 'not_sig'
+        sname = figure_dir / session_id / 'temporal_series' / subdir / f'{electrode:.0f}_{cluster}'
         utils.save_fig(fig, sname, display=False)
         print(f'saved')
 
