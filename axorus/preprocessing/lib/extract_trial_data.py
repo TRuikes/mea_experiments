@@ -7,7 +7,7 @@ import numpy as np
 def extract_trial_data(filepaths: FilePaths):
 
     if len(filepaths.raw_trials) == 1:
-        df = pd.read_csv(filepaths.raw_trials, index_col=0, header=0)
+        df = pd.read_csv(filepaths.raw_trials[0], index_col=0, header=0)
     else:
         dataframes = []
         for f in filepaths.raw_trials:
@@ -102,8 +102,11 @@ def extract_trial_data(filepaths: FilePaths):
         # I did not fit the slope/intercept in 2D if I recorded the power for
         # too few sessions
 
+        if fiber_connection == 'CB1_CA_C7_23':
+            continue
 
-        if 'slop_slope' in laser_specs.loc[fiber_connection].keys():
+
+        if 'slope_slope' in laser_specs.loc[fiber_connection].keys():
             slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
             slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
             inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
@@ -117,6 +120,7 @@ def extract_trial_data(filepaths: FilePaths):
             power_inter = inter_intercept + inter_slope * laser_level
 
         else:
+
             power_slope = laser_specs.loc[fiber_connection]['power_slope']
             power_inter = laser_specs.loc[fiber_connection]['power_intercept']
             fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
@@ -135,21 +139,25 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'repetition_frequency'] = frep
         df.at[i, 'e_pulse'] = ((power / 1000) / frep) * 1e6
 
-        if '_C6' in fiber_connection:
+        if '_C6' in fiber_connection or '_C7':
             diameter = 50 / 1e3  # mm
-            large_diameter = 150 / 1e3  # mm
+            large_diameter = 100 / 1e3  # mm
+        elif '_C8' in fiber_connection:
+            diameter = 25  / 1e3  # mm
+            large_diameter = 50 / 1e3  # mm
         else:
-            diameter = 200 / 1e3  # mm
-            large_diameter = 600 / 1e3
+            raise ValueError(f'implement this: {fiber_connection}')
+
 
         area = np.pi * (diameter / 2) ** 2
         large_area = np.pi * (large_diameter / 2) ** 2
         power = power / 1000  # W
         irradiance = power / area  # W / mm2
 
+        df.at[i, 'fiber_diameter'] = diameter
         df.at[i, 'irradiance'] = irradiance
         df.at[i, 'irradiance_exact_fiber_diameter'] = irradiance  # irradiane at exact fiber diameter
-        df.at[i, 'irradiance_3x_fiber_diameter'] = power / large_area  # W / mm2
+        df.at[i, 'irradiance_large_fiber_diameter'] = power / large_area  # W / mm2
 
     # except:
     #     print(f'ERROR IN LASER POWER DATAFRAME, FIX THIS')

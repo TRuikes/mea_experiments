@@ -32,11 +32,13 @@ class Dataset:
         return
 
 
-def create_dataset_object(filepaths: FilePaths):
+def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     print('\nCreating dataset object')
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
     spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
-    waveforms = utils.load_nested_dict(filepaths.proc_pp_waveforms)
+
+    if include_waveforms:
+        waveforms = utils.load_nested_dict(filepaths.proc_pp_waveforms)
 
     triggers = utils.load_nested_dict(filepaths.proc_pp_triggers)
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
@@ -60,7 +62,9 @@ def create_dataset_object(filepaths: FilePaths):
     assert n_trials_triggers == train_df.shape[0]
     assert n_bursts_triggers == train_df.train_count.sum()
 
-    with h5py.File(filepaths.dataset_file, 'w') as f:
+    write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
+
+    with h5py.File(write_file, 'w') as f:
 
         for rec_id in filepaths.recording_names:
             print(f'\tloading {rec_id}')
@@ -69,7 +73,8 @@ def create_dataset_object(filepaths: FilePaths):
             train_rec_df = train_df.query('recording_name == @rec_id')
             assert train_rec_df.shape[0] > 0
 
-            if 'pa' in rec_id:
+            if 'pa' in rec_id or rec_id in ['241024_A_1_noblocker',
+                                            '241024_A_2_noblocker']:
                 # Store laser trigger data
                 burst_offset = 0
                 for train_id, trial_info in train_rec_df.iterrows():
@@ -104,7 +109,7 @@ def create_dataset_object(filepaths: FilePaths):
             elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
                 print(f'need to add dmd still...')
             else:
-                raise ValueError('?')
+                raise ValueError(f'{rec_id}?')
 
             # Store spiketimes
             for cluster_id, cinfo in cluster_info.iterrows():
@@ -124,6 +129,11 @@ def create_dataset_object(filepaths: FilePaths):
                 ch = cinfo.ch
                 cluster.create_dataset('cluster_x', data=int(mea_position.loc[ch+1].x))
                 cluster.create_dataset('cluster_y', data=int(mea_position.loc[ch+1].y))
-                cluster.create_dataset('waveforms', data=waveforms[rec_id][cluster_id])
 
-        print(f'saved datasetfile: {filepaths.dataset_file}')
+                if include_waveforms:
+                    cluster.create_dataset('waveforms', data=waveforms[rec_id][cluster_id])
+
+        if include_waveforms:
+            print(f'saved datasetfile: {filepaths.dataset_file_waveforms}')
+        else:
+            print(f'saved datasetfile: {filepaths.dataset_file}')

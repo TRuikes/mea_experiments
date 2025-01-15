@@ -2,22 +2,23 @@
 import pandas as pd
 from pathlib import Path
 from axorus.preprocessing.project_colors import ProjectColors
-from scipy.ndimage import gaussian_filter
 from axorus.data_io import DataIO
 import utils
 import numpy as np
 import axorus.analysis.figure_library as fl
 
 # Load data
-session_id = '241211_A'
-data_dir = Path(r'E:\Axorus\ex_vivo_series_3\dataset')
+session_id = '241213_A'
+# data_dir = Path(r'E:\Axorus\ex_vivo_series_3\dataset')
+data_dir = Path(r'C:\axorus\dataset')
 figure_dir = Path(r'C:\Axorus\figures')
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
-data_io.load_session(session_id)
+data_io.load_session(session_id, load_pickle=True)
 cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
 clrs = ProjectColors()
 
+INCLUDE_RANGE = 50  # include cells at max distance = 50 um
 
 #%% 1 WAVEFORMS
 
@@ -40,6 +41,41 @@ for dc, dc_df in burst_df.groupby('duty_cycle'):
 
     print(f'{npulses:.0f}\t| {frep:4.0f} Hz \t| {e_pulse:.2f} uJ\t| {irr_exact:.2f} - {irr_min_3x:.2f} W/mm2\t| {bd:.0f} ms')
 
+
+#%% 2.1 heatmaps
+
+# Plot heatmaps for 1 Prf
+Prf = data_io.burst_df.repetition_frequency.max()
+burst_df = data_io.burst_df.query(f'repetition_frequency == {Prf}')
+train_ids = burst_df.train_id.unique()
+
+xbins, ybins, heatmap = fl.get_heatmap_relative_to_laser(
+    data_io, cells_df, train_ids,
+    binsize=30,
+    significant_only=False
+)
+
+
+fig = utils.simple_fig(
+    equal_width_height='y',
+    width=0.5,
+    height=1,
+)
+
+# Plot the heatmap
+fig.add_heatmap(
+    z=heatmap,
+    x=xbins,  # x-axis values
+    y=ybins,  # y-axis values
+    colorscale='Viridis',
+    showscale=False,
+)
+axtickstep = 100
+
+
+
+sname = figure_dir / session_id / 'pa_dc_min_max' / f'test'
+utils.save_fig(fig, sname, display=True)
 
 
 #%% 2.1 single cell fr vs pulse rate
@@ -85,7 +121,8 @@ for electrode, df in burst_df.groupby('electrode'):
 
         n = 0
         for cid in data_io.cluster_df.index.values:
-            if cells_df.loc[cid, (train_id, 'is_significant')]:
+            if (cells_df.loc[cid, (train_id, 'laser_distance')] < INCLUDE_RANGE and
+                    cells_df.loc[cid, (train_id, 'is_significant')]):
                 n += 1
 
         n_responding.append(n)
@@ -111,8 +148,8 @@ for electrode, df in burst_df.groupby('electrode'):
     )
 
 fig.update_yaxes(
-    tickvals=np.arange(0, 200, 20),
-    range=[0, 80],
+    tickvals=np.arange(0, 20, 2),
+    # range=[0, 80],
     title_text='# cells resp.',
     row=1, col=1,
 )
@@ -138,7 +175,7 @@ for electrode, df in burst_df.groupby('electrode'):
         n_pulses.append(rf * bd)
         xticks.append(f'{rf * bd:.0f}')
 
-        n = cells_df[train_id]['is_significant'].dropna().sum()
+        n = cells_df[train_id].query(f'laser_distance <= {INCLUDE_RANGE}')['is_significant'].dropna().sum()
         n_responding.append(n)
 
     # convert lists to numpy arrays
@@ -191,7 +228,7 @@ for electrode, df in burst_df.groupby('electrode'):
 
         n_pulses.append(rf * bd)
         xticks.append(f'{rf * bd:.0f} ({dc:.0f})')
-        fr_mean = cells_df[train_id].query('is_significant == True').response_firing_rate.mean()
+        fr_mean = cells_df[train_id].query(f'is_significant == True and laser_distance <= {INCLUDE_RANGE}').response_firing_rate.mean()
         firing_rates.append(fr_mean)
 
     # convert lists to numpy arrays
@@ -246,7 +283,8 @@ for electrode, df in burst_df.groupby('electrode'):
         n_pulses.append(rf * bd)
         xticks.append(f'{rf * bd:.0f} ({dc:.0f})')
 
-        lat_trail = cells_df[train_id].query('is_significant == True').response_latency.mean()
+        lat_trail = cells_df[train_id].query(f'is_significant == True and laser_distance <= '
+                                             f'{INCLUDE_RANGE}').response_latency.mean()
 
         latencies.append(lat_trail)
 
@@ -289,6 +327,7 @@ fig.update_xaxes(
 sname = figure_dir / session_id / 'pa_dc_min_max' / 'fraction_fr_lat_per_electrode'
 utils.save_fig(fig, sname, display=True)
 
+#%%
 # Rasters for single cells at
 
 tids = data_io.burst_df.query('protocol == "pa_dc_min_max_series" and duty_cycle == 5').train_id.unique()
@@ -402,7 +441,7 @@ for train_id in trials.train_id.unique():
         row_i += 1
 
 d_max = 500
-d_width = 100
+d_width = 30
 
 # Create bins
 bins = np.arange(0, d_max + d_width, d_width)
@@ -451,7 +490,7 @@ utils.save_fig(fig, sname, display=True)
 
 #%% 3 MEA SCAN
 
-trials = data_io.burst_df.query('protocol == "pa_mea_scan"')
+trials = data_io.burst_df.query('protocol == "pa_mea_scan" and duty_cycle == 29')
 burst_duration = trials.iloc[0].burst_duration
 n_pulses = trials.iloc[0].burst_duration * trials.iloc[0].repetition_frequency / 1000
 duty_cycle = trials.iloc[0].duty_cycle
@@ -482,7 +521,6 @@ for i in range(xmap.shape[1]):
 for i in range(ymap.shape[0]):
     ymap[i, :] = ybins
 
-#%%
 def weighted_center(heatmap):
     n_x, n_y = heatmap.shape
     x_indices, y_indices = np.meshgrid(np.arange(n_x), np.arange(n_y), indexing='ij')
@@ -893,7 +931,47 @@ duty_cycle = trials.iloc[0].duty_cycle
 print('Temporal series')
 print(f'\nburst duration: {burst_duration:.0f} ms, n pulses: {n_pulses:.0f}, duty cycle: {duty_cycle:.0f}')
 
+print(f'series starts at {trials.burst_onset.min() / 1000:.0f} s')
 
+
+#%% Define significance test to test single trial for significance
+from scipy.stats import poisson
+
+def poisson_test(n_baseline, t_baseline, n_stim, t_stim):
+    # Baseline rate
+    lambda_baseline = n_baseline / t_baseline
+
+    # Compute p-value (one-tailed test)
+    p_value = 1 - poisson.cdf(n_stim - 1, lambda_baseline * t_stim)
+    return p_value
+
+def detect_burst_significance(spiketrain, t_1):
+    b_0 = -50
+    b_1 = 0
+
+    t_0 = 0
+    # t_1 = 150
+    bin_size = b_1 - b_0
+    bin_hw = bin_size / 2
+    t_step = 10
+
+    bns = np.arange(t_0+bin_hw, t_1 - bin_hw, t_step)
+
+    n_base = np.where((spiketrain >= b_0) & (spiketrain <= b_1))[0].size
+
+    HAS_SIG_BIN = False
+    for bin_i, bctr in enumerate(bns):
+        t0 = bctr - bin_hw
+        t1 = bctr + bin_hw
+        n_stim = np.where((spiketrain >= t0) & (spiketrain < t1))[0].size
+
+        p = poisson_test(n_base, bin_size / 1000, n_stim, bin_size / 1000)
+
+        if p < 0.05:
+            HAS_SIG_BIN = True
+            break
+
+    return HAS_SIG_BIN
 
 #%% Plot spike train per cell and inter burst interval
 
@@ -909,6 +987,8 @@ y_spacing = 0.15
 y_height = (1 - ((n_rows - 1) * y_spacing) - 2 * y_offset) / n_rows
 clrs = ProjectColors()
 
+xmax = 200
+xmin = -25
 
 for row_i in range(n_rows):
     y1 = 1 - y_offset - row_i * (y_spacing + y_height)
@@ -925,7 +1005,7 @@ for electrode in clusters_per_electrode.keys():
     for cluster in clusters_per_electrode[electrode]:
 
         print(f'loading cluster: {cluster}')
-        cluster_data = utils.load_obj(data_dir / 'bootstrapped' / f'bootstrap_{cluster}.pkl')
+        cluster_data = utils.load_obj(Path(r'E:\Axorus\ex_vivo_series_3\dataset\bootstrapped') / f'bootstrap_{cluster}.pkl')
 
         fig = utils.make_figure(
             width=1,
@@ -956,19 +1036,37 @@ for electrode in clusters_per_electrode.keys():
             stimes = cluster_data[tid]['spike_times']
 
             x_plot, y_plot = [], []
-            row_i = 0
+            xp_sig, yp_sig = [], []
 
             for burst_i, sp in enumerate(stimes):
                 sp_to_plot = sp[(sp > 0) & (sp < train_period)]
                 x_plot.append(np.vstack([sp_to_plot, sp_to_plot, np.full(sp_to_plot.size, np.nan)]).T.flatten())
-                y_plot.append(np.vstack([np.ones(sp_to_plot.size) * burst_i + row_i,
-                                         np.ones(sp_to_plot.size) * burst_i + 1 + row_i, np.full(
+                y_plot.append(np.vstack([np.ones(sp_to_plot.size) * burst_i,
+                                         np.ones(sp_to_plot.size) * burst_i + 1, np.full(
                         sp_to_plot.size, np.nan)]).T.flatten())
+                is_sig = detect_burst_significance(sp, train_period)
 
-                row_i += 1
+                if is_sig:
+                    xp_sig.append([xmin, xmin, xmax, xmax, None])
+                    yp_sig.append([burst_i, burst_i + 1, burst_i + 1, burst_i, None])
 
             x_plot = np.hstack(x_plot)
             y_plot = np.hstack(y_plot)
+
+
+
+            if len(xp_sig) > 0:
+                xp_sig = np.hstack(xp_sig)
+                yp_sig = np.hstack(yp_sig)
+
+                fig.add_scatter(
+                    x=xp_sig,
+                    y=yp_sig,
+                    mode='lines', line=dict(color='green', width=0),
+                    fill='toself',
+                    showlegend=False,
+                    **p,
+                )
 
             fig.add_scatter(
                 x=x_plot, y=y_plot,
@@ -976,10 +1074,10 @@ for electrode in clusters_per_electrode.keys():
                 showlegend=False,
                 **p,
             )
-            tstep = train_period / 5
             fig.update_xaxes(
                 title_text='time [ms]' if p['row'] == 2 else '',
-                tickvals=np.arange(0, train_period+tstep, tstep),
+                tickvals=np.arange(-50, xmax + 50, 50),
+                range=[xmin, xmax],
                 **p
             )
 
@@ -998,7 +1096,7 @@ fs = 1000  # Sampling frequency in Hz (adjust to your actual sampling frequency)
 cutoff = 50  # Cutoff frequency in Hz
 order = 4  # Filter order
 
-filepaths = FilePaths('241108_A', local_raw_dir=r'E:\Axorus\tmp')
+filepaths = FilePaths('241108_A', local_raw_dir=r'C:\Axorus\tmp2')
 
 uid = 'uid_081124_001'
 cluster_info = data_io.cluster_df.loc[uid]

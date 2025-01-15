@@ -51,6 +51,12 @@ class ProjectColors:
         return f'rgba({r}, {g}, {b}, 1)'
 
     @staticmethod
+    def repetition_frequency(prf, alpha=1):
+        rel_i = int((prf - 1000) / (8000 - 1000) * 100)
+        r, g, b = cmaps.torch.cut(0.2, 'left').cut(0.2, 'right').discrete(100).colors[rel_i, :]
+        return f'rgba({r}, {g}, {b}, {alpha})'
+
+    @staticmethod
     def min_max_map(val, min_val, max_val):
         rel_i = int((val - min_val) / (max_val - min_val) * 100)
         r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[rel_i, :]

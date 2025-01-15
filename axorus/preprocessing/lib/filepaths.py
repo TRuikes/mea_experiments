@@ -158,6 +158,7 @@ class FilePaths:
 
             # Define the final dataset file
             self.dataset_file = self.dataset_out_dir / f'{self.sid}.h5'
+            self.dataset_file_waveforms = self.dataset_out_dir / f'{self.sid}_waveforms.h5'
 
             self.get_recording_names_from_rawfiles()
 

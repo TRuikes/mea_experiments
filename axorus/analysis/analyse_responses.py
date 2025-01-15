@@ -15,11 +15,12 @@ def main():
     """
     Main handles
     """
-    dataset_dir = Path(r'E:\Axorus\series 3')
+    # dataset_dir = Path(r'E:\Axorus\series 3')
+    dataset_dir = Path(r'C:\axorus\tmp')
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
-    data_io.load_session('241211_A')
+    data_io.load_session('241213_A')
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
@@ -40,6 +41,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
         'response_latency',
         'response_duration',
         'response_type',
+        'laser_distance',
     ]
     columns = []
     for burst_id in data_io.burst_df.train_id.unique():
@@ -57,7 +59,16 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
 
         data = utils.load_obj(loadname)
 
+        cluster_x = data_io.cluster_df.loc[cluster_id].cluster_x
+        cluster_y = data_io.cluster_df.loc[cluster_id].cluster_y
+
+
         for tid, tdata in data.items():
+            laser_x = data_io.burst_df.query('train_id == @tid').iloc[0].laser_x
+            laser_y = data_io.burst_df.query('train_id == @tid').iloc[0].laser_y
+
+            d = np.sqrt((cluster_x - laser_x)**2 + (cluster_y - laser_y)**2)
+            cell_responses.at[cluster_id, (tid, 'laser_distance')] = d
             cell_responses.at[cluster_id, (tid, 'is_significant')] = tdata['is_sig']
 
             # Detect indices for baseline and response times
@@ -153,8 +164,8 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile = output_dir / f'bootstrap_{cluster_id}.pkl'
-        # if savefile.exists():
-        #     continue
+        if savefile.exists():
+            continue
         tasks.append(dict(data_io=data_io, cluster_id=cluster_id,
                           savefile=savefile))
 
