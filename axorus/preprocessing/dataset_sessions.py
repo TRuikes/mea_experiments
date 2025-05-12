@@ -15,4 +15,8 @@ dataset_sessions = {
     '241108_A': dict(laser_calib_week='week_45', fiber_connection='', local_dir=r'E:\Axorus\tmp'),
     '241211_A': dict(laser_calib_week='week_49', fiber_connection='', local_dir=r'E:\Axorus\tmp'),
     '241213_A': dict(laser_calib_week='week_49', fiber_connection='', local_dir=r'C:\axorus\tmp2'),
+    '250403_A': dict(laser_calib_week='week_49', fiber_connection='', local_dir=r'E:\Axorus\tmp'),
+
+
+
 }

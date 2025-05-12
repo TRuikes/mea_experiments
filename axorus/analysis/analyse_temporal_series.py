@@ -8,7 +8,7 @@ import axorus.analysis.figure_library as fl
 from scipy.stats import poisson
 
 
-data_dir = Path(r'E:\Axorus\dataset_series_3')
+data_dir = Path(r'C:\axorus\dataset')
 figure_dir = Path(r'C:\Axorus\figures\temporal_series')
 
 sessions = (
@@ -25,7 +25,8 @@ def main():
     selected_cells_df = select_cells()
     compute_single_cell_success_rate(selected_cells_df)
 
-    plot_single_cell_responses_per_trial(selected_cells_df)
+    # plot_single_cell_responses_per_trial(selected_cells_df)
+    plot_single_cell_response_train(selected_cells_df)
     success_rate_per_session(selected_cells_df)
 
 
@@ -83,7 +84,6 @@ def success_rate_per_session(selected_cells_df):
     )
     savename = figure_dir / 'success_rate_per_session'
     utils.save_fig(fig, savename)
-
 
 def plot_single_cell_responses_per_trial(selected_cells_df):
     n_cols = 3
@@ -198,6 +198,173 @@ def plot_single_cell_responses_per_trial(selected_cells_df):
             savename = figure_dir / 'single_cell_responses_per_trial' / subdir / cid
             utils.save_fig(fig, savename, display=False)
 
+def plot_single_cell_response_train(selected_cells_df):
+    plot_data = extract_single_cell_response_train(selected_cells_df)
+
+    n_cols = 1
+    n_rows = 6
+    x_domains = {}
+    y_domains = {}
+    x_offset = 0.05
+    x_spacing = 0.01
+    x_width = (1 - ((n_cols - 1) * x_spacing) - 2 * x_offset) / n_cols
+    y_offset = 0.1
+    y_spacing = 0.05
+    y_height = (1 - ((n_rows - 1) * y_spacing) - 2 * y_offset) / n_rows
+    clrs = ProjectColors()
+
+    xmax = 200
+    xmin = -25
+
+    for row_i in range(n_rows):
+        y1 = 1 - y_offset - row_i * (y_spacing + y_height)
+        y_domains[row_i + 1] = [[y1 - y_height, y1] for _ in range(n_cols)]
+        x_domains[row_i + 1] = []
+        for col_i in range(n_cols):
+            x0 = x_offset + col_i * (x_spacing + x_width)
+            x_domains[row_i + 1].append([x0, x0 + x_width])
+
+    pos = {
+        1000: dict(row=1, col=1),
+        500: dict(row=2, col=1),
+        250: dict(row=3, col=1),
+        100: dict(row=4, col=1),
+        50: dict(row=5, col=1),
+        25: dict(row=6, col=1),
+    }
+
+    disp_x0 = -1100
+    disp_x1 = 1100
+
+    for cid in plot_data.keys():
+        cell_data = plot_data[cid]
+
+        fig = utils.make_figure(
+            width=1,
+            height=2,
+            x_domains=x_domains,
+            y_domains=y_domains,
+            # equal_width_height='x',
+            subplot_titles={
+                1: [f"{cell_data[1000]['train_id']} @ 1 Hz"],
+                2: [f"{cell_data[500]['train_id']} @ 2 Hz"],
+                3: [f"{cell_data[250]['train_id']} @ 4 Hz"],
+                4: [f"{cell_data[100]['train_id']} @ 10 Hz"],
+                5: [f"{cell_data[50]['train_id']} @ 20 Hz"],
+                6: [f"{cell_data[25]['train_id']} @ 40 Hz"],
+            }
+        )
+
+        # train_period = 1000
+        x0 = np.min(cell_data[1000]['spike_times'])
+        x1 = np.max(cell_data[1000]['spike_times'])
+
+        for train_period in train_periods:
+            p = pos[train_period]
+
+            stimes = cell_data[train_period]['spike_times']
+
+            x_plot = np.vstack([stimes, stimes, np.full(stimes.size, np.nan)]).T.flatten()
+            y_plot = np.vstack([np.ones(stimes.size) * 0,
+                                np.ones(stimes.size) * 1,
+                                np.full(stimes.size, np.nan)]).T.flatten()
+
+            for i in range(10):
+                fig.add_scatter(
+                    x=[i*train_period, i*train_period],
+                    y=[0, 1],
+                    mode='lines', line=dict(color='red', width=1),
+                    showlegend=False,
+                    **p,
+                )
+
+            fig.add_scatter(
+                x=x_plot, y=y_plot,
+                mode='lines', line=dict(width=0.5, color='black'),
+                showlegend=False,
+                **p,
+            )
+            fig.update_xaxes(
+                range=[disp_x0, disp_x1],
+                **p,
+            )
+            fig.update_yaxes(
+                range=[0, 1],
+                **p
+            )
+
+        fig.update_xaxes(
+            tickvals=np.arange(-5, 5 , 1) * 1000,
+            row=6, col=1,
+        )
+
+        utils.save_fig(fig, figure_dir / 'single_cell_responses_per_trial' / cid, display=False)
+
+
+
+
+
+def extract_single_cell_response_train(selected_cells_df):
+    # Data to extract
+    t_pre = 5  # s
+    t_post = 5  # s
+
+    plot_data = {}
+
+    # Load dataset
+    data_io = DataIO(data_dir)
+
+    # Find stats per session
+    for sid, session_cells_df in selected_cells_df.groupby('sid'):
+        data_io.load_session(sid, load_pickle=True, load_waveforms=False)
+
+        # Find success rate for each included cell
+        for cid, cinfo in session_cells_df.iterrows():
+
+
+            # Select all bursts on the clusters' favourite electrode
+            all_bursts = data_io.burst_df.query(f'protocol == "pa_temporal_series"'
+                                                f'and electrode == {cinfo.ec}')
+
+            recording_names = all_bursts.recording_name.unique()
+            assert len(recording_names) == 1
+            recording_name = recording_names[0]
+
+            spike_times = data_io.spiketimes[recording_name][cid]
+            plot_data[cid] = {}
+
+            for tid, tdf in all_bursts.groupby('train_id'):
+
+                train_onset = tdf.train_onset.min()
+
+                train_counts = tdf.train_count.unique()
+                assert len(train_counts) == 1
+                train_count = train_counts[0]
+
+                train_periods = tdf.train_period.unique()
+                assert len(train_periods) == 1
+                train_period = train_periods[0]
+
+                train_duration = train_count * train_period
+
+                train_offset = train_onset + train_duration
+
+                t0 = train_onset - t_pre * 1000
+                t1 = train_offset + t_post * 1000
+
+                print(t1 - t0)
+                idx = np.where((spike_times >= t0) & (spike_times < t1))[0]
+                stimes = spike_times[idx] - train_onset
+
+                plot_data[cid][train_period] = dict(
+                    train_id=tid,
+                    spike_times=stimes,
+                    t_pre=t_pre, t_post=t_post,
+                    train_period=train_period,
+                )
+
+    return plot_data
+
 
 def compute_single_cell_success_rate(selected_cells_df):
 
@@ -239,37 +406,6 @@ def compute_single_cell_success_rate(selected_cells_df):
 
                 selected_cells_df.at[cid, train_period] = n_sig / n_bursts
 
-
-
-        #     clr = clrs.train_period(train_period)
-        #     p = pos[train_period]
-        #
-        #     stimes = cluster_data[tid]['spike_times']
-        #
-        #     x_plot, y_plot = [], []
-        #     xp_sig, yp_sig = [], []
-        #     n_sig = 0
-        #
-        #     for burst_i, sp in enumerate(stimes):
-        #         sp_to_plot = sp[(sp > 0) & (sp < train_period)]
-        #         x_plot.append(np.vstack([sp_to_plot, sp_to_plot, np.full(sp_to_plot.size, np.nan)]).T.flatten())
-        #         y_plot.append(np.vstack([np.ones(sp_to_plot.size) * burst_i,
-        #                                  np.ones(sp_to_plot.size) * burst_i + 1, np.full(
-        #                 sp_to_plot.size, np.nan)]).T.flatten())
-        #         is_sig = detect_burst_significance(sp, train_period)
-        #
-        #         if is_sig:
-        #             xp_sig.append([xmin, xmin, xmax, xmax, None])
-        #             yp_sig.append([burst_i, burst_i + 1, burst_i + 1, burst_i, None])
-        #             n_sig += 1
-        #
-        #     x_plot = np.hstack(x_plot)
-        #     y_plot = np.hstack(y_plot)
-        #
-        #     n_bursts = len(stimes)
-        #
-        #     if train_period == 1000:
-        #         perc_success = n_sig / n_bursts
 
     return selected_cells_df
 

@@ -10,7 +10,7 @@ import axorus.analysis.figure_library as fl
 # Load data
 session_id = '241213_A'
 # data_dir = Path(r'E:\Axorus\ex_vivo_series_3\dataset')
-data_dir = Path(r'E:\Axorus\dataset_series_3')
+data_dir = Path(r'C:\axorus\tmp')
 figure_dir = Path(r'C:\Axorus\figures')
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
@@ -19,6 +19,28 @@ cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
 clrs = ProjectColors()
 
 INCLUDE_RANGE = 50  # include cells at max distance = 50 um
+
+#%%
+
+names_to_get = (
+    ('burst_count', 'burst_count'),
+    ('burst_duration', 'burst_duration'),
+    ('e_pulse', 'e_pulse'),
+    ('irradiance', 'irradiance_3x_fiber_diameter'),
+    ('repetition_frequency', 'repetition_frequency'),
+    ('protocol', 'protocol')
+)
+
+df_out = pd.DataFrame()
+for tid, tdf in data_io.burst_df.groupby('train_id'):
+    # print(tid)
+
+    for sname, dname in names_to_get:
+        df_out.at[tid, sname] = tdf.iloc[0][dname]
+
+
+savename = data_dir / f'{session_id}_trials.csv'
+df_out.to_csv(savename)
 
 #%% 1 WAVEFORMS
 
