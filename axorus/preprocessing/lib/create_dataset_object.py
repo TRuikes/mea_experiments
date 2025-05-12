@@ -37,6 +37,11 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
     spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
 
+    has_dmd_in_train_df = False
+    for i, r in train_df.iterrows():
+        if 'dmd' in r.protocol:
+            has_dmd_in_train_df = True
+
     if include_waveforms:
         waveforms = utils.load_nested_dict(filepaths.proc_pp_waveforms)
 
@@ -49,8 +54,11 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     for rec_id in filepaths.recording_names:
         if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
             print('not adding DMD data')
-            n_trials_triggers += 1
+
+            if has_dmd_in_train_df:
+                n_trials_triggers += 1
             continue
+
         train_onsets = triggers[rec_id]['laser']['train_onsets']
         n_trials_triggers += len(train_onsets)
 
@@ -71,7 +79,10 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
             # grp = f.create_group(rec_id)
 
             train_rec_df = train_df.query('recording_name == @rec_id')
-            assert train_rec_df.shape[0] > 0
+            # assert train_rec_df.shape[0] > 0
+            if train_rec_df.shape[0] == 0:
+                print(f'NOT ADDING REC: {rec_id}')
+                continue
 
             if 'pa' in rec_id or rec_id in ['241024_A_1_noblocker',
                                             '241024_A_2_noblocker']:

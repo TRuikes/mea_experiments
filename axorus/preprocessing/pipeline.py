@@ -15,18 +15,17 @@ for sid, s_specs in dataset_sessions.items():
     filepaths.check_data()
 
     # Extract stimulation triggers
-    extract_triggers(filepaths, update=False, visualize_detection=False)
+    extract_triggers(filepaths, update=False, visualize_detection=True)
 
-    # Extract trial data
+    # # Extract trial data
     extract_trial_data(filepaths)
 
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=False)
+        extract_phy_data(filepaths, update=True)
 
-    create_dataset_object(filepaths, include_waveforms=False)
     create_dataset_object(filepaths, include_waveforms=True)
-
+    # create_dataset_object(filepaths, include_waveforms=True)
 
     # Detect laser position
     # detect_laser_position(filepaths)   # doesnt work yet

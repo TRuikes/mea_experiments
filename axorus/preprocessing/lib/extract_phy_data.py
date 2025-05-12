@@ -7,6 +7,7 @@ import os
 import utils
 from tqdm import tqdm
 
+
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)
     _extract_waveforms(filepaths, update=update)
@@ -44,22 +45,21 @@ def recording_onsets(filepaths: FilePaths):
     clustered_files = []
 
     with open(filepaths.proc_sc_params, 'r') as file:
-        text = file.read()
+        content = file.read()
 
-    for line in text.split('\n'):
-        if 'dat_path' in line:
+        phrase_index = content.find('dat_path')
+        if phrase_index == -1:
+            return None
 
-            parts0 = line.split('[')
-            prefix = parts0[0]
-            parts1 = parts0[1].split(']')[0]
-            parts2 = parts1.split(',')
+        # Search for the first '[' and ']' after the phrase
+        open_bracket_index = content.find('[', phrase_index)
+        close_bracket_index = content.find(']', open_bracket_index)
 
-            prefix += '['
-            for filename in parts2:
-                if len(filename) < 3:
-                    continue
-                f = Path(filename.split('"')[1])
-                clustered_files.append(f)
+        if open_bracket_index == -1 or close_bracket_index == -1:
+            return None
+
+    clustered_files = content[open_bracket_index + 1:close_bracket_index]
+    clustered_files = [Path(f.strip('\n').strip('"')) for f in clustered_files.split(',') if len(f) > 3]
 
     # The onset of the first recording is set to 0
     cursor = 0
@@ -77,6 +77,7 @@ def recording_onsets(filepaths: FilePaths):
         file_stats = os.stat(local_name)
         cursor += int(file_stats.st_size / (nb_bytes_by_datapoint * data_nb_channels))
         onsets.at[recname, 'i1'] = np.copy(cursor)
+
     return onsets
 
 
@@ -93,7 +94,6 @@ def _extract_spiketimes(filepaths: FilePaths):
         - .npy files no longer exists
 
     """
-
 
     # model = load_model(filepaths.proc_sc_params)
     # model.get_cluster_channels()

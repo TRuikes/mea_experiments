@@ -92,28 +92,35 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 raise ValueError('error!')
 
             if visualize_detection:
+                DOWNSAMPLE_PLOT_DATA = True
+
                 # Plot trigger onsets
                 x = (np.arange(i0, i1, 1) / data_sample_rate)
                 fig = utils.simple_fig(width=1, height=1, n_rows=1, n_cols=1)
-                fig.add_scatter(x=x, y=chdata, mode='lines', line=dict(color='black', width=1),
+
+                if DOWNSAMPLE_PLOT_DATA:
+                    pidx = np.arange(0, x.size, int(x.size / 1000))
+                else:
+                    pidx = np.arange(0, x.size, 1)
+
+                fig.add_scatter(x=x[pidx], y=chdata[pidx], mode='lines', line=dict(color='black', width=1),
                                 showlegend=False, row=1, col=1)
-                fig.add_scatter(x=[x[0], x[-1]], y=np.ones(2) * data_trigger_thresholds['laser'], mode='lines',
+                fig.add_scatter(x=[x[pidx][0], x[pidx][-1]], y=np.ones(2) * data_trigger_thresholds['laser'], mode='lines',
                                 line=dict(color='red', width=1),
                                 showlegend=False, row=1, col=1)
 
-                if idx.size > 0:
-                    fig.add_scatter(
-                        x=x[idx], y=chdata[idx], mode='markers', marker=dict(color='green', size=1),
-                        showlegend=False, row=1, col=1,
-                    )
+                # if idx.size > 0:
+                #     fig.add_scatter(
+                #         x=x[idx], y=chdata[idx], mode='markers', marker=dict(color='green', size=1),
+                #         showlegend=False, row=1, col=1,
+                #     )
 
                 xticks = np.arange(i0/data_sample_rate, i1/data_sample_rate, 2)
                 xticks = [f'{xx:.0f}' for xx in xticks]
                 fig.update_xaxes(tickvals=xticks, title_text=f'time [s]')
                 fig.update_yaxes(tickvals=np.arange(0, 500, 4500), title_text='voltage [mV]')
-                savename = filepaths.proc_pp_figure_output / 'triggers' / 'laser' / f'{i}'
-                utils.save_fig(fig, savename, display=True, verbose=False)
-
+                savename = filepaths.proc_pp_figure_output / 'triggers' / rec / f'{i}'
+                utils.save_fig(fig, savename, display=False, verbose=False)
 
         if trigger_type == 'laser':
             # Process laser trigger times
@@ -134,7 +141,22 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
             )
 
         elif trigger_type == 'dmd':
-            print(f'DID NOT IMPLEMENT DMD TRIGGER ANALYSIS YET')
+
+            continue
+            # if 'checkerboard' in rec:
+            #     # Assuming the stimulation already started before recording onset
+            #     # and that it is continuously on during the full recording
+            #     assert trigger_high.size / channel_index.size > 0.95
+            #
+            #     trigger_data[rec][trigger_type] = dict(
+            #         train_onsets=np.array([0]),
+            #         burst_onsets=np.array([0]),
+            #         burst_offsets=np.array([(channel_index.size-1 / data_sample_rate) * 1e3]),
+            #     )
+            #
+            # elif 'chirp' in rec:
+            #     print('did not ')
+
             # trigger_data[rec][trigger_type] = None
 
         else:

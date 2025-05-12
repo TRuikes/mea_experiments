@@ -8,6 +8,12 @@ def extract_trial_data(filepaths: FilePaths):
 
     if len(filepaths.raw_trials) == 1:
         df = pd.read_csv(filepaths.raw_trials[0], index_col=0, header=0)
+        if df.shape[1] == 0:  # use another delimiter
+            df = pd.read_csv(
+                filepaths.raw_trials[0], index_col=0, header=0,
+                delimiter=';'
+            )
+
     else:
         dataframes = []
         for f in filepaths.raw_trials:
@@ -17,12 +23,6 @@ def extract_trial_data(filepaths: FilePaths):
             df_read = df_read.loc[pd.notna(df_read.index)]
             dataframes.append(df_read)
         df = pd.concat(dataframes, ignore_index=True)
-
-    if df.shape[1] == 0:  # use another delimiter
-        df = pd.read_csv(
-            filepaths.raw_trials, index_col=0, header=0,
-            delimiter=';'
-        )
 
     train_i = 0
 
@@ -48,7 +48,7 @@ def extract_trial_data(filepaths: FilePaths):
         recording_name = None
 
         for rr in filepaths.recording_names:
-            if f'_{rec_nr:.0f}_' in rr:
+            if f'_{rec_nr:03.0f}_' in rr:
                 recording_name = rr
         assert recording_name is not None
 
@@ -105,6 +105,9 @@ def extract_trial_data(filepaths: FilePaths):
         if fiber_connection == 'CB1_CA_C7_23':
             continue
 
+        if fiber_connection == 'CB1_14_C1':
+            continue
+
 
         if 'slope_slope' in laser_specs.loc[fiber_connection].keys():
             slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
@@ -147,7 +150,6 @@ def extract_trial_data(filepaths: FilePaths):
             large_diameter = 50 / 1e3  # mm
         else:
             raise ValueError(f'implement this: {fiber_connection}')
-
 
         area = np.pi * (diameter / 2) ** 2
         large_area = np.pi * (large_diameter / 2) ** 2

@@ -70,7 +70,7 @@ class FilePaths:
     """
 
     # Allowed names for attributes
-    blocker_names = ('noblocker')
+    blocker_names = ('noblocker', 'lap4', 'lap4acet', 'washout')
     slice_names = ('A', 'B', 'C', 'D')
     rec_names = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
 
@@ -179,6 +179,8 @@ class FilePaths:
         assert self.raw_dir.exists()
         assert self.blocker in self.blocker_names
         assert self.slice_nr in self.slice_names
+        assert len(self.raw_trials) > 0
+        assert self.raw_mea_position.exists(), f'dates have no 0 in front of them'
 
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
         for f in self.raw_raws:
