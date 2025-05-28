@@ -70,7 +70,7 @@ class FilePaths:
     """
 
     # Allowed names for attributes
-    blocker_names = ('noblocker')
+    blocker_names = ('noblocker', 'washout')
     slice_names = ('A', 'B', 'C', 'D')
     rec_names = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
 
@@ -177,9 +177,10 @@ class FilePaths:
         print(f'Checking if all data is available for {self.sid}:')
         assert self.processed_dir.exists()
         assert self.raw_dir.exists()
-        assert self.blocker in self.blocker_names
+        assert self.blocker in self.blocker_names, f'{self.blocker}'
         assert self.slice_nr in self.slice_names
 
+        assert len(self.raw_trials) > 0, f'no trial files found'
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
         for f in self.raw_raws:
             assert f.exists()

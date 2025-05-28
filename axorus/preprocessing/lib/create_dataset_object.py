@@ -47,12 +47,13 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     n_trials_triggers = 0
     n_bursts_triggers = 0
     for rec_id in filepaths.recording_names:
-        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
-            print('not adding DMD data')
-            n_trials_triggers += 1
+        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id:
+            print(f'skipping {rec_id}, not adding DMD data')
+            # n_trials_triggers += 1
             continue
         train_onsets = triggers[rec_id]['laser']['train_onsets']
         n_trials_triggers += len(train_onsets)
+        print(f'{rec_id}: {len(train_onsets):.0f} trains')
 
         burst_onsets = triggers[rec_id]['laser']['burst_onsets']
         n_bursts_triggers += len(burst_onsets)
@@ -71,7 +72,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
             # grp = f.create_group(rec_id)
 
             train_rec_df = train_df.query('recording_name == @rec_id')
-            assert train_rec_df.shape[0] > 0
+
+            if 'pa' in rec_id:
+                assert train_rec_df.shape[0] > 0
 
             if 'pa' in rec_id or rec_id in ['241024_A_1_noblocker',
                                             '241024_A_2_noblocker']:
@@ -106,7 +109,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
                                 burst.create_dataset(k, data=v, dtype='float')
                     burst_offset += burst_count
 
-            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id:
+            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id:
                 print(f'need to add dmd still...')
             else:
                 raise ValueError(f'{rec_id}?')

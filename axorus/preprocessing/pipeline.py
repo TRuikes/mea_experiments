@@ -23,9 +23,11 @@ for sid, s_specs in dataset_sessions.items():
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
         extract_phy_data(filepaths, update=False)
+    else:
+        print(f'NO SORTED DATA FOUND')
 
     create_dataset_object(filepaths, include_waveforms=False)
-    create_dataset_object(filepaths, include_waveforms=True)
+    # create_dataset_object(filepaths, include_waveforms=True)
 
 
     # Detect laser position

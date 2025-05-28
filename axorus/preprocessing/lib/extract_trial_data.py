@@ -48,7 +48,7 @@ def extract_trial_data(filepaths: FilePaths):
         recording_name = None
 
         for rr in filepaths.recording_names:
-            if f'_{rec_nr:.0f}_' in rr:
+            if f'_{rec_nr:03.0f}_' in rr:
                 recording_name = rr
         assert recording_name is not None
 

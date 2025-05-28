@@ -11,3 +11,6 @@ phylib
 python-pptx
 opencv-python
 pyqt5
+McsPyDataTools
+IPython
+sklearn
