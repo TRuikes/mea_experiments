@@ -9,7 +9,7 @@ from scipy.stats import wilcoxon
 from axorus.preprocessing.project_colors import ProjectColors
 
 # Load data
-session_id = '250520_A'
+session_id = '250527_A'
 data_dir = Path(r'C:\axorus\tmp')
 figure_dir = Path(r'C:\Axorus\figures') / 'lap4analysis'
 data_io = DataIO(data_dir)
@@ -25,7 +25,7 @@ clrs = ProjectColors()
 
 #%% Detect electrode stim site with most significant responses, per cell
 
-electrodes = [[164], [155], [63], [217, 100]]
+electrodes = [[86], [93], [129], [207], [220]]
 
 pref_ec_dict = {}
 
@@ -56,7 +56,7 @@ for cluster_id in data_io.cluster_df.index.values:
 cluster_ids = data_io.cluster_df.index.values
 electrodes = data_io.burst_df.electrode.unique()
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'lap4', 'washout']
 
 for cluster_id in cluster_ids:
 
@@ -90,17 +90,18 @@ for cluster_id in cluster_ids:
     for blocker in blockers:
         d_select = data_io.burst_df.query('electrode in @electrode and '
                                               'blockers == @blocker').copy()
-        d_select.sort_values('repetition_frequency', inplace=True)
-        repetition_frequencies = d_select.repetition_frequency.unique()
+        d_select.sort_values('duty_cycle', inplace=True)
+        # repetition_frequencies = d_select.repetition_frequency.unique()
+        duty_cycles = d_select.duty_cycle.unique()
 
-        for rf in repetition_frequencies:
-            tid = d_select.query('repetition_frequency == @rf').iloc[0].train_id
+        for dc in duty_cycles:
+            tid = d_select.query('duty_cycle == @dc').iloc[0].train_id
 
-            frep = data_io.burst_df.query('train_id == @tid').iloc[0].repetition_frequency
+            frep = data_io.burst_df.query('train_id == @tid').iloc[0].duty_cycle
             spike_times = cluster_data[tid]['spike_times']
             bins = cluster_data[tid]['bins']
 
-            ytext.append(f'Pr: {frep/1000:.1f} [kHz], {blocker}')
+            ytext.append(f'dc: {frep:.0f} [], {blocker}')
             yticks.append(burst_offset + len(spike_times) / 2)
 
             for burst_i, sp in enumerate(spike_times):
@@ -140,15 +141,12 @@ for cluster_id in cluster_ids:
 
 #%% plot individual firing rates
 cluster_ids = data_io.cluster_df.index.values
-electrodes = data_io.burst_df.electrode.unique()
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'lap4', 'washout']
 
 for cluster_id in cluster_ids:
 
     cluster_data = utils.load_obj(data_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
-
-    n_electrodes = electrodes.size
 
     electrode = pref_ec_dict[cluster_id]
     if electrode is None:
@@ -176,14 +174,14 @@ for cluster_id in cluster_ids:
     for blocker in blockers:
         d_select = data_io.burst_df.query('electrode in @electrode and '
                                               'blockers == @blocker').copy()
-        d_select.sort_values('repetition_frequency', inplace=True)
-        repetition_frequencies = d_select.repetition_frequency.unique()
+        d_select.sort_values('duty_cycle', inplace=True)
+        duty_cycles = d_select.duty_cycle.unique()
 
-        fmax = np.max(repetition_frequencies)
+        fmax = np.max(duty_cycles)
 
-        tid = d_select.query('repetition_frequency == @fmax').iloc[0].train_id
+        tid = d_select.query('duty_cycle == @fmax').iloc[0].train_id
 
-        frep = data_io.burst_df.query('train_id == @tid').iloc[0].repetition_frequency
+        dc = data_io.burst_df.query('train_id == @tid').iloc[0].duty_cycle
         bins = cluster_data[tid]['bins']
         fr = cluster_data[tid]['firing_rate']
         fr_ci_low = cluster_data[tid]['firing_rate_ci_low']
@@ -257,7 +255,7 @@ for cluster_id in cluster_ids:
 
 #%% Gather data for final plot
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'lap4', 'washout']
 df_plot = pd.DataFrame()
 
 for cluster_id, electrode in pref_ec_dict.items():
@@ -267,7 +265,7 @@ for cluster_id, electrode in pref_ec_dict.items():
     for blocker in blockers:
         d_select = data_io.burst_df.query('electrode in @electrode and '
                                               'blockers == @blocker').copy()
-        tid = d_select.loc[d_select['repetition_frequency'].idxmax()].train_id
+        tid = d_select.loc[d_select['duty_cycle'].idxmax()].train_id
 
         df_plot.at[cluster_id, f'{blocker} baseline'] = cells_df.loc[cluster_id, tid].baseline_firing_rate
         df_plot.at[cluster_id, f'{blocker} response'] = cells_df.loc[cluster_id, tid].response_firing_rate
@@ -327,7 +325,7 @@ fig = make_figure(
 xpos = [0, 1, 3, 4, 6, 7, 9, 10]
 xdata = ['noblocker baseline', 'noblocker response',
          'lap4 baseline', 'lap4 response',
-         'lap4acet baseline', 'lap4acet response',
+         # 'lap4acet baseline', 'lap4acet response',
          'washout baseline', 'washout response']
 
 xlbl = ['no blocker', 'lap4', 'lap4+acet', 'washout']
@@ -344,7 +342,7 @@ print(f'{n_pts} cells, {1} retinas')
 # print_wilcoxon(responses['stim_none'], responses['stim_wash'], 'stim none', 'stim wash')
 print_wilcoxon(df_plot['noblocker baseline'], df_plot['noblocker response'], 'none baseline', 'none stim')
 print_wilcoxon(df_plot['lap4 baseline'], df_plot['lap4 response'], 'lap4 baseline', 'stim lap4')
-print_wilcoxon(df_plot['lap4acet baseline'], df_plot['lap4acet response'], 'lap4acet baseline', 'lap4acet stim')
+# print_wilcoxon(df_plot['lap4acet baseline'], df_plot['lap4acet response'], 'lap4acet baseline', 'lap4acet stim')
 print_wilcoxon(df_plot['washout baseline'], df_plot['washout response'], 'washout baseline', 'washout stim')
 
 

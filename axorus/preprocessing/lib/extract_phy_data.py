@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)
-    _extract_waveforms(filepaths, update=update)
+    # _extract_waveforms(filepaths, update=update)
 
 
 def get_spikedata(filepaths: FilePaths, update):

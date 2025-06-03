@@ -4,6 +4,7 @@ import numpy as np
 
 class ProjectColors:
     def __init__(self):
+        self._animal_map = cmaps.BlueDarkOrange18.colors
         return
 
     @staticmethod
@@ -62,7 +63,31 @@ class ProjectColors:
         r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[rel_i, :]
         return f'rgba({r}, {g}, {b}, {1})'
 
+    def animal_color(self, animal, alpha=1, idx=3):
+        if animal == 'P23H':
+            idx = -idx
+        clrraw = self._animal_map[idx, :]
+        return f'rgba({clrraw[0]}, {clrraw[1]}, {clrraw[2]}, {alpha})'
+
+
+    @staticmethod
+    def blocker_color(blocker, alpha):
+        if blocker == 'noblocker' or blocker == 'none':
+            idx = 5
+        elif blocker == 'lap4':
+            idx = 11
+        elif blocker == 'lap4acet':
+            idx = 1
+        elif blocker == 'washout':
+            idx = 3
+
+        clrraw = cmaps.grads_rainbow.colors[idx, :]
+        return f'rgba({clrraw[0]}, {clrraw[1]}, {clrraw[2]}, {alpha})'
+
 
 if __name__ == '__main__':
     # p = ProjectColors()
-    cmaps.show_cmaps_all()
+    # cmaps.show_cmaps_all()
+
+    clrs = ProjectColors()
+    x = clrs.blocker_color('noblocker', 1)

@@ -20,7 +20,7 @@ def main():
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
-    data_io.load_session('250520_A')
+    data_io.load_session('250527_A')
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
@@ -29,7 +29,7 @@ def main():
 
 def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Path):
     """
-    gathers output from detect_significant_responses into a single dataframe
+    gathers output from detect_significant_responses into a single dataframe`
     """
     baseline_t0 = -200
     baseline_t1 = -100
@@ -223,6 +223,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
     binwidth = 20
     bin_centres = np.arange(-t_pre, t_after, stepsize)
     baseline = [-200, -100]
+    response_window = [0, 200]
 
     output_data = {}
     for train_id in data_io.burst_df.train_id.unique():
@@ -249,6 +250,9 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
 
         # Find baseline index
         baseline_idx = np.where((bin_centres >= baseline[0]) & (bin_centres <= baseline[1]))[0]
+
+        # Find response window index
+        response_idx = np.where((bin_centres >= response_window[0]) & (bin_centres <= response_window[1]))[0]
 
         # Detect burst onsets for this train
         burst_onsets = data_io.burst_df.query('train_id == @train_id').burst_onset.values
@@ -319,7 +323,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
             ci_baseline[0] = 0
 
         # Detect which bins do not overlap with baseline bins
-        sig_idx = [i for i in range(n_bins) if not intervals_overlap((ci_low[i], ci_high[i]), ci_baseline)]
+        sig_idx = [i for i in response_idx if not intervals_overlap((ci_low[i], ci_high[i]), ci_baseline)]
 
         # Detect stepsize of the bins
         stepsize = np.diff(bin_centres)[0]
