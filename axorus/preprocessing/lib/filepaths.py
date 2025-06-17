@@ -90,6 +90,8 @@ class FilePaths:
         self.dataset_out_dir = self.dataset_dir / 'dataset'
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
+        else:
+            self.local_raw_dir is None
 
         if sid is not None:
             self.date = extract_date(sid)
@@ -97,8 +99,13 @@ class FilePaths:
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
-            self.blocker = detect_blocker(self.raw_dir)
-            recording_nrs = detect_rec_nrs(self.raw_dir)
+
+            if self.local_raw_dir is not None:
+                self.blocker = detect_blocker(self.local_raw_dir)
+                recording_nrs = detect_rec_nrs(self.local_raw_dir)
+            else:
+                self.blocker = detect_blocker(self.raw_dir)
+                recording_nrs = detect_rec_nrs(self.raw_dir)
             self.recording_nrs = recording_nrs
             # self.rec_nr = detect_rec_nr(self.raw_dir)
 
@@ -113,7 +120,11 @@ class FilePaths:
             self.raw_trials = [raw_trials[s] for s in sort_idx]
 
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
-            self.raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
+
+            raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
+            if not raw_mea_position.exists():
+                raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month:02.0f}-{self.date.day}_MEA_position.csv'
+            self.raw_mea_position = raw_mea_position
 
             # define processed files
             self.sorted_dir = self.processed_dir / 'sorted'
@@ -215,11 +226,13 @@ class FilePaths:
             print('\tdoes not have sorted data...')
 
     def get_recording_names_from_rawfiles(self):
-        recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if 'mcd' in f.name]
+        readdir = self.local_raw_dir if self.local_raw_dir is not None else self.raw_dir
+
+        recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if 'raw' in f.name]
 
         if len(recording_names) == 0:
             # check if there are rawfiles
-            recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if
+            recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if
                                     'raw' in f.name]
 
         if len(recording_names) == 0:

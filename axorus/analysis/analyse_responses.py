@@ -15,12 +15,12 @@ def main():
     """
     Main handles
     """
-    # dataset_dir = Path(r'E:\Axorus\series 3')
-    dataset_dir = Path(r'C:\axorus\tmp')
+    dataset_dir = Path(r'E:\Axorus\dataset_series_3')
+    # dataset_dir = Path(r'C:\axorus\tmp')
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
-    data_io.load_session('250527_A')
+    data_io.load_session('250606_A')
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')

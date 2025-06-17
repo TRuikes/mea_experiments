@@ -114,7 +114,6 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 savename = filepaths.proc_pp_figure_output / 'triggers' / 'laser' / f'{i}'
                 utils.save_fig(fig, savename, display=True, verbose=False)
 
-
         if trigger_type == 'laser':
             # Process laser trigger times
             dt = np.diff(trigger_high)  # time difference between triggers, in ms
@@ -122,7 +121,6 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
             trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
             burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
             burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
-
             train_onsets = trigger_high[trial_onsets_idx]
             burst_onsets = trigger_high[burst_onsets_idx]
             burst_offsets = trigger_high[burst_offsets_idx]

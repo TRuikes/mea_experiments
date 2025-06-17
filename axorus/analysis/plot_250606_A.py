@@ -8,8 +8,9 @@ from utils import make_figure, save_fig
 from scipy.stats import wilcoxon
 from axorus.preprocessing.project_colors import ProjectColors
 
+
 # Load data
-session_id = '250527_A'
+session_id = '250606_A'
 data_dir = Path(r'E:\Axorus\dataset_series_3')
 figure_dir = Path(r'E:\Axorus\Figures') / 'lap4analysis'
 data_io = DataIO(data_dir)
@@ -25,7 +26,7 @@ clrs = ProjectColors()
 
 #%% Detect electrode stim site with most significant responses, per cell
 
-electrodes = [[86], [93], [129], [207], [220]]
+electrodes = [[93], [50], [35], [136], [142], [98]]
 
 pref_ec_dict = {}
 
@@ -56,7 +57,8 @@ for cluster_id in data_io.cluster_df.index.values:
 cluster_ids = data_io.cluster_df.index.values
 electrodes = data_io.burst_df.electrode.unique()
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'cpp', 'washout']
+
 
 for cluster_id in cluster_ids:
 
@@ -142,7 +144,7 @@ for cluster_id in cluster_ids:
 #%% plot individual firing rates
 cluster_ids = data_io.cluster_df.index.values
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'cpp', 'washout']
 
 for cluster_id in cluster_ids:
 
@@ -250,12 +252,64 @@ for cluster_id in cluster_ids:
     utils.save_fig(fig, sname, display=False)
 
 
+#%% Gather data for Figure CPP CNQX Paper (used in the axorus-analysis libray
+#%% Gather data for final plot
+
+blockers = ['noblocker', 'cpp', 'washout']
+df_save = pd.DataFrame()
+
+for cluster_id, electrode in pref_ec_dict.items():
+    if electrode is None:
+        continue
+
+    cluster_x = data_io.cluster_df.loc[cluster_id, 'cluster_x']
+    df_save.at[cluster_id, f'x_mea'] = cluster_x
+    cluster_y = data_io.cluster_df.loc[cluster_id, 'cluster_y']
+    df_save.at[cluster_id, f'y_mea'] = cluster_y
+
+    for blocker in blockers:
+        d_select = data_io.burst_df.query('electrode in @electrode and '
+                                              'blockers == @blocker').copy()
+        tid = d_select.loc[d_select['duty_cycle'].idxmax()].train_id
+
+        laser_x = data_io.burst_df.query('train_id == @tid').laser_x.values[0]
+        laser_y = data_io.burst_df.query('train_id == @tid').laser_y.values[0]
+        d = np.sqrt((laser_x - cluster_x) ** 2 + (laser_y - cluster_y) ** 2)
+
+        df_save.at[cluster_id, f'{blocker} baseline'] = cells_df.loc[cluster_id, tid].baseline_firing_rate
+        df_save.at[cluster_id, f'{blocker} response'] = cells_df.loc[cluster_id, tid].response_firing_rate
+        df_save.at[cluster_id, f'laser_distance'] = d
+        df_save.at[cluster_id, f'{blocker} is_sig'] = cells_df.loc[cluster_id, tid].is_significant
+        df_save.at[cluster_id, f'{blocker} response_latency'] = cells_df.loc[cluster_id, tid].response_latency
+savename = figure_dir / 'stats_data_250606_A.csv'
+df_save.to_csv(savename)
+print(f'Saved data in: {savename}')
+
+# Load analysis results
+df_out = pd.DataFrame()
+
+for blocker in blockers:
 
 
+    laser_x, laser_y = get_electrode_pos(stimsites[sid][tid])
+
+    for cluster_id in data_io.unit_df.index.values:
+
+        cluster_x = data_io.unit_df.loc[cluster_id, 'x_mea']
+        cluster_y = data_io.unit_df.loc[cluster_id, 'y_mea']
+        d = np.sqrt((laser_x - cluster_x) ** 2 + (laser_y - cluster_y) ** 2)
+        df_out.at[cluster_id, f'd'] = d
+
+        if response_stats[cluster_id].loc[tid, 'is_sig'] is True:
+            df_out.at[cluster_id, f'{blocker}'] = True
+        else:
+            df_out.at[cluster_id, f'{blocker}'] = False
+
+    data_out[f'{sid}'] = df_out
 
 #%% Gather data for final plot
 
-blockers = ['noblocker', 'lap4', 'lap4acet', 'washout']
+blockers = ['noblocker', 'cpp', 'washout']
 df_plot = pd.DataFrame()
 
 for cluster_id, electrode in pref_ec_dict.items():
@@ -266,7 +320,7 @@ for cluster_id, electrode in pref_ec_dict.items():
         d_select = data_io.burst_df.query('electrode in @electrode and '
                                               'blockers == @blocker').copy()
         tid = d_select.loc[d_select['duty_cycle'].idxmax()].train_id
-
+        print(tid)
         df_plot.at[cluster_id, f'{blocker} baseline'] = cells_df.loc[cluster_id, tid].baseline_firing_rate
         df_plot.at[cluster_id, f'{blocker} response'] = cells_df.loc[cluster_id, tid].response_firing_rate
 
@@ -322,10 +376,9 @@ fig = make_figure(
     },
 )
 
-xpos = [0, 1, 3, 4, 6, 7, 9, 10]
+xpos = [0, 1, 3, 4, 6, 7]
 xdata = ['noblocker baseline', 'noblocker response',
-         'lap4 baseline', 'lap4 response',
-         'lap4acet baseline', 'lap4acet response',
+         'cpp baseline', 'cpp response',
          'washout baseline', 'washout response']
 
 xlbl = ['no blocker', 'lap4', 'lap4+acet', 'washout']
@@ -336,8 +389,8 @@ n_pts = df_plot.shape[0]
 box_specs = dict(
     name='P23H',
     boxpoints='all',
-    marker=dict(color=clrs.animal_color('LE', 1, 1), size=2),
-    line=dict(color=clrs.animal_color('LE', 1, 1), width=1.5),
+    marker=dict(color=clrs.animal_color('P23H', 1, 1), size=2),
+    line=dict(color=clrs.animal_color('P23H', 1, 1), width=1.5),
     showlegend=False,
 )
 
@@ -354,8 +407,8 @@ fig.update_yaxes(
     tickvals=np.arange(0, 300, 50),
 )
 fig.update_xaxes(
-    tickvals=[0.5, 3.5, 6.5, 9.5],
-    ticktext=['no blocker', 'lap4', 'lap4acet', 'washout'],
+    tickvals=[0.5, 3.5, 6.5],
+    ticktext=['no blocker', 'cpp', 'washout'],
 )
 
 sname = figure_dir / f'{session_id}_boxplot'

@@ -10,8 +10,8 @@ from axorus.preprocessing.project_colors import ProjectColors
 
 # Load data
 session_id = '250520_A'
-data_dir = Path(r'C:\axorus\tmp')
-figure_dir = Path(r'C:\Axorus\figures') / 'lap4analysis'
+data_dir = Path(r'E:\Axorus\dataset_series_3')
+figure_dir = Path(r'E:\Axorus\Figures') / 'lap4analysis'
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
 data_io.load_session(session_id, load_pickle=True)
@@ -373,5 +373,5 @@ fig.update_xaxes(
     ticktext=['no blocker', 'lap4', 'lap4acet', 'washout'],
 )
 
-savename = figure_dir / 'paper' / f'Figure_2' / 'Figure_2J_lap4acet'
-save_fig(fig, savename, formats=['png', 'svg'], scale=3)
+sname = figure_dir / f'{session_id}_boxplot'
+save_fig(fig, sname, formats=['png', 'svg'], scale=3)

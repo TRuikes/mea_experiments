@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 import utils
 from tqdm import tqdm
+import re
+
 
 def extract_phy_data(filepaths: FilePaths, update=False):
     get_spikedata(filepaths, update=update)
@@ -43,31 +45,46 @@ def recording_onsets(filepaths: FilePaths):
     # Detect which files were clustered
     clustered_files = []
 
+    if filepaths.local_raw_dir is not None:
+        USE_LOCAL_DIR = True
+    else:
+        USE_LOCAL_DIR = False
+
     with open(filepaths.proc_sc_params, 'r') as file:
         text = file.read()
 
-    for line in text.split('\n'):
-        if 'dat_path' in line:
+    match = re.search(r'\[.*?\]', text, re.DOTALL)
+    list_content = match.group(0)[1:-1]  # remove brackets
+    clustered_files = [item.strip().replace('r"', '').replace('"', '') for item in list_content.split(',') if len(item) > 3]
+    clustered_files = [Path(f) for f in clustered_files]
 
-            parts0 = line.split('[')
-            prefix = parts0[0]
-            parts1 = parts0[1].split(']')[0]
-            parts2 = parts1.split(',')
-
-            prefix += '['
-            for filename in parts2:
-                if len(filename) < 3:
-                    continue
-                f = Path(filename.split('"')[1])
-                clustered_files.append(f)
+    # for line in text.split('\n'):
+    #     if 'dat_path' in line:
+    #
+    #         parts0 = line.split('[')
+    #         prefix = parts0[0]
+    #         parts1 = parts0[1].split(']')[0]
+    #         parts2 = parts1.split(',')
+    #
+    #         prefix += '['
+    #         for filename in parts2:
+    #             if len(filename) < 3:
+    #                 continue
+    #             f = Path(filename.split('"')[1])
+    #             clustered_files.append(f)
 
     # The onset of the first recording is set to 0
     cursor = 0
     onsets = pd.DataFrame(columns=['i0', 'i1'])
 
     for rec in clustered_files:
-        local_name = filepaths.raw_dir / rec.name
-        assert local_name.exists(), f''
+
+        if USE_LOCAL_DIR:
+            local_name = filepaths.local_raw_dir / rec.name
+        else:
+            local_name = filepaths.raw_dir / rec.name
+
+        assert local_name.exists(), f'{local_name}'
 
         # Derive name of recording
         recname = local_name.name.split('.')[0]
@@ -77,6 +94,7 @@ def recording_onsets(filepaths: FilePaths):
         file_stats = os.stat(local_name)
         cursor += int(file_stats.st_size / (nb_bytes_by_datapoint * data_nb_channels))
         onsets.at[recname, 'i1'] = np.copy(cursor)
+
     return onsets
 
 
@@ -93,7 +111,6 @@ def _extract_spiketimes(filepaths: FilePaths):
         - .npy files no longer exists
 
     """
-
 
     # model = load_model(filepaths.proc_sc_params)
     # model.get_cluster_channels()

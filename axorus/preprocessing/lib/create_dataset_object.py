@@ -47,7 +47,8 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     n_trials_triggers = 0
     n_bursts_triggers = 0
     for rec_id in filepaths.recording_names:
-        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id:
+        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id\
+                or 'baseline' in rec_id:
             print(f'skipping {rec_id}, not adding DMD data')
             # n_trials_triggers += 1
             continue
@@ -67,7 +68,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
 
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
 
-    with h5py.File(write_file, 'w') as f:
+    with (h5py.File(write_file, 'w') as f):
 
         for rec_id in filepaths.recording_names:
             print(f'\tloading {rec_id}')
@@ -111,7 +112,8 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
                                 burst.create_dataset(k, data=v, dtype='float')
                     burst_offset += burst_count
 
-            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id:
+            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id\
+                    or 'baseline' in rec_id:
                 print(f'need to add dmd still...')
             else:
                 raise ValueError(f'{rec_id}?')
