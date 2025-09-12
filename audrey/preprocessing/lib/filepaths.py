@@ -88,6 +88,7 @@ class FilePaths:
         self.dataset_dir = Path(dataset_dir)
         self.laser_calib_week = laser_calib_week
         self.dataset_out_dir = self.dataset_dir / 'dataset'
+        self.local_raw_dir = local_raw_dir
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
         else:
@@ -99,6 +100,7 @@ class FilePaths:
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
+            #self.raw_dir = self.dataset_dir / sid / 'sorted'
 
             if self.local_raw_dir is not None:
                 self.blocker = detect_blocker(self.local_raw_dir)
@@ -114,7 +116,8 @@ class FilePaths:
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
 
-            raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials_tmp = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
             raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
             sort_idx = np.argsort(raw_t_nrs)
             self.raw_trials = [raw_trials[s] for s in sort_idx]
@@ -127,28 +130,29 @@ class FilePaths:
             self.raw_mea_position = raw_mea_position
 
             # define processed files
-            self.sorted_dir = self.processed_dir / 'sorted'
+            self.sorted_dir = self.dataset_dir / sid / 'sorted'
+            self.gui_dir = self.sorted_dir / f'{sid}_001_noblocker_checkerboard_30sq20px' / f'{sid}_001_noblocker_checkerboard_30sq20px.GUI'
             if self.sorted_dir.exists():
                 self.has_sorted_data = True
-                self.proc_sc_amplitudes = self.sorted_dir / 'amplitudes.npy'
-                self.proc_sc_channel_map = self.sorted_dir / 'channel_map.npy'
-                self.proc_sc_channel_positions = self.sorted_dir / 'channel_positions.npy'
-                self.proc_sc_similar_templates = self.sorted_dir / 'similar_templates.npy'
-                self.proc_sc_spike_times = self.sorted_dir / 'spike_times.npy'
-                self.proc_sc_template_ind = self.sorted_dir / 'template_ind.npy'
-                self.proc_sc_templates = self.sorted_dir / 'templates.npy'
-                self.proc_sc_whitening_mat = self.sorted_dir / 'whitening_mat.npy'
-                self.proc_sc_whitening_mat_inv = self.sorted_dir / 'whitening_mat_inv.npy'
-                self.proc_sc_params = self.sorted_dir / 'params.py'
+                self.proc_sc_amplitudes = self.gui_dir / 'amplitudes.npy'
+                self.proc_sc_channel_map = self.gui_dir / 'channel_map.npy'
+                self.proc_sc_channel_positions = self.gui_dir / 'channel_positions.npy'
+                self.proc_sc_similar_templates = self.gui_dir / 'similar_templates.npy'
+                self.proc_sc_spike_times = self.gui_dir / 'spike_times.npy'
+                self.proc_sc_template_ind = self.gui_dir / 'template_ind.npy'
+                self.proc_sc_templates = self.gui_dir / 'templates.npy'
+                self.proc_sc_whitening_mat = self.gui_dir / 'whitening_mat.npy'
+                self.proc_sc_whitening_mat_inv = self.gui_dir / 'whitening_mat_inv.npy'
+                self.proc_sc_params = self.gui_dir / 'params.py'
 
-                self.proc_phy_cluster_group = self.sorted_dir / 'cluster_group.tsv'
+                self.proc_phy_cluster_group = self.gui_dir / 'cluster_group.tsv'
 
                 if self.proc_phy_cluster_group.exists():
                     self.has_manual_sorted_data = True
 
-                    self.proc_phy_cluster_info = self.sorted_dir / 'cluster_info.tsv'
-                    self.proc_phy_spike_clusters = self.sorted_dir / 'spike_clusters.npy'
-                    self.proc_phy_cluster_purity = self.sorted_dir / 'cluster_purity.tsv'
+                    self.proc_phy_cluster_info = self.gui_dir / 'cluster_info.tsv'
+                    self.proc_phy_spike_clusters = self.gui_dir / 'spike_clusters.npy'
+                    self.proc_phy_cluster_purity = self.gui_dir / 'cluster_purity.tsv'
 
                 else:
                     self.has_manual_sorted_data = False
@@ -164,7 +168,7 @@ class FilePaths:
             self.proc_pp_figure_output = self.processed_dir / 'figures'
             self.proc_pp_artefact_positions = self.processed_dir / 'artefact_positions.csv'
 
-            # define trails file
+            # define trials file
             self.proc_pp_trials = self.processed_dir / 'trials.csv'
 
             # Define the final dataset file
@@ -243,6 +247,6 @@ class FilePaths:
 
 
 if __name__ == '__main__':
-    sid = '161024_A'
-    f = FilePaths(sid)
+    sid = '250904_A'
+    f = FilePaths(sid, local_raw_dir=None)
     f.check_data()

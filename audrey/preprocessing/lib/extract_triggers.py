@@ -1,7 +1,7 @@
-from axorus.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
+from audrey.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
                                          data_trigger_thresholds)
-from axorus.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.lib.filepaths import FilePaths
 import utils
 from pathlib import Path
 
@@ -36,12 +36,17 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         print(f'\treading data ({rec_duration:.0f} min)')
 
-        if 'pa' in rec:
+        if '_PA_' in rec:
             trigger_type = 'laser'
-        elif 'dmd' in rec or 'checkerboard' in rec or 'chirp':
+        elif '_DMD_' in rec:
             trigger_type = 'dmd'
+        elif '_PADMD_' in rec:
+            trigger_type = 'laser'
         else:
             raise ValueError(f'{rec}: error!')
+
+        if trigger_type == 'dmd' :
+            continue
 
         trigger_channel = data_trigger_channels[trigger_type]
 

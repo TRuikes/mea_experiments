@@ -1,4 +1,4 @@
-from axorus.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import utils
 import h5py
@@ -46,13 +46,21 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
 
     n_trials_triggers = 0
     n_bursts_triggers = 0
+    recordings_included = []
     for rec_id in filepaths.recording_names:
-        if 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id\
-                or 'baseline' in rec_id:
+        if ('dmd' in rec_id or
+                'checkerboard' in rec_id or
+                'chirp' in rec_id or
+                'wl' in rec_id or
+                'SWN' in rec_id or
+                'FF' in rec_id or
+                'baseline' in rec_id or
+                'light' in rec_id):
             print(f'skipping {rec_id}, not adding DMD data')
             # n_trials_triggers += 1
             continue
-        # print(rec_id)
+
+        recordings_included.append(rec_id)
 
         train_onsets = triggers[rec_id]['laser']['train_onsets']
         n_trials_triggers += len(train_onsets)
@@ -61,26 +69,40 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
         burst_onsets = triggers[rec_id]['laser']['burst_onsets']
         n_bursts_triggers += len(burst_onsets)
 
+    train_df_check = train_df.query('recording_name in @recordings_included')
+
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
-    assert n_trials_triggers == train_df.shape[0]
-    assert n_bursts_triggers == train_df.train_count.sum()
+    assert n_trials_triggers == train_df_check.shape[0]
+    assert n_bursts_triggers == train_df_check.burst_count.sum()
 
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
+
+    if not write_file.parent.exists():
+        write_file.parent.mkdir(parents=True)
+
 
     with (h5py.File(write_file, 'w') as f):
 
         for rec_id in filepaths.recording_names:
+            if rec_id in [
+                '250904_A_009_noblocker_light-prr-series',
+                '250904_A_012_lap4_light-prr-series',
+            ]:
+                continue
+
             print(f'\tloading {rec_id}')
             # grp = f.create_group(rec_id)
 
             train_rec_df = train_df.query('recording_name == @rec_id')
 
-            if 'pa' in rec_id:
+            if '_PA_' in rec_id:
                 assert train_rec_df.shape[0] > 0
 
-            if 'pa' in rec_id or rec_id in ['241024_A_1_noblocker',
-                                            '241024_A_2_noblocker']:
+            if '_PA_' in rec_id or '_PADMD_' in rec_id:
+                if '_PADMD_' in rec_id:
+                    print(f'\nHAVE NOT EXTRACTED DMD DATA FOR PADMD CONDITION\n')
+
                 # Store laser trigger data
                 burst_offset = 0
                 for train_id, trial_info in train_rec_df.iterrows():
@@ -88,7 +110,13 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
                     burst_onsets = triggers[rec_id]['laser']['burst_onsets']
                     burst_offsets = triggers[rec_id]['laser']['burst_offsets']
 
-                    burst_count = int(trial_info.train_count)
+                    if '_PA_' in rec_id:
+                        burst_count = int(trial_info.burst_count)
+                    elif '_PADMD_' in rec_id:
+                        burst_count = int(trial_info.laser_burst_count)
+
+                    if rec_id == '250904_A_012_lap4_PADMD_light-prr-series':
+                        continue
 
                     for burst_i in range(burst_count):
                         burst_id = f'{train_id}-{burst_i:02d}'
@@ -102,19 +130,20 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
                             burst_offset=burst_offsets[trigger_i],
                             **trial_info,
                         )
-
                         for k, v in to_store.items():
                             if isinstance(v, str):
                                 burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
                             elif k in names_as_int:
+                                if pd.isna(v):
+                                    continue
                                 burst.create_dataset(k, data=int(v), dtype='int')
                             else:
                                 burst.create_dataset(k, data=v, dtype='float')
                     burst_offset += burst_count
 
-            elif 'dmd' in rec_id or 'checkerboard' in rec_id or 'chirp' in rec_id or 'wl' in rec_id or 'FF' in rec_id\
-                    or 'baseline' in rec_id:
+            elif '_DMD_' in rec_id:
                 print(f'need to add dmd still...')
+
             else:
                 raise ValueError(f'{rec_id}?')
 
@@ -130,6 +159,14 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
                         cluster.create_dataset(k, data=int(v), dtype='int')
                     else:
                         cluster.create_dataset(k, data=v, dtype='float')
+
+                if filepaths.sid == '250904_A':
+                    # Pathcing spiketimes for this session
+                    rec_nr = rec_id.split('_')[2]
+                    for k in spiketimes.keys():
+                        if f'_{rec_nr}_' in k:
+                            spiketimes[rec_id] = spiketimes[k]
+                            break
 
                 cluster.create_dataset('spiketimes', data=spiketimes[rec_id][cluster_id])
 

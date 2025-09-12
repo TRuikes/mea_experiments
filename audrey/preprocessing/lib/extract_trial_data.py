@@ -1,6 +1,6 @@
 import pandas as pd
-from axorus.preprocessing.lib.filepaths import FilePaths
-from axorus.preprocessing.dataset_sessions import dataset_sessions
+from audrey.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.dataset_sessions import dataset_sessions
 import numpy as np
 
 
@@ -15,6 +15,7 @@ def extract_trial_data(filepaths: FilePaths):
             if df_read.shape[1] == 0:
                 df_read = pd.read_csv(f, index_col=0, header=0, delimiter=';')
             df_read = df_read.loc[pd.notna(df_read.index)]
+            df_read['rec_file'] = f
             dataframes.append(df_read)
         df = pd.concat(dataframes, ignore_index=True)
 
@@ -25,6 +26,7 @@ def extract_trial_data(filepaths: FilePaths):
         )
 
     train_i = 0
+    df = df.reset_index(drop = True)
 
     for i, r in df.iterrows():
 
@@ -33,18 +35,7 @@ def extract_trial_data(filepaths: FilePaths):
         df.at[i, 'train_id'] = tid
         train_i += 1
 
-        if pd.isna(r.protocol):
-            print(i)
-
-        if 'dmd' in r.protocol:
-            tail = '_dmd'
-        elif 'pa' in r.protocol:
-            tail = '_pa'
-        else:
-            raise ValueError('dunno')
-
-        rec_nr = r.recording_number
-        blocker = r.blockers
+        rec_nr = r['Recording Number']
         recording_name = None
 
         for rr in filepaths.recording_names:
@@ -66,7 +57,7 @@ def extract_trial_data(filepaths: FilePaths):
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
     for i, r in df.iterrows():
         if pd.isna(r.electrode):
-            if 'dmd' in r.protocol:
+            if 'dmd' or 'light' in r.protocol:
                 continue
             else:
                 raise ValueError('error??')
@@ -83,7 +74,7 @@ def extract_trial_data(filepaths: FilePaths):
         laser_specs = None
 
     for i, r in df.iterrows():
-        if 'dmd' in r.protocol:
+        if 'dmd' or 'light' in r.protocol:
             continue
 
         if filepaths.sid == '161024_A':
@@ -96,6 +87,8 @@ def extract_trial_data(filepaths: FilePaths):
                 fiber_connection = f'CB1_14_{cb}'
             elif att == 'CA':
                 fiber_connection = f'CB1_CA_{cb}_{r.n_turns:.0f}'
+            elif att == 0.4 or att == '0.4':
+                    fiber_connection = f'CB1_04_{cb}'
             else:
                 raise ValueError('implement this')
         else:

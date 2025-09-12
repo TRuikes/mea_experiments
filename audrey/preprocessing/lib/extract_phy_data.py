@@ -1,7 +1,7 @@
-from axorus.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import numpy as np
-from axorus.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
+from audrey.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
 from pathlib import Path
 import os
 import utils
@@ -78,13 +78,17 @@ def recording_onsets(filepaths: FilePaths):
     onsets = pd.DataFrame(columns=['i0', 'i1'])
 
     for rec in clustered_files:
-
+        '''
         if USE_LOCAL_DIR:
             local_name = filepaths.local_raw_dir / rec.name
         else:
             local_name = filepaths.raw_dir / rec.name
+        '''
+        local_name = filepaths.raw_dir / rec.name
+
 
         assert local_name.exists(), f'{local_name}'
+
 
         # Derive name of recording
         recname = local_name.name.split('.')[0]
