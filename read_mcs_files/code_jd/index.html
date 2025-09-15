@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/customPure.css">
+    <link rel="stylesheet" href="css/grid.css">
+    <link rel="stylesheet" href="css/controls.css">
+    <link rel="shortcut icon" href="img/icon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.min.css">
+    <title>Spiker</title>
+</head>
+<body>
+    <div id="layout" class="pure-g">
+        <div id="menu" class="pure-u-1-6 pure-g">
+            <div class="pure-u-1-6">&nbsp;</div>
+            <img src="img/axorus.png" class="pure-u-2-3" title="Axorus">
+            <span id="logoTitle" class="pure-u-1">Spiker</span>
+            <input type="file" class="inputFile" name="mcd" id="inputMCD" accept=".mcd" hidden>
+            <label for="inputMCD" class="pure-u-1 pure-button btn-success"><i class="ri-folder-fill"></i> Open MCD</label>
+            <hr>
+            <div id="fileInfo" class="pure-u-1 pure-g">
+                <div class="pure-u-1-12 vertical">F<br>I<br>L<br>E</div>
+                <div class="pure-u-3-5 pure-g">
+                    <div class="pure-u-1">
+                        Name : <span id="mcdName"></span>
+                    </div>
+                    <div class="pure-u-1">
+                        Date : <span id="mcdDate"></span>
+                    </div>
+                    <div class="pure-u-1">
+                        Duration : <span id="mcdDuration"></span>
+                    </div>
+                </div>
+                <button class="pure-u-1-5 pure-button btn-primary" onclick="document.getElementById('dialogColor').showModal()"><i class="ri-palette-fill"></i></button>
+            </div>
+            <hr>
+            <div class="pure-u-1">
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxScale" checked><label for="checkboxScale" class="pure-u"><i class="ri-ruler-line"></i> Scale</label>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxMAD" checked><label for="checkboxMAD" class="pure-u-10-24"><i class="ri-git-commit-line"></i> Threshold</label>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxStimulation" checked><label for="checkboxStimulation" class="pure-u-10-24"><i class="ri-flashlight-fill"></i> Stimulation</label>
+                <hr>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxRaw" value="1" checked><label for="checkboxRaw" class="pure-u-2-3"><i class="ri-line-chart-line"></i> Raw</label>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxFiltered"><label for="checkboxFiltered" class="pure-u-2-3"><i class="ri-sound-module-line"></i> Filtered</label>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxSpikes"><label for="checkboxSpikes" class="pure-u-2-3"><i class="ri-align-bottom"></i> Spikes</label>
+                <input type="checkbox" class="pure-checkbox pure-u-1-6" id="checkboxRaster"><label for="checkboxRaster" class="pure-u-2-3"><i class="ri-coupon-3-line"></i> Rasterplot</label>
+            </div>
+            <hr>
+            <div class="pure-control-group pure-form">
+                <label for="inputScaleMagnitude" class="pure-u-1-2"><i class="ri-zoom-in-line"></i> Scale Magn.</label>
+                <input type="number" class="pure-u-1-4" id="inputScaleMagnitude" value="-2" step="0.1">
+            </div>
+            <div class="pure-control-group pure-form">
+                <label for="inputOffset" class="pure-u-1-2"><i class="ri-skip-right-line"></i> Offset</label>
+                <input type="number" class="pure-u-1-4" id="inputOffset" value="0" min="0" step="100">
+                <div class="pure-u-1-5">ms</div>
+            </div>
+            <div class="pure-control-group pure-form">
+                <label for="inputTimeWindowWidth" class="pure-u-1-2"><i class="ri-timer-2-line"></i> Time Window</label>
+                <input type="number" class="pure-u-1-4" id="inputTimeWindowWidth" value="1">
+                <div class="pure-u-1-5">sec</div>
+            </div>
+            <hr>
+            <div class="pure-control-group pure-form">
+                <label for="inputThreshold" class="pure-u-1-2"><i class="ri-git-commit-line"></i> Threshold</label>
+                <input type="number" class="pure-u-1-4" id="inputThreshold" value="10">
+                <div class="pure-u-1-5">xMAD</div>
+            </div>
+            <div class="pure-control-group pure-form">
+                <label for="inputCutoff" class="pure-u-1-2"><i class="ri-sound-module-line"></i> Cutoff Freq. <i class="ri-information-line" title="Butterworth 3rd Order High-Pass Filter"></i></label>
+                <input type="number" class="pure-u-1-4" id="inputCutoff" value="100" step="100" min="100">
+                <div class="pure-u-1-5">Hz</div>
+            </div>
+            <hr>
+            <div class="pure-control-group pure-form">
+                <button class="pure-u-1 pure-button btn-secondary" onclick="highlightElectrode()"><i class="ri-search-line"></i> Find Electrode</button>
+                <button class="pure-u-1 pure-button btn-error" onclick="resetZoom()"><i class="ri-search-line"></i> Reset Zoom</button>
+            </div>
+            <hr>
+            <div id="analysisMenu">
+                <h2><i class="ri-bubble-chart-fill"></i> Analysis Tools</h2>
+                Raster 
+                <button class="pure-button btn-secondary" ax-open-analysis="analysisBarChart"><i class="ri-stack-overflow-line"></i> Stack</button>
+                <button class="pure-button btn-secondary" ax-open-analysis="analysisExportRaster"><i class="ri-save-3-fill"></i> Export</button>
+                <a class="pure-button btn-secondary" href="splitter.mjs" target="_new"><i class="ri-scissors-fill"></i> Splitter Script</a>
+            </div>
+
+        </div>
+        <div id="content" class="pure-u pure-form">
+            <input id="rangeFirstFrame" class="frameSlider pure-u-2-3" type="range" max="100" step="1" value="0">
+            <div id="MEAGrid"></div>
+            <div id="MEASingleElectrode"></div>
+            <!-- Analysis -->
+            <div id="analysisBarChart" hidden>
+                <div class="pure-g">
+                    <h2>Raster Stack <i class="ri-close-circle-line" onclick="analysisMenu.closeAll()"></i></h2>
+                </div>
+                <div class="pure-g">
+                    <label class="pure-u-2-24" for="inputBarWidth">Stack Width </label>
+                    <input class="pure-u-2-24" type="number" id="inputBarWidth" value="10" step="1" min="1">
+                    <div class="pure-u-1-24">ms</div>
+                    <label class="pure-u-2-24" for="inputBarStart">Start </label>
+                    <input class="pure-u-2-24" type="number" id="inputBarStart" value="0" step="100" min="0">
+                    <div class="pure-u-1-24">ms</div>
+                    <label class="pure-u-2-24" for="inputBarEnd">End </label>
+                    <input class="pure-u-2-24" type="number" id="inputBarEnd" value="0" step="100" min="0">
+                    <div class="pure-u-1-24">ms</div>
+                    <button class="pure-u-2-24 pure-button btn-secondary" id="btnComputeRasterBarChart"><i class="ri-download-fill"></i> run</button>
+                    <div class="pure-u-1-24"></div>
+                    <div class="pure-u-4-24">
+                        <input type="checkbox" id="checkboxExportStack"> Export Stack <i class="ri-save-3-fill"></i>
+                    </div>
+                </div>
+                <div class="pure-g">
+                    <label class="pure-u-6-24" for="inputMultipleElectrodeStack">Multiple Electrodes (space sep.)</label>
+                    <input class="pure-u-2-24" type="text" id="inputMultipleElectrodeStack">
+                    <div class="pure-u-1-24"></div>
+                    <label class="pure-u-3-24" for="inputStackDownloadLaps">Download delay</label>
+                    <input class="pure-u-2-24" type="text" id="inputStackDownloadLaps" value="0" step="1" max="200">
+                    <div class="pure-u-1-24">ms</div>
+                    <button class="pure-u-4-24 pure-button btn-secondary" onclick="multipleStack()">Multiple Electrodes</button>
+                </div>
+                <canvas id="rasterBarChart" width="1000" height="500"></canvas>
+            </div>
+            <div id="analysisExportRaster" hidden>
+                <button class="pure-button btn-secondary" onclick="exportTotalSpikes()"><i class="ri-save-3-fill"></i> Export Total Spikes</button>
+                <button class="pure-button btn-secondary" onclick="exportRaster()"><i class="ri-save-3-fill"></i> Export Raster</button>
+                <i class="ri-close-circle-line" onclick="analysisMenu.closeAll()"></i>
+            </div>
+            <div id="loadingBar" hidden></div>
+        </div>
+    </div>
+
+    <div id="loading" hidden></div>
+    <div id="info">Memory</div>
+    <div id="infoElectrode" hidden></div>
+    <div id="zoomElectrode" hidden></div>
+
+    <dialog id="dialogColor">
+        <h1>Colors <i class="ri-close-circle-line" onclick="document.getElementById('dialogColor').close()"></i></h1>
+        <label class="pure-u-1-2" for="checkboxWhiteBG">White Background</label><input class="pure-u-1-2" type="checkbox" id="checkboxWhiteBG" onchange="changeWhiteBG(this.checked)">
+        <div id="colorPickersList" class="pure-g"></div>
+    </dialog>
+    
+
+    <script src="js/env.js"></script>
+    <script src="js/loading.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/mcdreader.js"></script>
+    <script src="js/helpers.js"></script>
+    <script src="js/mcd.js"></script>
+    <script src="js/zoom.js"></script>
+    <script src="js/draw.js"></script>
+    <script src="js/drawBarChart.js"></script>
+    <script>
+        let mcdFile = null
+        let grid = new Grid("MEAGrid","MEASingleElectrode")
+        let loading = new Loading('loadingBar')
+        const infoElectrode = document.getElementById('infoElectrode')
+        let rasterBarChart = new PlotBarChart('rasterBarChart')
+
+        let controls = new Control()
+        controls.addRange('rangeFirstFrame')
+        controls.addRefresh('inputTimeWindowWidth')
+        controls.addRefresh('inputOffset')
+        // controls.addRefresh('inputCutoff')
+        controls.addPlot('inputScaleMagnitude')
+        controls.addPlot('checkboxRaw')
+        controls.addPlot('checkboxFiltered')
+        controls.addPlot('checkboxMAD')
+        controls.addPlot('checkboxSpikes')
+        controls.addPlot('checkboxRaster')
+        controls.addPlot('checkboxScale')
+        controls.addPlot('checkboxStimulation')
+        controls.addRefreshRaster('inputThreshold')
+        controls.addRefreshRaster('inputCutoff')
+
+        controls.handlerPlot(plot)
+        controls.handlerRefresh(refresh)
+        controls.handlerRefreshRaster(refreshRaster)
+        
+        rasterBarChart.addControl('inputBarWidth')
+        rasterBarChart.addControl('inputBarStart')
+        rasterBarChart.addControl('inputBarEnd')
+        rasterBarChart.addButton('btnComputeRasterBarChart')
+
+        //Color Pickers
+        document.getElementById('colorPickersList').innerHTML = Object.entries(config.color).map(row=>`<label for="color-${row[0]}" class="pure-u-1-2">${row[0]}</label>
+        <input type="color" class="colorPickers" id="color-${row[0]}" value="${row[1]}" ax-config-color="${row[0]}" class="pure-u-1-2">`).join('<br>')
+
+        document.querySelectorAll('.colorPickers').forEach(el=>{
+            el.addEventListener('change',(ev)=>{
+                const input = ev.target
+                const name = input.getAttribute('ax-config-color')
+                const value = input.value
+                console.log(name,value)
+                config.color[name] = value
+            })
+        })
+        if(config.whitebg){
+            document.getElementById('MEAGrid').classList.add('whitebg')
+            document.getElementById('MEASingleElectrode').classList.add('whitebg')
+        }
+        function changeWhiteBG(whitebg){
+            config.whitebg = whitebg
+            if(config.whitebg){
+                document.getElementById('MEAGrid').classList.add('whitebg')
+                document.getElementById('MEASingleElectrode').classList.add('whitebg')
+            }
+            else{
+                document.getElementById('MEAGrid').classList.remove('whitebg')
+                document.getElementById('MEASingleElectrode').classList.remove('whitebg')
+            }   
+        }
+
+        document.getElementById('inputMCD').onchange = (ev) =>{
+            if(mcdFile != null) return console.error('File already open')
+            const file = ev.target.files[0]
+            mcdFile = new MCDFile(file,(src)=>{
+                console.log(src.file.name)
+                showLoading('loading')
+                src.loadFile(()=>{
+                    // controls.range.max = Math.floor(mcdFile.framesCount / 10)
+                    document.getElementById('mcdName').innerText = mcdFile.filename
+                    document.getElementById('mcdDate').innerText = new Intl.DateTimeFormat('fr-FR',{
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit"
+                    }).format(mcdFile.header.timeStart)
+                    document.getElementById('mcdDuration').innerText = mcdFile.duration + 'sec'
+                    refresh()
+                    hideLoading('loading')
+                    document.querySelector('[for="inputMCD"]').hidden = true
+                })
+            })
+        }
+
+        function refreshRaster(){
+            refresh()
+            const threshold = controls.params.inputThreshold
+            Module.setMADThreshold(threshold)
+            Module.resetRastered()
+            plot()
+        }
+        
+        function refresh() {
+            if(mcdFile == null) return console.error('Select a file')
+            controls.range.max = Math.floor(mcdFile.framesCount / 10 / controls.params.inputTimeWindowWidth)
+            console.time("loadView")
+            load()
+            plot()
+            console.timeEnd("loadView")
+        }
+
+        function load(){
+            const firstFrame = controls.params.rangeFirstFrame * controls.params.inputTimeWindowWidth + controls.params.inputOffset / 1000
+            const frameCount = controls.params.inputTimeWindowWidth * 10
+            const cutoff = controls.params.inputCutoff
+            Module.setCutoffFrequency(cutoff)
+            mcdFile.loadFrames(firstFrame*10,frameCount)
+        }
+        
+        function plot(){
+            const scaleMagnitude = controls.params.inputScaleMagnitude
+            grid.scale(Math.pow(10,scaleMagnitude))
+            grid.plot()
+        }
+
+        function highlightElectrode(){
+            const nSelected = Number(prompt('Electrode Number ?'))
+            grid.highlightElectrode(nSelected)
+        }
+
+        //Analysis Menu
+        const analysisMenu = new AnalysisMenu()
+        analysisMenu.load()
+
+        //Memory
+        setInterval(()=>{
+            const wasmMemory = Math.floor(Module.HEAP8.byteLength / 1000 / 1000)
+            const jsMemory = Math.floor(window.performance.memory.totalJSHeapSize / 1000 / 1000)
+            document.getElementById('info').innerText = `Memory\nWASM ${wasmMemory} Mb\nJS ${jsMemory} Mb`
+        },1000)
+
+        function test(){
+            const size = Module.getRasteredSize()
+            const n = 41
+            const trigger = 128
+            for(let i = 0; i<size; i++){
+                const v = Module.getRastered(n,i)
+                const s = Module.getStim(trigger,i)
+                if(v && s) console.log(v,s)
+            }
+        }
+
+    </script>
+</body>
+</html>

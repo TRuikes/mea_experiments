@@ -1,0 +1,22 @@
+#loading{
+    position: absolute;
+    border-radius: 5px;
+    background-color: var(--clr-success);
+    text-align: center;
+    width: 16vw;
+    left: 0px;
+    bottom: 0px;
+    font-size: 1rem;
+    text-align: center;
+    color: black;
+    margin: 10px;
+}
+
+#loadingBar{
+    width: 83vw;
+    height: 10px;
+    background-color: var(--clr-success);
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}

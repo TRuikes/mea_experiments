@@ -1,0 +1,66 @@
+:root{
+    --clr-success:rgb(28, 184, 65);
+    --clr-primary:rgb(44, 44, 44);
+    --clr-secondary:rgb(66, 184, 221);
+    --clr-error: rgb(202, 60, 60);
+}
+
+#menu {
+    position: sticky;
+    top:0px;
+    color:white;
+    height: 100vh;
+    border-right: 1px solid black;
+    /* background: linear-gradient(90deg, rgba(82,82,82,1) 0%, rgba(37,37,37,1) 43%, rgba(0,0,0,1) 99%, rgba(37,37,37,1) 100%); */
+    background-color: black;
+    padding-left: 10px;
+    padding-right: 10px;
+    box-shadow: 10px 0px 50px black;
+}
+
+#logoTitle{
+    font-size: 2em;
+    font-weight: bold;
+    text-align: center;
+}
+
+#fileInfo > div{
+    font-size: 0.7rem;
+}
+
+.vertical{
+    text-align: center;
+    font-weight: bold;
+    background-color: rgba(150,150,150,0.5);
+}
+
+#content{
+    padding-left: 20px;
+    position: relative;
+}
+
+body{
+    color:white;
+    background: linear-gradient(90deg, rgba(82,82,82,1) 0%, rgba(37,37,37,1) 43%, rgba(0,0,0,1) 100%);
+}
+
+hr{
+    height: 2px;
+    border: none;
+    border-top: 1px solid white;
+    color: white;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+hr[invisible]{
+    border-top: none;
+}
+
+#info{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    color:lime;
+    font-size: 0.7rem;
+}

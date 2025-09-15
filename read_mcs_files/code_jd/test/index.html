@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body>
+    <h1>Test</h1>
+    <input type="file" name="mcd" id="inputMCD" accept=".mcd">
+    <div id="memory"></div>
+
+    <script src="mcdreader.js"></script>
+    <script src="mcd.js"></script>
+    <script>
+        document.getElementById('inputMCD').onchange = (ev) =>{
+            const file = ev.target.files[0]
+            mcdFile = new MCDFile(file,(src)=>{
+                console.log(src.file.name)
+                src.loadFile()
+            })
+        }
+
+        const memoryDiv = document.getElementById('memory')
+
+        setInterval(()=>{
+            memoryDiv.innerText = Number(Module.HEAP8.byteLength / 1000 / 1000).toFixed(2) + ' Mbytes'
+        },100)
+    </script>
+</body>
+</html>

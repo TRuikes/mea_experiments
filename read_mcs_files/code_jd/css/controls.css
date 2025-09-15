@@ -1,0 +1,27 @@
+.frameSlider{
+    width: 80%;
+    margin: 20px auto;
+    -webkit-appearance: none;
+    height: 8px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    background-color: black;
+}
+
+.frameSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 5px;
+    height: 18px;
+    border-radius: 0px;
+    background-color: var(--clr-secondary);
+    overflow: visible;
+    cursor: pointer;
+}
+
+#dialogColor{
+    border-radius: 20px;
+    border: 1px solid black;
+    background-color: black;
+    color:white;
+    width: 20rem;
+}

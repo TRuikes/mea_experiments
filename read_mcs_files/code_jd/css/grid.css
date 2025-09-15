@@ -1,0 +1,87 @@
+:root{
+    --tileWidth:55px;
+    --tileHeight:30px;
+    --tileGap:8px;
+}
+
+#MEAGrid{
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    grid-gap: var(--tileGap);
+    width: calc((16 * var(--tileWidth)) + (15 * var(--tileGap)));
+}
+
+.tile{
+    margin: 1px;
+    position: relative;
+    width: var(--tileWidth);
+    background-color: rgba(100,100,100,0.1);
+}
+
+.whitebg .tile,.whitebg .tileSingle{
+    background-color: white;
+}
+
+.tileSingle{
+    position: relative;
+    border: 1px dashed grey;
+}
+
+.tileSingle::before{
+    cursor: pointer;
+    content:'x';
+    position: absolute;
+    font-size: 1.5rem;
+    top: 0px;
+    right: 0px;
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    text-align: center;
+    color: black;
+    background-color: rgba(255,255,255,0.5);
+}
+
+.tile::after,.tileSingle::after{
+    content:attr(ax-electrode);
+    position: absolute;
+    left:0px;
+    right:0px;
+    color:white;
+    font-size: 0.75rem;
+}
+
+.whitebg .tile::after,.whitebg .tileSingle::after{
+    color:black;
+}
+
+.tileSingle::after{
+    font-size: 1.2rem;
+}
+
+.selectedElectrode{
+    background-color: black;
+}
+
+#infoElectrode{
+    pointer-events: none;
+    position: absolute;
+    background-color: rgba(100,100,100,0.5);
+    border-radius: 5px;
+    transform: translateY(-100%);
+    padding: 2px;
+}
+
+#zoomElectrode{
+    pointer-events: none;
+    position: absolute;
+    border: 1px dashed #1cb841;
+    width: 0px;
+    height: 0px;
+}
+
+#rasterBarChart{
+    border: 1px dashed grey;
+    margin-top: 30px;
+    margin-bottom: 50px;
+}

@@ -11,8 +11,9 @@ from axorus.preprocessing.project_colors import ProjectColors
 
 # Load data
 session_id = '250606_A'
-data_dir = Path(r'E:\Axorus\dataset_series_3')
-figure_dir = Path(r'E:\Axorus\Figures') / 'lap4analysis'
+data_dir = Path(r'C:\Axorus\dataset')
+# data_dir = Path(r'E:\Axorus\dataset_series_3')
+figure_dir = Path(r'C:\Axorus\Figures') / 'lap4analysis'
 data_io = DataIO(data_dir)
 loadname = data_dir / f'{session_id}_cells.csv'
 data_io.load_session(session_id, load_pickle=True)
@@ -254,38 +255,45 @@ for cluster_id in cluster_ids:
 
 #%% Gather data for Figure CPP CNQX Paper (used in the axorus-analysis libray
 #%% Gather data for final plot
+import numpy as np
+
 
 blockers = ['noblocker', 'cpp', 'washout']
+
 df_save = pd.DataFrame()
+df_i = 0  #  ticker to store data
 
-for cluster_id, electrode in pref_ec_dict.items():
-    if electrode is None:
-        continue
-
-    cluster_x = data_io.cluster_df.loc[cluster_id, 'cluster_x']
-    df_save.at[cluster_id, f'x_mea'] = cluster_x
-    cluster_y = data_io.cluster_df.loc[cluster_id, 'cluster_y']
-    df_save.at[cluster_id, f'y_mea'] = cluster_y
-
+for electrode in data_io.burst_df.electrode.unique():
+    print(f'{electrode}')
     for blocker in blockers:
-        d_select = data_io.burst_df.query('electrode in @electrode and '
-                                              'blockers == @blocker').copy()
+        d_select = data_io.burst_df.query(f'electrode in {[float(electrode)]} and '
+                                          'blockers == @blocker').copy()
         tid = d_select.loc[d_select['duty_cycle'].idxmax()].train_id
-
         laser_x = data_io.burst_df.query('train_id == @tid').laser_x.values[0]
         laser_y = data_io.burst_df.query('train_id == @tid').laser_y.values[0]
-        d = np.sqrt((laser_x - cluster_x) ** 2 + (laser_y - cluster_y) ** 2)
 
-        df_save.at[cluster_id, f'{blocker} baseline'] = cells_df.loc[cluster_id, tid].baseline_firing_rate
-        df_save.at[cluster_id, f'{blocker} response'] = cells_df.loc[cluster_id, tid].response_firing_rate
-        df_save.at[cluster_id, f'laser_distance'] = d
-        df_save.at[cluster_id, f'{blocker} is_sig'] = cells_df.loc[cluster_id, tid].is_significant
-        df_save.at[cluster_id, f'{blocker} response_latency'] = cells_df.loc[cluster_id, tid].response_latency
+        for cluster_id in data_io.cluster_df.index.values:
+
+            cluster_x = data_io.cluster_df.loc[cluster_id, 'cluster_x']
+            df_save.at[df_i, f'x_mea'] = cluster_x
+            cluster_y = data_io.cluster_df.loc[cluster_id, 'cluster_y']
+            df_save.at[df_i, f'y_mea'] = cluster_y
+
+            d = np.sqrt((laser_x - cluster_x) ** 2 + (laser_y - cluster_y) ** 2)
+
+            df_save.at[df_i, 'stimsite'] = electrode
+            df_save.at[df_i, f'{blocker} baseline'] = cells_df.loc[cluster_id, tid].baseline_firing_rate
+            df_save.at[df_i, f'{blocker} response'] = cells_df.loc[cluster_id, tid].response_firing_rate
+            df_save.at[df_i, f'laser_distance'] = d
+            df_save.at[df_i, f'{blocker} is_sig'] = cells_df.loc[cluster_id, tid].is_significant
+            df_save.at[df_i, f'{blocker} response_latency'] = cells_df.loc[cluster_id, tid].response_latency
+
+            df_i += 1
 savename = figure_dir / 'stats_data_250606_A.csv'
 df_save.to_csv(savename)
 print(f'Saved data in: {savename}')
 
-# Load analysis results
+#%% Load analysis results
 df_out = pd.DataFrame()
 
 for blocker in blockers:

@@ -20,9 +20,13 @@ from itertools import combinations
 import io
 
 
-data_dir = Path(r'E:\Axorus\dataset_series_3')
-figure_dir = Path(r'E:\Axorus\Figures') / 'lap4analysis'
+data_dir = Path(r'C:\axorus\dataset')
+# data_dir = Path(r'E:\Axorus\dataset_series_3')
+figure_dir = Path(r'C:\axorus\figures\paper\Figure_3')
+# figure_dir = Path(r'E:\Axorus\Figures') / 'lap4analysis'
 session_ids = ('250520_A', '250527_A')  # Dataset sessions to include
+
+inclusion_range = 200  # diameter of cells to include from laser source
 
 
 def gather_figure_stats(update=False):
@@ -199,86 +203,6 @@ def gather_stats_n_cells_per_stimsite(update):
     return data_out
 
 
-def print_wilcoxon(d0, d1, tag1, tag2):
-
-    d0 = d0.values
-    d1 = d1.values
-
-    idx = np.where(pd.notna(d0) & pd.notna(d1))[0]
-
-    r, p = wilcoxon(d0[idx], d1[idx])
-    d0_m = np.mean(d0[idx])
-    d0_s = np.std(d0[idx])
-    d1_m = np.mean(d1[idx])
-    d1_s = np.std(d1[idx])
-    txt = f'{tag1} vs {tag2}:({d0_m:.0f} ({d0_s:.0f}), {d1_m:.0f} ({d1_s:.0f})) T = {r:.0f} (p={p:.3f})\n'
-    print(txt)
-
-    return txt
-
-
-def print_ttest(d0, d1, tag1, tag2):
-
-    d0 = d0.values
-    d1 = d1.values
-
-    d0 = d0[pd.notna(d0)]
-    d1 = d1[pd.notna(d1)]
-
-    d0_m = np.mean(d0)
-    d0_s = np.std(d0)
-    d1_m = np.mean(d1)
-    d1_s = np.std(d1)
-
-    t_stat, p_val = ttest_ind(d0, d1, equal_var=False)
-
-    txt = f'{tag1} vs {tag2}:({d0_m:.0f} ({d0_s:.0f}), {d1_m:.0f} ({d1_s:.0f})) T = {t_stat:.0f} (p={p_val:.3f})\n'
-
-    print(txt)
-    return txt
-
-
-# def print_stats(df, savename):
-#
-#     sts = ''
-#
-#     print(f'\n\nLAP4 ACET experiments')
-#     print(f'{df.shape[0]} cells, {2} retinas')
-#
-#     n_sig_noblocker = df['noblocker is_sig'].sum()
-#     n_sig_lap4 = df['lap4 is_sig'].sum()
-#     n_sig_washout = df['washout is_sig'].sum()
-#
-#     txt = f'N sig: noblocker: {n_sig_noblocker:.0f}, lap4: {n_sig_lap4:.0f}, washout: {n_sig_washout:.0f}\n'
-#     sts += txt
-#     print(txt)
-#
-#     sts += f'\n\n BASELINE VS RESPONSE\n'
-#     sts += print_wilcoxon(df['noblocker baseline'], df['noblocker response'], 'none baseline', 'none stim')
-#     sts += print_wilcoxon(df['lap4 baseline'], df['lap4 response'], 'lap4 baseline', 'stim lap4')
-#     sts += print_wilcoxon(df['lap4acet baseline'], df['lap4acet response'], 'lap4acet baseline', 'lap4acet lap4')
-#     sts += print_wilcoxon(df['washout baseline'], df['washout response'], 'washout baseline', 'washout stim')
-#
-#     print('\n')
-#
-#     sts += f'\n\n RESPONSE VS RESPONSE\n'
-#     sts += print_wilcoxon(df['noblocker response'], df['lap4 response'], 'noblocker response', 'lap4 response')
-#     sts += print_wilcoxon(df['lap4 response'], df['lap4acet response'], 'lap4 response', 'lap4acet response')
-#     sts += print_wilcoxon(df['lap4acet response'], df['washout response'], 'lap4acet response', 'washout response')
-#     sts += print_wilcoxon(df['noblocker response'], df['washout response'], 'noblocker response', 'washout response')
-#
-#
-#     print(f'\n')
-#
-#     sts += '\n\n LATENCIES \n'
-#     sts += print_ttest(df["noblocker response_latency"], df["lap4 response_latency"], "noblocker latency", "lap4 latency")
-#     sts += print_ttest(df["lap4 response_latency"], df["lap4acet response_latency"], "lap4 latency", "lap4acet latency")
-#     sts += print_ttest(df["lap4acet response_latency"], df["washout response_latency"], "lap4acet latency", "washout latency")
-#     sts += print_ttest(df["noblocker response_latency"], df["washout response_latency"], "noblocker latency", "washout latency")
-#
-#     with open(savename, 'w') as f:
-#         f.write(sts)
-
 
 def run_friedman_wilcoxon(df, savename):
     output = io.StringIO()
@@ -296,6 +220,32 @@ def run_friedman_wilcoxon(df, savename):
     # Columns for response_latency, only 3 conditions (exclude lap4acet)
     latency_cols = [f'{cond} response_latency' for cond in latency_conditions]
     df_clean_latency = df.dropna(subset=latency_cols)
+
+    output.write(f'Data from {df_clean_baseline_response.shape[0]} cells\n\n')
+
+    # Print Firing Rate mean and std values for all groups
+    output.write("Firing Rate Mean and STD for all groups and condition\n")
+    for c in conditions:
+        for e in ['baseline', 'response']:
+            data = df_clean_baseline_response[f'{c} {e}']
+            mean = np.mean(data)
+            se = np.std(data) / np.sqrt(len(data))
+            output.write(f"{c} {e}: {mean:.2f}, {se:.2f} Hz (mean + SE)\n")
+        output.write(f'\n')
+
+    # Print Latency mean and SE values for all groups
+    output.write("Latency Mean and STD for all groups and condition\n")
+    for c in conditions:
+        data = df[f'{c} response_latency']
+        data = data[pd.notna(data)]
+        mean = np.mean(data)
+        se = np.std(data) / np.sqrt(len(data))
+        output.write(f"{c} latency: {mean:.2f}, {se:.2f} ms (mean + SE)\n")
+
+        n_45min = np.where(data < 45)[0].size
+        n_45plus = np.where(data >= 45)[0].size
+        output.write(f'{c} % cells faster than 45 ms: {100*n_45min/(n_45min + n_45plus):.0f} %\n')
+
 
     # Friedman test on all baseline + response data
     data_baseline_response = [df_clean_baseline_response[col] for col in baseline_response_cols]
@@ -367,8 +317,12 @@ def run_friedman_wilcoxon(df, savename):
     labels_latency = []
     pairs_latency = list(combinations(latency_conditions, 2))
     for c1, c2 in pairs_latency:
-        stat_w, pval = wilcoxon(df_clean_latency[f'{c1} response_latency'], df_clean_latency[f'{c2} response_latency'])
-        n = len(df_clean_latency[f'{c1} response_latency'])
+        idx = np.where(pd.notna(df[f'{c1} response_latency']) &
+                       pd.notna(df[f'{c2} response_latency']))[0]
+        stat_w, pval = wilcoxon(df[f'{c1} response_latency'].values[idx],
+                                df[f'{c2} response_latency'].values[idx])
+
+        n = len(df[f'{c1} response_latency'].values[idx])
         mean_w = n * (n + 1) / 4
         std_w = np.sqrt(n * (n + 1) * (2 * n + 1) / 24)
         Z = (stat_w - mean_w) / std_w
@@ -466,11 +420,12 @@ def plot_boxplots(df):
 ,
     )
 
-    savename = figure_dir / 'paper' / f'Figure_3' / 'Figure_3_response strength'
+    savename = figure_dir / 'Figure_3_lap4_response_strength'
     save_fig(fig, savename, formats=['png', 'svg'], scale=3)
 
 
 def plot_latencies(df):
+
     # ## FIGURE SETUP
     n_rows = 1
     n_cols = 1
@@ -511,10 +466,10 @@ def plot_latencies(df):
         },
     )
 
-    xpos = [0, 2, 4, 6]
+    xpos = [0, 2, 4]
     xdata = ['noblocker response_latency',
              'lap4 response_latency',
-             'lap4acet response_latency',
+             # 'lap4acet response_latency',
              'washout response_latency']
 
     n_pts = df.shape[0]
@@ -528,12 +483,17 @@ def plot_latencies(df):
     )
 
     for xp, xd in zip(xpos, xdata):
-        print(np.mean(df[xd]))
         fig.add_box(
             x=np.ones(n_pts) * xp,
             y=df[xd].values,
             **box_specs,
         )
+
+    fig.add_scatter(
+        x=[-0.5, 4.5], y=[45, 45],
+        mode='lines', line=dict(color='black', dash='2px', width=1),
+        showlegend=False,
+    )
 
     fig.update_yaxes(
         range=[0, 200],
@@ -545,8 +505,12 @@ def plot_latencies(df):
         ticktext=['no blocker', 'lap4', 'lap4acet', 'washout'],
     )
 
-    savename = figure_dir / 'paper' / f'Figure_3' / 'lap4acet_latencies'
+    savename = figure_dir / 'lap4acet_latencies'
     save_fig(fig, savename, formats=['png', 'svg'], scale=3)
+
+    savename = figure_dir / 'latency_data.csv'
+    df.to_csv(savename)
+    print(f'saved latency data: {savename}')
 
 
 def plot_frac_cells_responding(df):
@@ -591,7 +555,7 @@ def plot_frac_cells_responding(df):
         n_cells_resp = 0
 
         for k, d in df.items():
-            d2 = d.query('d < 100')
+            d2 = d.query(f'd < {inclusion_range}')
             n_cells_tot += d2.shape[0]
             n_cells_resp += d2[blocker].sum()
 
@@ -605,7 +569,7 @@ def plot_frac_cells_responding(df):
         txt += f'{r.n_cells} cells in stim range: '
         txt += f'{r.n_cells_resp:.0f}, (={r.perc:.0f})%\n'
 
-    savename = figure_dir / 'paper' / f'Figure_3' / 'frac_responding.txt'
+    savename = figure_dir / 'frac_responding_lap4.txt'
 
     with open(savename, 'w') as f:
         f.write(txt)
@@ -627,7 +591,7 @@ def plot_frac_cells_responding(df):
 
         y = []
         for k, d in df.items():
-            d2 = d.query('d < 150')
+            d2 = d.query(f'd < {inclusion_range}')
             y.append(d2[blocker].sum() / d2.shape[0])
 
         fig_percentage.add_box(
@@ -650,17 +614,17 @@ def plot_frac_cells_responding(df):
         ticktext=['no blocker', 'lap4', 'lap4acet', 'washout'],
     )
 
-    savename = figure_dir / 'paper' / f'Figure_3' / 'frac_responding'
+    savename = figure_dir / 'Figure_3_lap4_frac_responding'
     save_fig(fig_percentage, savename, formats=['png', 'svg'], scale=3)
 
 
 def main():
     df = gather_figure_stats(update=False)
-    df = df.query('laser_distance < 300')
+    df = df.query(f'laser_distance < {inclusion_range}')
 
     df_dist = gather_stats_n_cells_per_stimsite(update=False)
 
-    statsfile = figure_dir / 'paper' / f'Figure_3' / f'response_fr_stats.txt'
+    statsfile = figure_dir / f'response_fr_stats_lap4.txt'
 
     run_friedman_wilcoxon(df, statsfile)
 
