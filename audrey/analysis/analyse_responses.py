@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+current_dir = Path().resolve()
+sys.path.append(current_dir.as_posix().split('mea_experiments')[0] + 'mea_experiments')
+
 from audrey.data_io import DataIO
 from pathlib import Path
 import pandas as pd
@@ -13,14 +18,14 @@ def main():
     """
     Main handles
     """
-    dataset_dir = Path(r'/media/aleong/Elements/dataset/')
-    # dataset_dir = Path(r'C:\axorus\tmp')
+    # dataset_dir = Path(r'/media/aleong/Elements/dataset/')
+    dataset_dir = Path(r'C:\audrey\dataset')
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
-    print(data_io.sessions)
-
-    data_io.load_session('250904_A')
+    print(f'Loading data')
+    data_io.load_session('250904_A', load_waveforms=False, load_pickle=False )
+    data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
@@ -156,6 +161,9 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
     Handles calls to bootstrap function for single cells
     """
 
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True, exist_ok=True)
+
     # Detect per trial, which cell respond significantly
     num_threads = 5
     threads = []
@@ -173,6 +181,7 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
         return
 
     # Check if we are in debugging mode
+    # COMMENT TO DEBUG
     with tqdm(total=len(tasks)) as progress_bar:
         for _ in range(num_threads):
             t = threading.Thread(target=thread_task, args=(tasks, progress_bar, lock))
@@ -185,7 +194,8 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
     # UNCOMMENT THIS TO DEBUG
     # n_tasks = len(tasks)
     # for i in range(n_tasks):
-    #     thread_task(tasks, None, lock)
+    #     bootstrap_data(**tasks[i])
+    #     print(f'Completed {i+1}/{n_tasks}')
 
 
 def thread_task(tasks, progress_bar, lock):
@@ -243,7 +253,9 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
         )
 
         # Detect recording file of the current trial
-        rec_id = data_io.burst_df.query('train_id == @train_id').iloc[0].rec_id
+        rec_id = data_io.burst_df.query('train_id == @train_id')
+
+        rec_id = rec_id.iloc[0].rec_id
 
         # Detect nr of bins
         n_bins = bin_centres.size
@@ -255,7 +267,12 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
         response_idx = np.where((bin_centres >= response_window[0]) & (bin_centres <= response_window[1]))[0]
 
         # Detect burst onsets for this train
-        burst_onsets = data_io.burst_df.query('train_id == @train_id').burst_onset.values
+        stimtype = data_io.burst_df.query('train_id == @train_id').iloc[0].stimtype
+        if stimtype == 'laser' or stimtype == 'padmd':
+            burst_onsets = data_io.burst_df.query('train_id == @train_id').laser_burst_onset.values
+        elif stimtype == 'dmd':
+            burst_onsets = data_io.burst_df.query('train_id == @train_id').dmd_burst_onset.values
+
         n_trains = len(burst_onsets)
 
         # Get spiketrain

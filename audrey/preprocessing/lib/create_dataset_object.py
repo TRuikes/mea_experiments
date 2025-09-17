@@ -2,7 +2,7 @@ from audrey.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import utils
 import h5py
-
+import numpy as np
 
 names_as_int = (
     'burst_count', 'burst_duration',
@@ -32,9 +32,11 @@ class Dataset:
         return
 
 
-def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
+def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
+                          recording_numbers_to_skip=None):
     print('\nCreating dataset object')
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
+        
     spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
 
     if include_waveforms:
@@ -44,140 +46,261 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True):
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
 
-    n_trials_triggers = 0
-    n_bursts_triggers = 0
-    recordings_included = []
+    dmd_n_trials_triggers = 0
+    dmd_n_bursts_triggers = 0
+    pa_n_trials_triggers = 0
+    pa_n_bursts_triggers = 0
+    pa_recordings_included = []
+    dmd_recordings_included = []
+
     for rec_id in filepaths.recording_names:
-        if ('dmd' in rec_id or
-                'checkerboard' in rec_id or
-                'chirp' in rec_id or
-                'wl' in rec_id or
-                'SWN' in rec_id or
-                'FF' in rec_id or
-                'baseline' in rec_id or
-                'light' in rec_id):
-            print(f'skipping {rec_id}, not adding DMD data')
-            # n_trials_triggers += 1
+
+                        
+        SKIP_RECORDING = False
+        if recording_numbers_to_skip is not None:
+            for nr in recording_numbers_to_skip:
+                if f'{nr:03d}' in rec_id:
+                    print(f'\tskipping recording {rec_id}')
+                    SKIP_RECORDING = True
+
+        if SKIP_RECORDING:
             continue
+        
+        if 'PA' in rec_id:
+            pa_recordings_included.append(rec_id)
 
-        recordings_included.append(rec_id)
+            pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
+            pa_n_trials_triggers += len(pa_train_onsets)
+            print(f'{rec_id}: {len(pa_train_onsets):.0f} trains')
 
-        train_onsets = triggers[rec_id]['laser']['train_onsets']
-        n_trials_triggers += len(train_onsets)
-        print(f'{rec_id}: {len(train_onsets):.0f} trains')
+            pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
+            pa_n_bursts_triggers += len(pa_burst_onsets)
 
-        burst_onsets = triggers[rec_id]['laser']['burst_onsets']
-        n_bursts_triggers += len(burst_onsets)
+        if 'DMD' in rec_id:
+            dmd_recordings_included.append(rec_id)
 
-    train_df_check = train_df.query('recording_name in @recordings_included')
+            dmd_train_onsets = triggers[rec_id]['dmd']['train_onsets']
+            dmd_n_trials_triggers += len(dmd_train_onsets)
+            print(f'{rec_id}: {len(dmd_train_onsets):.0f} trains')
+
+            dmd_burst_onsets = triggers[rec_id]['dmd']['burst_onsets']
+            dmd_n_bursts_triggers += len(dmd_burst_onsets)
+
+    # Check PA triggers
+    train_df_check = train_df.query('recording_name in @pa_recordings_included')
 
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
-    assert n_trials_triggers == train_df_check.shape[0]
-    assert n_bursts_triggers == train_df_check.burst_count.sum()
+    assert pa_n_trials_triggers == train_df_check.shape[0]
+    assert pa_n_bursts_triggers == train_df_check.laser_burst_count.sum()
+
+    # Check DMD triggers
+    train_df_check = train_df.query('recording_name in @dmd_recordings_included')
+    assert dmd_n_trials_triggers == train_df_check.shape[0]
+    assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
 
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
 
     if not write_file.parent.exists():
-        write_file.parent.mkdir(parents=True)
+        write_file.parent.mkdir(parents=True)        
 
+    with h5py.File(write_file, "w") as f:
 
-    with (h5py.File(write_file, 'w') as f):
+    
+        # -----------------------------
+        # 0) Top-level cluster info table
+        # -----------------------------
+        # Determine max length of index if it's string/object
+        if cluster_info.index.dtype.kind in "O" or cluster_info.index.dtype.kind in "U" or cluster_info.index.dtype.kind in "S":
+            maxlen_index = cluster_info.index.astype(str).map(len).max()
+            index_dtype = f"S{maxlen_index}"
+        else:  # numeric index
+            index_dtype = "i8"
 
+        # Add index as first field
+        cluster_dtype_fields = [("index", index_dtype)]
+        for col in cluster_info.columns:
+            if cluster_info[col].dtype.kind in "i":
+                cluster_dtype_fields.append((col, "i4"))
+            elif cluster_info[col].dtype.kind in "f":
+                cluster_dtype_fields.append((col, "f4"))
+            else:
+                maxlen_col = cluster_info[col].astype(str).map(len).max()
+                cluster_dtype_fields.append((col, f"S{maxlen_col}"))
+
+        # Create structured array
+        cluster_table = np.zeros(len(cluster_info), dtype=np.dtype(cluster_dtype_fields))
+
+        for i, (idx, row) in enumerate(cluster_info.iterrows()):
+            # Store original index
+            if isinstance(idx, str):
+                cluster_table[i]["index"] = idx.encode("utf-8")
+            else:
+                cluster_table[i]["index"] = idx
+
+            for col in cluster_info.columns:
+                val = row[col]
+                if isinstance(val, str):
+                    cluster_table[i][col] = val.encode("utf-8")
+                elif pd.isna(val):
+                    cluster_table[i][col] = np.nan if cluster_info[col].dtype.kind in "f" else -1
+                else:
+                    cluster_table[i][col] = val
+
+        # Save dataset
+        f.create_dataset("clusters/metadata", data=cluster_table,
+                        compression="gzip", chunks=True)
+        # -----------------------------
+        # 1) Per recording data
+        # -----------------------------
         for rec_id in filepaths.recording_names:
-            if rec_id in [
-                '250904_A_009_noblocker_light-prr-series',
-                '250904_A_012_lap4_light-prr-series',
-            ]:
+
+            # Skip recordings if needed
+            if recording_numbers_to_skip and any(f'{nr:03d}' in rec_id for nr in recording_numbers_to_skip):
+                print(f"Skipping recording {rec_id}")
                 continue
 
-            print(f'\tloading {rec_id}')
-            # grp = f.create_group(rec_id)
+            print(f"Loading {rec_id}")
+            train_rec_df = train_df.query("recording_name == @rec_id").copy()
+            if train_rec_df.empty:
+                continue
 
-            train_rec_df = train_df.query('recording_name == @rec_id')
+            # Determine stim type
+            if "_PA_" in rec_id:
+                stim_type = "laser"
+            elif "_DMD_" in rec_id:
+                stim_type = "dmd"
+            elif "_PADMD_" in rec_id:
+                stim_type = "padmd"
+            else:
+                raise ValueError(f"Unknown recording type: {rec_id}")
 
-            if '_PA_' in rec_id:
-                assert train_rec_df.shape[0] > 0
+            train_rec_df['stimtype'] = stim_type
+            
+            # Group for this recording
+            rec_grp = f.require_group(f"recordings/{rec_id}")
 
-            if '_PA_' in rec_id or '_PADMD_' in rec_id:
-                if '_PADMD_' in rec_id:
-                    print(f'\nHAVE NOT EXTRACTED DMD DATA FOR PADMD CONDITION\n')
-
-                # Store laser trigger data
-                burst_offset = 0
-                for train_id, trial_info in train_rec_df.iterrows():
-                    train_onsets = triggers[rec_id]['laser']['train_onsets']
-                    burst_onsets = triggers[rec_id]['laser']['burst_onsets']
-                    burst_offsets = triggers[rec_id]['laser']['burst_offsets']
-
-                    if '_PA_' in rec_id:
-                        burst_count = int(trial_info.burst_count)
-                    elif '_PADMD_' in rec_id:
-                        burst_count = int(trial_info.laser_burst_count)
-
-                    if rec_id == '250904_A_012_lap4_PADMD_light-prr-series':
-                        continue
-
+            # -----------------------------
+            # 1a) Triggers array
+            # -----------------------------
+            bursts_list = []
+            burst_offset = 0
+            for train_id, trial_info in train_rec_df.iterrows():
+                if stim_type in ["laser", "dmd"]:
+                    burst_count = int(trial_info[f"{stim_type}_burst_count"])
+                    train_onsets = triggers[rec_id][stim_type]["train_onsets"]
+                    burst_onsets = triggers[rec_id][stim_type]["burst_onsets"]
+                    burst_offsets = triggers[rec_id][stim_type]["burst_offsets"]
                     for burst_i in range(burst_count):
-                        burst_id = f'{train_id}-{burst_i:02d}'
-                        trigger_i = int(burst_offset + burst_i)
-
-                        burst = f.create_group(f'{rec_id}/laser/{burst_id}')
-
-                        to_store = dict(
-                            train_onset=train_onsets[int(trial_info.rec_train_i)],
-                            burst_onset=burst_onsets[trigger_i],
-                            burst_offset=burst_offsets[trigger_i],
-                            **trial_info,
-                        )
-                        for k, v in to_store.items():
-                            if isinstance(v, str):
-                                burst.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
-                            elif k in names_as_int:
-                                if pd.isna(v):
-                                    continue
-                                burst.create_dataset(k, data=int(v), dtype='int')
-                            else:
-                                burst.create_dataset(k, data=v, dtype='float')
+                        trigger_i = burst_offset + burst_i
+                        bursts_list.append([
+                            train_onsets[int(trial_info.rec_train_i)],
+                            burst_onsets[trigger_i],
+                            burst_offsets[trigger_i],
+                            str(train_id)
+                        ])
                     burst_offset += burst_count
 
-            elif '_DMD_' in rec_id:
-                print(f'need to add dmd still...')
+                elif stim_type == "padmd":
+                    dmd_burst_count = int(trial_info.dmd_burst_count)
+                    laser_burst_count = int(trial_info.laser_burst_count)
+                    assert dmd_burst_count == laser_burst_count
 
+                    dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
+                    dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
+                    dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
+                    laser_train_onsets = triggers[rec_id]["laser"]["train_onsets"]
+                    laser_burst_onsets = triggers[rec_id]["laser"]["burst_onsets"]
+                    laser_burst_offsets = triggers[rec_id]["laser"]["burst_offsets"]
+
+                    for burst_i in range(dmd_burst_count):
+                        trigger_i = burst_offset + burst_i
+                        bursts_list.append([
+                            dmd_train_onsets[int(trial_info.rec_train_i)],
+                            dmd_burst_onsets[trigger_i],
+                            dmd_burst_offsets[trigger_i],
+                            laser_train_onsets[int(trial_info.rec_train_i)],
+                            laser_burst_onsets[trigger_i],
+                            laser_burst_offsets[trigger_i],
+                            str(train_id)
+                        ])
+                    burst_offset += dmd_burst_count
+
+            # dtype & structured array
+            if stim_type in ["laser", "dmd"]:
+                maxlen = max(len(b[3]) for b in bursts_list)
+                dtype = np.dtype([
+                    (f"{stim_type}_train_onset", "f4"),
+                    (f"{stim_type}_burst_onset", "f4"),
+                    (f"{stim_type}_burst_offset", "f4"),
+                    ("train_id", f"S{maxlen}")
+                ])
             else:
-                raise ValueError(f'{rec_id}?')
+                maxlen = max(len(b[6]) for b in bursts_list)
+                dtype = np.dtype([
+                    ("dmd_train_onset", "f4"),
+                    ("dmd_burst_onset", "f4"),
+                    ("dmd_burst_offset", "f4"),
+                    ("laser_train_onset", "f4"),
+                    ("laser_burst_onset", "f4"),
+                    ("laser_burst_offset", "f4"),
+                    ("train_id", f"S{maxlen}")
+                ])
 
-            # Store spiketimes
-            for cluster_id, cinfo in cluster_info.iterrows():
+            triggers_array = np.zeros(len(bursts_list), dtype=dtype)
+            for i, b in enumerate(bursts_list):
+                if stim_type in ["laser", "dmd"]:
+                    triggers_array[i] = (b[0], b[1], b[2], b[3].encode("utf-8"))
+                else:
+                    triggers_array[i] = (b[0], b[1], b[2], b[3], b[4], b[5], b[6].encode("utf-8"))
 
-                cluster = f.create_group(f'{rec_id}/clusters/{cluster_id}')
+            rec_grp.create_dataset("triggers", data=triggers_array,
+                                compression="gzip", chunks=True)
 
-                for k, v in cinfo.items():
-                    if isinstance(v, str):
-                        cluster.create_dataset(k, data=v, dtype=h5py.string_dtype(encoding='utf-8'))
-                    elif k in names_as_int:
-                        cluster.create_dataset(k, data=int(v), dtype='int')
+            # -----------------------------
+            # 1b) Trial info
+            # -----------------------------
+            dtype_fields = []
+            for col in train_rec_df.columns:
+                if train_rec_df[col].dtype.kind in "i":
+                    dtype_fields.append((col, "i4"))
+                elif train_rec_df[col].dtype.kind in "f":
+                    dtype_fields.append((col, "f4"))
+                else:
+                    maxlen_col = train_rec_df[col].astype(str).map(len).max()
+                    dtype_fields.append((col, f"S{maxlen_col}"))
+
+            table_array = np.zeros(len(train_rec_df), dtype=np.dtype(dtype_fields))
+            for i, (_, row) in enumerate(train_rec_df.iterrows()):
+                for col in train_rec_df.columns:
+                    val = row[col]
+                    if isinstance(val, str):
+                        table_array[i][col] = val.encode("utf-8")
+                    elif pd.isna(val):
+                        table_array[i][col] = np.nan if train_rec_df[col].dtype.kind in "f" else -1
                     else:
-                        cluster.create_dataset(k, data=v, dtype='float')
+                        table_array[i][col] = val
 
-                if filepaths.sid == '250904_A':
-                    # Pathcing spiketimes for this session
-                    rec_nr = rec_id.split('_')[2]
-                    for k in spiketimes.keys():
-                        if f'_{rec_nr}_' in k:
-                            spiketimes[rec_id] = spiketimes[k]
-                            break
+            rec_grp.create_dataset("trial_info", data=table_array,
+                                compression="gzip", chunks=True)
 
-                cluster.create_dataset('spiketimes', data=spiketimes[rec_id][cluster_id])
+            # -----------------------------
+            # 1c) Per-recording cluster data (spiketimes + waveforms)
+            # -----------------------------
+            clusters_grp = rec_grp.require_group("clusters")
+            for cluster_id, cinfo in cluster_info.iterrows():
+                cluster_rec_grp = clusters_grp.require_group(str(cluster_id))
 
-                ch = cinfo.ch
-                cluster.create_dataset('cluster_x', data=int(mea_position.loc[ch+1].x))
-                cluster.create_dataset('cluster_y', data=int(mea_position.loc[ch+1].y))
+                # Access the correct key for spiketimes (patch for 250904_A)
+                rec_nr = rec_id.split('_')[2]
+                spiketimes_key = None
+                for k in spiketimes.keys():
+                    if rec_nr in k:
+                        spiketimes_key = k
+                        break
 
+                assert spiketimes_key is not None
+ 
+                cluster_rec_grp.create_dataset('spiketimes', data=spiketimes[spiketimes_key][cluster_id])
                 if include_waveforms:
-                    cluster.create_dataset('waveforms', data=waveforms[rec_id][cluster_id])
-
-        if include_waveforms:
-            print(f'saved datasetfile: {filepaths.dataset_file_waveforms}')
-        else:
-            print(f'saved datasetfile: {filepaths.dataset_file}')
+                    cluster_rec_grp.create_dataset('waveforms', data=waveforms[spiketimes_key][cluster_id])

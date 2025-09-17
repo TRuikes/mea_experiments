@@ -3,6 +3,7 @@ import h5py
 import pandas as pd
 import threading
 import pickle
+import numpy as np
 
 class DataIO:
     sessions = []
@@ -16,87 +17,109 @@ class DataIO:
 
     def __init__(self, datadir: Path):
         self.datadir = datadir
-
         self.detect_sessions()
-
         self.lock = threading.Lock()
         self.is_locked = False
 
     def detect_sessions(self):
-        self.sessions = [f.name.split('.')[0] for f in self.datadir.iterdir() if 'h5' in f.name]
+        self.sessions = [f.name.split('.')[0] for f in self.datadir.iterdir() if f.suffix == ".h5"]
 
-    def load_session(self, session_id: str, load_waveforms=False,
-                     load_pickle=True):
+    def load_session(self, session_id: str, load_waveforms=False, load_pickle=True):
         assert session_id in self.sessions
-
         self.session_id = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 
         if load_pickle and self.pickle_file.is_file():
+            print(f'Loading pickled data (not from h5 file)')
             self.load_pickle()
+            return
 
-        else:
-            burst_df = pd.DataFrame()
-            cluster_df = pd.DataFrame()
-            spiketimes = {}
-            waveforms = {}
-            rec_ids = []
+        # Reset data
+        burst_df = pd.DataFrame()
+        cluster_df = pd.DataFrame()
+        spiketimes = {}
+        waveforms = {}
+        rec_ids = []
 
-            if load_waveforms is False:
-                readfile = self.datadir / f'{session_id}.h5'
-            else:
-                readfile = self.datadir / f'{session_id}_waveforms.h5'
+        # Determine which HDF5 file to open
+        readfile = self.datadir / (f'{session_id}_waveforms.h5' if load_waveforms else f'{session_id}.h5')
 
-            with h5py.File(readfile, 'r') as f:
+        with h5py.File(readfile, 'r') as f:
+            # --- Load top-level cluster metadata ---
+            if "clusters/metadata" in f:
+                cluster_meta = f["clusters/metadata"]
+                cluster_dtype = cluster_meta.dtype
 
-                for rec_id in f.keys():
-                    rec_ids.append(rec_id)
+                # Extract index field first
+                index_field = cluster_dtype.names[0]  # should be "index"
+                idx_array = cluster_meta[index_field][()]
+                # Decode bytes if necessary
+                idx_array = [x.decode() if isinstance(x, bytes) else x for x in idx_array]
 
-                    if 'laser' in f[rec_id].keys():
-                        for burst_id in f[rec_id]['laser'].keys():
-                            new_id = f'{rec_id}-{burst_id}'
+                # Extract remaining columns
+                data_dict = {}
+                for name in cluster_dtype.names[1:]:
+                    col_data = cluster_meta[name][()]
+                    if cluster_dtype[name].kind == 'S':  # bytes -> str
+                        col_data = [x.decode() if isinstance(x, bytes) else x for x in col_data]
+                    data_dict[name] = col_data
 
-                            burst_df.at[new_id, 'rec_id'] = rec_id
-                            burst_df.at[new_id, 'burst_id'] = burst_id
+                # Reconstruct DataFrame with original index
+                cluster_df = pd.DataFrame(data_dict, index=idx_array)
 
-                            for k, v in f[rec_id]['laser'][burst_id].items():
-                                if v.dtype == 'int64':
-                                    v_out = int(v[()])
-                                elif v.dtype == 'float64':
-                                    v_out = float(v[()])
-                                else:
-                                    v_out = str(v[()]).split("'")[1]
+            # --- Load recordings ---
+            for rec_id in f["recordings"].keys():
+                rec_ids.append(rec_id)
+                rec_grp = f[f"recordings/{rec_id}"]
 
-                                burst_df.at[new_id, k] = v_out
+                # Load triggers → burst_df
+                triggers_ds = rec_grp["triggers"]
+                triggers_df = pd.DataFrame({name: triggers_ds[name][()] for name in triggers_ds.dtype.names})
 
-                    spiketimes[rec_id] = {}
-                    waveforms[rec_id] = {}
-                    for cluster_id in f[rec_id]['clusters'].keys():
+                # Convert train_id from bytes to string
+                if "train_id" in triggers_df.columns:
+                    triggers_df["train_id"] = triggers_df["train_id"].apply(lambda x: x.decode() if isinstance(x, bytes) else str(x))
 
-                        for k, v in f[rec_id]['clusters'][cluster_id].items():
-                            if k == 'spiketimes':
-                                spiketimes[rec_id][cluster_id] = v[()]
+                # Merge with trial info for burst_df
+                trial_info_ds = rec_grp["trial_info"]
+                trial_info_df = pd.DataFrame({name: trial_info_ds[name][()] for name in trial_info_ds.dtype.names})
+                trial_info_df["train_id"] = trial_info_df["train_id"].apply(lambda x: x.decode("utf-8") if isinstance(x, bytes) else x)
+                trial_info_df.set_index('train_id', inplace=True)
 
-                            elif k == 'waveforms':
+                # Convert object columns to strings
+                for col in trial_info_df.select_dtypes([np.object_]):
+                    trial_info_df[col] = trial_info_df[col].apply(lambda x: x.decode() if isinstance(x, bytes) else str(x))
 
-                                if load_waveforms:
-                                    waveforms[rec_id][cluster_id] = v[()]
+                # Build burst_df: one row per train_id / burst
+                for i, row in triggers_df.iterrows():
+                    new_id = f"{rec_id}-{i}"
+                    burst_df.at[new_id, 'rec_id'] = rec_id
+                    burst_df.at[new_id, 'burst_id'] = i
+                    for k in row.index:
+                        burst_df.at[new_id, k] = row[k]
 
-                            else:
-                                cluster_df.at[cluster_id, k] = v[()]
+                    # Add trial info for matching train_id
+                    train_id = row["train_id"]
+                    trial_row = trial_info_df.loc[train_id] 
+                    for k, v in trial_row.items():
+                        burst_df.at[new_id, k] = v
 
-            # for i, r in burst_df.iterrows():
-            #     rn = r.recording_name
-            #     burst_df.at[i, 'recording_name'] = str(rn).split("'")[1]
+                # Load per-recording clusters
+                spiketimes[rec_id] = {}
+                waveforms[rec_id] = {}
+                if "clusters" in rec_grp:
+                    for cluster_id in rec_grp["clusters"].keys():
+                        cluster_rec_grp = rec_grp[f"clusters/{cluster_id}"]
+                        spiketimes[rec_id][cluster_id] = cluster_rec_grp["spiketimes"][()]
+                        if load_waveforms and "waveforms" in cluster_rec_grp:
+                            waveforms[rec_id][cluster_id] = cluster_rec_grp["waveforms"][()]
 
-            self.burst_df = burst_df
-            self.cluster_df = cluster_df
-            self.spiketimes = spiketimes
-            if load_waveforms:
-                self.waveforms = waveforms
-            else:
-                self.waveforms = None
-            self.recording_ids = rec_ids
+        # Store to instance
+        self.burst_df = burst_df
+        self.cluster_df = cluster_df
+        self.spiketimes = spiketimes
+        self.waveforms = waveforms if load_waveforms else None
+        self.recording_ids = rec_ids
 
     def lock_modification(self):
         self.lock.acquire()
@@ -117,21 +140,7 @@ class DataIO:
             pickle.dump(data_to_pickle, f)
 
     def load_pickle(self):
-        """Load data from a pickle file into the current instance."""
         with open(self.pickle_file, 'rb') as f:
             loaded_instance = pickle.load(f)
-
             for k, v in loaded_instance.items():
                 self.__setattr__(k, v)
-
-if __name__ == '__main__':
-    data_dir = Path(r'C:\axorus\dataset')
-    data_io = DataIO(data_dir)
-
-    for sid in data_io.sessions:
-        print(sid)
-        data_io.load_session(sid, load_waveforms=False, load_pickle=True)
-        data_io.dump_as_pickle()
-
-
-

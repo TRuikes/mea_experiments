@@ -74,14 +74,14 @@ def extract_trial_data(filepaths: FilePaths):
         laser_specs = None
 
     for i, r in df.iterrows():
-        if 'dmd' or 'light' in r.protocol:
-            continue
 
-        if filepaths.sid == '161024_A':
-            fiber_connection = dataset_sessions[filepaths.sid]['fiber_connection']
-        elif 'connected_fiber' in df.columns:
-            cb = r.connected_fiber
-            att = r.attenuator
+        if r.protocol in [
+            'pa_prr_series', 'pa_light_prr_series',
+        ]:
+            
+            cb = r['Connected Fibers']
+            
+            att = r['Attenuators']
 
             if att == 1.4 or att == '1.4':
                 fiber_connection = f'CB1_14_{cb}'
@@ -89,76 +89,80 @@ def extract_trial_data(filepaths: FilePaths):
                 fiber_connection = f'CB1_CA_{cb}_{r.n_turns:.0f}'
             elif att == 0.4 or att == '0.4':
                     fiber_connection = f'CB1_04_{cb}'
+            elif att == 0.3 or att == '0.3':
+                    fiber_connection = f'CB1_04_{cb}'
             else:
                 raise ValueError('implement this')
-        else:
-            raise ValueError('implement this')
 
-        laser_level = r.laser_level
-        duty_cycle = r.duty_cycle
+            laser_level = r['Laser level']
+            duty_cycle = r.duty_cycle
+            if pd.isna(duty_cycle):
+                duty_cycle = r.laser_duty_cycle
 
-        # I did not fit the slope/intercept in 2D if I recorded the power for
-        # too few sessions
+            if laser_found:
+                if 'slope_slope' in laser_specs.loc[fiber_connection].keys():
+                    slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
+                    slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
+                    inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
+                    inter_intercept = laser_specs.loc[fiber_connection]['inter_intercept']
+                    fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
+                    fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
+                    fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
+                    fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
 
-        if fiber_connection == 'CB1_CA_C7_23':
-            continue
+                    power_slope = slope_intercept + slope_slope * laser_level
+                    power_inter = inter_intercept + inter_slope * laser_level
 
+                else:
 
-        if laser_found:
-            if 'slope_slope' in laser_specs.loc[fiber_connection].keys():
-                slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
-                slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
-                inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
-                inter_intercept = laser_specs.loc[fiber_connection]['inter_intercept']
-                fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
-                fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
-                fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
-                fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
+                    power_slope = laser_specs.loc[fiber_connection]['power_slope']
+                    power_inter = laser_specs.loc[fiber_connection]['power_intercept']
+                    fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
+                    fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
+                    fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
+                    fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
 
-                power_slope = slope_intercept + slope_slope * laser_level
-                power_inter = inter_intercept + inter_slope * laser_level
+                power = power_inter + power_slope * duty_cycle  # mW
 
-            else:
+                frep_slope = fr_slope_intercept + fr_slope_slope * laser_level  # Hz
+                frep_inter = fr_inter_intercept + fr_inter_slope * laser_level
 
-                power_slope = laser_specs.loc[fiber_connection]['power_slope']
-                power_inter = laser_specs.loc[fiber_connection]['power_intercept']
-                fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
-                fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
-                fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
-                fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
+                frep = frep_inter + frep_slope * duty_cycle
 
-            power = power_inter + power_slope * duty_cycle  # mW
+                df.at[i, 'laser_power'] = power
+                df.at[i, 'repetition_frequency'] = frep
+                df.at[i, 'e_pulse'] = ((power / 1000) / frep) * 1e6
 
-            frep_slope = fr_slope_intercept + fr_slope_slope * laser_level  # Hz
-            frep_inter = fr_inter_intercept + fr_inter_slope * laser_level
-
-            frep = frep_inter + frep_slope * duty_cycle
-
-            df.at[i, 'laser_power'] = power
-            df.at[i, 'repetition_frequency'] = frep
-            df.at[i, 'e_pulse'] = ((power / 1000) / frep) * 1e6
-
-            if '_C6' in fiber_connection or '_C7':
-                diameter = 50 / 1e3  # mm
-                large_diameter = 100 / 1e3  # mm
-            elif '_C8' in fiber_connection:
-                diameter = 25  / 1e3  # mm
-                large_diameter = 50 / 1e3  # mm
-            else:
-                raise ValueError(f'implement this: {fiber_connection}')
+                if '_C6' in fiber_connection or '_C7':
+                    diameter = 50 / 1e3  # mm
+                    large_diameter = 100 / 1e3  # mm
+                elif '_C8' in fiber_connection:
+                    diameter = 25  / 1e3  # mm
+                    large_diameter = 50 / 1e3  # mm
+                else:
+                    raise ValueError(f'implement this: {fiber_connection}')
 
 
-            area = np.pi * (diameter / 2) ** 2
-            large_area = np.pi * (large_diameter / 2) ** 2
-            power = power / 1000  # W
-            irradiance = power / area  # W / mm2
+                area = np.pi * (diameter / 2) ** 2
+                large_area = np.pi * (large_diameter / 2) ** 2
+                power = power / 1000  # W
+                irradiance = power / area  # W / mm2
 
-            df.at[i, 'fiber_diameter'] = diameter
-            df.at[i, 'irradiance'] = irradiance
-            df.at[i, 'irradiance_exact_fiber_diameter'] = irradiance  # irradiane at exact fiber diameter
-            df.at[i, 'irradiance_large_fiber_diameter'] = power / large_area  # W / mm2
+                df.at[i, 'fiber_diameter'] = diameter
+                df.at[i, 'irradiance'] = irradiance
+                df.at[i, 'irradiance_exact_fiber_diameter'] = irradiance  # irradiane at exact fiber diameter
+                df.at[i, 'irradiance_large_fiber_diameter'] = power / large_area  # W / mm2
 
-    # except:
-    #     print(f'ERROR IN LASER POWER DATAFRAME, FIX THIS')
+    # Patch old column names
+    names_to_patch = (
+        'burst_period', 'burst_count', 'burst_duration',
+        'duty_cycle'
+    )
+    for i, r in df.iterrows():
+        for n in names_to_patch:
+            if pd.notna(r[n]):
+                df.at[i, f'laser_{n}'] = r[n]
+
+    df.drop(columns=names_to_patch, inplace=True, errors='ignore')
 
     df.to_csv(filepaths.proc_pp_trials)
