@@ -111,6 +111,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         write_file.parent.mkdir(parents=True)        
 
     with h5py.File(write_file, "w") as f:
+        print('x')
 
     
         # -----------------------------
