@@ -1,6 +1,7 @@
 # dataset_dir = r'/media/aleong/Elements/'
-dataset_dir = rf'D:'
+# dataset_dir = rf'D:'
 # dataset_dir = r'C:\axorus'
+dataset_dir = r'/media/omarreteam/Elements'
 
 data_trigger_channels = dict(
     dmd=127,

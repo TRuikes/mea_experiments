@@ -46,6 +46,12 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
 
+        # Add cluster x and y to data
+    for i, r in cluster_info.iterrows():
+        cluster_info.at[i, 'cluster_x'] = mea_position.loc[r.ch+1].x
+        cluster_info.at[i, 'cluster_y'] = mea_position.loc[r.ch+1].y
+        
+
     dmd_n_trials_triggers = 0
     dmd_n_bursts_triggers = 0
     pa_n_trials_triggers = 0
@@ -304,3 +310,5 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 cluster_rec_grp.create_dataset('spiketimes', data=spiketimes[spiketimes_key][cluster_id])
                 if include_waveforms:
                     cluster_rec_grp.create_dataset('waveforms', data=waveforms[spiketimes_key][cluster_id])
+
+    print(f'\nSaved dataset to {write_file.as_posix()}')
