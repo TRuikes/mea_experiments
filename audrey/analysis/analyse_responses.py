@@ -19,7 +19,7 @@ def main():
     Main handles
     """
     # dataset_dir = Path(r'/media/aleong/Elements/dataset/')
-    dataset_dir = Path(r'C:\audrey\dataset')
+    dataset_dir = Path(r'/media/omarreteam/Nouveau nom/Sorting/Audrey/dataset')
     assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
@@ -28,7 +28,11 @@ def main():
     data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
+
+    print(f'Gathering results')
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+
+    print('Done')
     data_io.unlock_modification()
 
 
@@ -56,7 +60,8 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
 
     cell_responses = pd.DataFrame(index=data_io.cluster_df.index.values, columns=multi_index)
 
-    for cluster_id in cell_responses.index.values:
+
+    for cluster_id in tqdm(cell_responses.index.values):
         loadname = bootstrap_dir / f'bootstrap_{cluster_id}.pkl'
 
         if not loadname.exists():
@@ -165,7 +170,7 @@ def detect_significant_responses(data_io: DataIO, output_dir: Path):
         output_dir.mkdir(parents=True, exist_ok=True)
 
     # Detect per trial, which cell respond significantly
-    num_threads = 5
+    num_threads = 10
     threads = []
     tasks = []
     lock = threading.Lock()
