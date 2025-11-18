@@ -25,7 +25,7 @@ class DataIO:
         self.sessions = [f.name.split('.')[0] for f in self.datadir.iterdir() if f.suffix == ".h5"]
 
     def load_session(self, session_id: str, load_waveforms=False, load_pickle=True):
-        assert session_id in self.sessions
+        assert session_id in self.sessions, f'{session_id} not in {self.sessions}'
         self.session_id = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 

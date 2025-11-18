@@ -25,7 +25,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         SKIP_RECORDING = False
         if recording_numbers_to_skip is not None:
             for nr in recording_numbers_to_skip:
-                if f'{nr:03d}' in rec:
+                if f'_{nr:03d}_' in rec:
                     print(f'\tskipping recording {rec}')
                     SKIP_RECORDING = True
 
@@ -49,10 +49,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         print(f'\treading data ({rec_duration:.0f} min)')
 
         trigger_types = []
-        if 'PA' in rec:
+        if 'PA' in rec or 'pa' in rec:
             trigger_types.append('laser')
 
-        if 'DMD' in rec:
+        if 'DMD' in rec or 'light' in rec:
             trigger_types.append('dmd')
 
         assert len(trigger_types) > 0, 'no trigger types found!'

@@ -84,7 +84,17 @@ def recording_onsets(filepaths: FilePaths):
         else:
             local_name = filepaths.raw_dir / rec.name
         '''
-        local_name = filepaths.raw_dir / rec.name
+        local_name = filepaths.sorted_dir / rec.name
+
+        # Patch session 2501015_A
+        if '2501015_A' in rec.name:
+            patch_name = '25' + rec.name.split('250')[1]
+            local_name = filepaths.sorted_dir / patch_name
+
+        # Patch session 2401014_A and 2401014_B
+        if '2501014_A' in rec.name or '2501014_B' in rec.name:
+            patch_name = '25' + rec.name.split('250')[1]
+            local_name = filepaths.sorted_dir / patch_name
 
 
         assert local_name.exists(), f'{local_name}'

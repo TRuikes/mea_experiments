@@ -65,7 +65,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         SKIP_RECORDING = False
         if recording_numbers_to_skip is not None:
             for nr in recording_numbers_to_skip:
-                if f'{nr:03d}' in rec_id:
+                if f'_{nr:03d}_' in rec_id:
                     print(f'\tskipping recording {rec_id}')
                     SKIP_RECORDING = True
 
@@ -111,9 +111,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         write_file.parent.mkdir(parents=True)        
 
     with h5py.File(write_file, "w") as f:
-        print('x')
-
-    
+   
         # -----------------------------
         # 0) Top-level cluster info table
         # -----------------------------
@@ -160,25 +158,26 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # -----------------------------
         # 1) Per recording data
         # -----------------------------
+        print(f'Loading data into hdf5 file:')
         for rec_id in filepaths.recording_names:
 
             # Skip recordings if needed
-            if recording_numbers_to_skip and any(f'{nr:03d}' in rec_id for nr in recording_numbers_to_skip):
-                print(f"Skipping recording {rec_id}")
+            if recording_numbers_to_skip and any(f'_{nr:03d}_' in rec_id for nr in recording_numbers_to_skip):
+                # print(f"Skipping recording {rec_id}")
                 continue
 
-            print(f"Loading {rec_id}")
+            print(f"\tLoading {rec_id}")
             train_rec_df = train_df.query("recording_name == @rec_id").copy()
             if train_rec_df.empty:
                 continue
 
             # Determine stim type
-            if "_PA_" in rec_id:
+            if "_PADMD_" in rec_id or ('pa' in rec_id and 'light' in rec_id):
+                stim_type = 'padmd'
+            elif "_PA_" in rec_id or 'pa' in rec_id:
                 stim_type = "laser"
-            elif "_DMD_" in rec_id:
+            elif "_DMD_" in rec_id or 'light' in rec_id:
                 stim_type = "dmd"
-            elif "_PADMD_" in rec_id:
-                stim_type = "padmd"
             else:
                 raise ValueError(f"Unknown recording type: {rec_id}")
 

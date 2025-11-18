@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
+sys.path.append('.')
 current_dir = Path().resolve()
 sys.path.append(current_dir.as_posix().split('mea_experiments')[0] + 'mea_experiments')
 
-from audrey.data_io import DataIO
+from audrey.analysis.data_io import DataIO
 from pathlib import Path
 import pandas as pd
 import threading
@@ -12,19 +13,17 @@ import numpy as np
 from scipy.stats import bootstrap
 import utils
 from scipy.signal import medfilt
+from audrey.analysis.analysis_params import dataset_dir
 
 
 def main():
     """
     Main handles
     """
-    # dataset_dir = Path(r'/media/aleong/Elements/dataset/')
-    dataset_dir = Path(r'/media/omarreteam/Nouveau nom/Sorting/Audrey/dataset')
-    assert dataset_dir.exists(), f'cant find: {dataset_dir}'
     data_io = DataIO(dataset_dir)
 
     print(f'Loading data')
-    data_io.load_session('250904_A', load_waveforms=False, load_pickle=False )
+    data_io.load_session('251015_A', load_waveforms=False, load_pickle=False )
     data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
@@ -232,6 +231,7 @@ def bootstrap_data(data_io: DataIO, cluster_id: str, savefile: str):
     :param cluster_id:
     :param savefile:
     """
+    print(f'Starting bootstrapping cluster: {cluster_id}')
     t_pre = 200
     t_after = 500
     stepsize = 5

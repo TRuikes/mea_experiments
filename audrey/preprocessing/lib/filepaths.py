@@ -1,3 +1,5 @@
+import sys
+sys.path.append('.')
 from pathlib import Path
 from datetime import datetime
 from audrey.preprocessing.params import dataset_dir
@@ -103,6 +105,7 @@ class FilePaths:
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
+            self.csv_dir = self.dataset_dir / sid / 'csv'
             #self.raw_dir = self.dataset_dir / sid / 'sorted'
 
             if self.local_raw_dir is not None:
@@ -119,7 +122,7 @@ class FilePaths:
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
 
-            raw_trials_tmp = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials_tmp = [f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name]
             raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
             raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
             sort_idx = np.argsort(raw_t_nrs)
@@ -127,14 +130,25 @@ class FilePaths:
 
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
 
-            raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
-            if not raw_mea_position.exists():
-                raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month:02.0f}-{self.date.day}_MEA_position.csv'
-            self.raw_mea_position = raw_mea_position
+            # raw_mea_position = self.csv_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
+            # if not raw_mea_position.exists():
+            self.raw_mea_position = self.csv_dir / f'{self.date.year}-{self.date.month:02.0f}-{self.date.day}_MEA_position.csv'
+            #  = raw_mea_position
 
             # define processed files
             self.sorted_dir = self.dataset_dir / sid / 'sorted'
-            self.gui_dir = self.sorted_dir / f'{sid}_001_noblocker_checkerboard_30sq20px' / f'{sid}_001_noblocker_checkerboard_30sq20px.GUI'
+
+            self.gui_dir = None
+            # Detect path with manual sorting output
+            for path in self.sorted_dir.iterdir():
+                if path.is_dir():
+                    for path_2 in path.iterdir():
+                        if '.GUI' in path_2.name:
+                            self.gui_dir = path_2
+
+            assert self.gui_dir is not None
+
+
             if self.sorted_dir.exists():
                 self.has_sorted_data = True
                 self.proc_sc_amplitudes = self.gui_dir / 'amplitudes.npy'
@@ -193,10 +207,14 @@ class FilePaths:
 
     def check_data(self):
         print(f'Checking if all data is available for {self.sid}:')
-        assert self.processed_dir.exists(), f'{self.processed_dir} does not exist'
+        if not self.processed_dir.exists():
+            self.processed_dir.mkdir(parents=True)
+
         assert self.raw_dir.exists(), f'{self.raw_dir} does not exist'
         assert self.blocker in self.blocker_names, f'{self.blocker}'
         assert self.slice_nr in self.slice_names
+
+        assert self.raw_mea_position.exists(), f'did not find: {self.raw_mea_position}'
 
         assert len(self.raw_trials) > 0, f'no trial files found'
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
@@ -231,6 +249,7 @@ class FilePaths:
 
         else:
             print('\tdoes not have sorted data...')
+
 
     def get_recording_names_from_rawfiles(self):
         readdir = self.local_raw_dir if self.local_raw_dir is not None else self.raw_dir
