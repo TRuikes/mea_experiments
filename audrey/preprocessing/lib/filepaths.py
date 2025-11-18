@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import datetime
-from axorus.preprocessing.params import dataset_dir
+from audrey.preprocessing.params import dataset_dir
 import numpy as np
 
 
@@ -96,7 +96,10 @@ class FilePaths:
 
         if sid is not None:
             self.date = extract_date(sid)
-            self.slice_nr = sid.split('_')[1]
+            if '_' in sid:
+                self.slice_nr = sid.split('_')[1]
+            else:
+                self.slice_nr = 'A'
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
@@ -190,8 +193,8 @@ class FilePaths:
 
     def check_data(self):
         print(f'Checking if all data is available for {self.sid}:')
-        assert self.processed_dir.exists()
-        assert self.raw_dir.exists()
+        assert self.processed_dir.exists(), f'{self.processed_dir} does not exist'
+        assert self.raw_dir.exists(), f'{self.raw_dir} does not exist'
         assert self.blocker in self.blocker_names, f'{self.blocker}'
         assert self.slice_nr in self.slice_names
 
