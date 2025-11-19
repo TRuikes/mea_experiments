@@ -2,8 +2,6 @@ import sys
 sys.path.append('.')
 from audrey.analysis.analysis_params import dataset_dir
 from audrey.analysis.data_io import DataIO
-import pandas as pd
-import numpy as np
 
 ID_TO_INSPECT = '251014_B'
 

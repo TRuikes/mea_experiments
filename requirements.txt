@@ -13,3 +13,4 @@ opencv-python
 pyqt5
 McsPyDataTools
 IPython
+mypy

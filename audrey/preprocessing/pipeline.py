@@ -27,7 +27,7 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=False)
+        extract_phy_data(filepaths, update=True)
     else:
         print(f'NO SORTED DATA FOUND')
 

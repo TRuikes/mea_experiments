@@ -4,8 +4,7 @@ import pandas as pd
 import threading
 import pickle
 import numpy as np
-import numpy.typing as npt
-from typing import List
+from typing import List, no_type_check, Any
 
 class DataIO:
     sessions = []
@@ -14,8 +13,7 @@ class DataIO:
     cluster_df = pd.DataFrame()
     spiketimes: dict[str, dict[str, np.ndarray]] = {} # type: ignore
     waveforms = {}
-    session_id = None
-    pickle_file = None
+
 
     def __init__(self, datadir: Path):
         self.datadir = datadir
@@ -26,9 +24,18 @@ class DataIO:
     def detect_sessions(self):
         self.sessions = [f.name.split('.')[0] for f in self.datadir.iterdir() if f.suffix == ".h5"]
 
-    def load_session(self, session_id: str, load_waveforms=False, load_pickle=True):
+    @no_type_check
+    def load_session(self, session_id: str, load_waveforms: bool=False, load_pickle: bool=True): 
+        """_summary_
+        Load a session from the dataset into the class
+        Args:
+            session_id (str): unique session id to load
+            load_waveforms (bool, optional): set to true to also load waveforms. Defaults to False.
+            load_pickle (bool, optional): use a pickle version of the dataset file for faster loading. Defaults to True.
+        """        
+        
         assert session_id in self.sessions, f'{session_id} not in {self.sessions}'
-        self.session_id = session_id
+        self.session_id: str = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 
         if load_pickle and self.pickle_file.is_file():
@@ -46,15 +53,15 @@ class DataIO:
         # Determine which HDF5 file to open
         readfile = self.datadir / (f'{session_id}_waveforms.h5' if load_waveforms else f'{session_id}.h5')
 
-        with h5py.File(readfile, 'r') as f:
+        with h5py.File(readfile.as_posix(), 'r') as f:  
             # --- Load top-level cluster metadata ---
             if "clusters/metadata" in f:
                 cluster_meta = f["clusters/metadata"]
-                cluster_dtype = cluster_meta.dtype
+                cluster_dtype = cluster_meta.dtype  
 
                 # Extract index field first
-                index_field = cluster_dtype.names[0]  # should be "index"
-                idx_array = cluster_meta[index_field][()]
+                index_field = cluster_dtype.names[0]  
+                idx_array = cluster_meta[index_field][()] 
                 # Decode bytes if necessary
                 idx_array = [x.decode() if isinstance(x, bytes) else x for x in idx_array]
 
@@ -138,7 +145,7 @@ class DataIO:
             burst_df=self.burst_df,
             recording_ids=self.recording_ids,
         )
-        with open(self.pickle_file, 'wb') as f:
+        with open(self.pickle_file.as_posix(), 'wb') as f:
             pickle.dump(data_to_pickle, f)
 
     def load_pickle(self):

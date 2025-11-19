@@ -134,7 +134,7 @@ def _extract_spiketimes(filepaths: FilePaths):
     cluster_overview = cluster_overview.query('group != "noise"')
 
     for cluster_i, cluster_id in enumerate(cluster_overview.index.tolist()):
-        new_id = f'uid_{filepaths.sid.split("_")[0]}_{cluster_i:03d}'
+        new_id = f'uid_{filepaths.sid}_{cluster_i:03d}'
         cluster_overview.at[cluster_id, 'new_id'] = new_id
         cluster_overview.at[cluster_id, 'phy_cluster_id'] = cluster_id
 
