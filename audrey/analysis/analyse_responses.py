@@ -27,7 +27,7 @@ def main():
     data_io = DataIO(dataset_dir)
 
     print(f'Loading data')
-    data_io.load_session('251014_B', load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session('251015_A', load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
@@ -138,6 +138,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
             cell_responses.at[cluster_id, (tid, 'response_latency')] = latency
 
     cell_responses.to_csv(savename)
+    
     print(f'Saved: {savename}')
 
 
