@@ -4,13 +4,15 @@ import pandas as pd
 import threading
 import pickle
 import numpy as np
+import numpy.typing as npt
+from typing import List
 
 class DataIO:
     sessions = []
-    recording_ids = []
+    recording_ids: List[str] = []
     burst_df = pd.DataFrame()
     cluster_df = pd.DataFrame()
-    spiketimes = {}
+    spiketimes: dict[str, dict[str, np.ndarray]] = {} # type: ignore
     waveforms = {}
     session_id = None
     pickle_file = None

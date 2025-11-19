@@ -2,6 +2,8 @@ import sys
 sys.path.append('.')
 from audrey.analysis.analysis_params import dataset_dir
 from audrey.analysis.data_io import DataIO
+import pandas as pd
+import numpy as np
 
 ID_TO_INSPECT = '251014_B'
 
@@ -22,10 +24,9 @@ def main():
 
     print(f'\n\nSession contains recordings:')
     for r in data_io.recording_ids:
-
-        bursts_rec = data_io.burst_df.query(f'rec_id == "{r}"')
-        n_trains = bursts_rec.train_id.unique().size
-        n_cells = len(data_io.spiketimes[r].keys())
+        bursts_rec = data_io.burst_df.loc[data_io.burst_df['rec_id'] == r]
+        n_trains = bursts_rec['train_id'].nunique()
+        n_cells = len(data_io.spiketimes[r])
         stimtype = bursts_rec.stimtype.unique()
         assert len(stimtype) == 1
         stimtype = stimtype[0]
