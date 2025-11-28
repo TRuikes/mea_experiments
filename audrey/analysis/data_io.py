@@ -16,7 +16,7 @@ class DataIO:
 
 
     def __init__(self, datadir: Path):
-        self.datadir = datadir
+        self.datadir = Path(datadir)
         self.detect_sessions()
         self.lock = threading.Lock()
         self.is_locked = False

@@ -14,8 +14,8 @@ from typing import List, Tuple, cast, Optional, Any, Dict, Union
 from pathlib import Path
 
 import utils
-from audrey.analysis.analysis_params import dataset_dir
-from audrey.analysis.data_io import DataIO
+from audrey.preprocessing.params import dataset_dir
+from data_io import DataIO
 
 DEBUG = False
 
@@ -27,7 +27,7 @@ def main():
     data_io = DataIO(dataset_dir)
 
     print(f'Loading data')
-    data_io.load_session('251015_A', load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session('251014_A', load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, dataset_dir / 'bootstrapped')

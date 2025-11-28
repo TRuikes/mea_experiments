@@ -1,4 +1,4 @@
-dataset_dir = r'F:\\'
+dataset_dir = r'/media/aleong/Audrey/dataset/'
 
 # dataset_dir = r'C:\axorus'
 data_trigger_channels = dict(
