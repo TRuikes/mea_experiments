@@ -46,25 +46,40 @@ class ProjectColors:
         return f'rgba({r}, {g}, {b}, 1)'
 
     @staticmethod
-    def duty_cycle(duty_cycle, alpha=1):
-        # cmaps.cet_l_bmy.discrete(100).colors
-        rel_i = int((duty_cycle - 0) / (50 - 0) * 100)
+    def duty_cycle(duty_cycle, *, alpha=None):
+        # default opacity if not specified
+        if alpha is None:
+            alpha = 1.0
 
-        r, g, b = cmaps.l_redsat1.discrete(100).colors[int(rel_i), :]
+        r, g, b = (
+            cmaps.torch
+            .cut(0.2, 'left')
+            .cut(0.2, 'right')
+            .discrete(100)
+            .colors[int(duty_cycle), :]
+        )
+        return f'rgba({r}, {g}, {b}, {alpha})'
+
+    # def duty_cycle(duty_cycle):
+    #     # cmaps.cet_l_bmy.discrete(100).colors
+    #     r, g, b = cmaps.torch.cut(0.2, 'left').cut(0.2, 'right').discrete(100).colors[int(duty_cycle), :]
+    #     return f'rgba({r}, {g}, {b}, 1)'
+
+    @staticmethod
+    def padmd_stim(duty_cycle, *, alpha=None):
+        # default opacity if not specified
+        if alpha is None:
+            alpha = 1.0
+
+        r, g, b = (
+            cmaps.greens
+            .cut(0.2, 'left')
+            .cut(0.2, 'right')
+            .discrete(100)
+            .colors[int(duty_cycle), :]
+        )
         return f'rgba({r}, {g}, {b}, {alpha})'
     
-    @staticmethod
-    def dmd_light_stim(stim_int, alpha=1):
-        r, g, b = cmaps.blue_lbluec1_r.discrete(255).colors[int(stim_int), :]
-        return f'rgba({r}, {g}, {b}, {alpha})'
-    
-    @staticmethod
-    def padmd_stim(stim_int, alpha=1):
-        rel_i = int((stim_int - 0) / (50 - 0) * 100)
-        r, g, b = cmaps.purp2.discrete(100).colors[int(rel_i), :]
-        return f'rgba({r}, {g}, {b}, {alpha})'      
-    
-
     @staticmethod
     def repetition_frequency(prf, alpha=1):
         rel_i = int((prf - 1000) / (8000 - 1000) * 100)

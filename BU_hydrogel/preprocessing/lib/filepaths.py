@@ -1,18 +1,15 @@
 from pathlib import Path
 from datetime import datetime
-from axorus.preprocessing.params import dataset_dir
+from BU_hydrogel.preprocessing.params import dataset_dir
 import numpy as np
 
 
 def extract_date(sid: str):
     # Extract day, month, and year from the string
-    sid_split = sid.split('_')[0]
-    day = sid_split[4:]
-    month = sid_split[2:4]
-    year = sid_split[:2]
-
-    # Convert the two-digit year to four digits
-    year = '20' + year if int(year) <= 99 else '19' + year
+    sid_split = sid.split()[0].split('-')
+    day = sid_split[2]
+    month = sid_split[1]
+    year = sid_split[0]
 
     # Format the date as a datetime object
     date_str = f"{day}-{month}-{year}"
@@ -88,6 +85,7 @@ class FilePaths:
         self.dataset_dir = Path(dataset_dir)
         self.laser_calib_week = laser_calib_week
         self.dataset_out_dir = self.dataset_dir / 'dataset'
+        self.local_raw_dir = local_raw_dir
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
         else:
@@ -95,10 +93,11 @@ class FilePaths:
 
         if sid is not None:
             self.date = extract_date(sid)
-            self.slice_nr = sid.split('_')[1]
+            self.slice_nr = sid.split()[-1]
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
+            #self.raw_dir = self.dataset_dir / sid / 'sorted'
 
             if self.local_raw_dir is not None:
                 self.blocker = detect_blocker(self.local_raw_dir)
@@ -114,7 +113,8 @@ class FilePaths:
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
 
-            raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials_tmp = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
+            raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
             raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
             sort_idx = np.argsort(raw_t_nrs)
             self.raw_trials = [raw_trials[s] for s in sort_idx]
@@ -127,7 +127,8 @@ class FilePaths:
             self.raw_mea_position = raw_mea_position
 
             # define processed files
-            self.sorted_dir = self.processed_dir / 'sorted'
+            self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'
+            # self.gui_dir = self.sorted_dir / f'{sid}_001_noblocker_checkerboard_30sq20px' / f'{sid}_001_noblocker_checkerboard_30sq20px.GUI'
             if self.sorted_dir.exists():
                 self.has_sorted_data = True
                 self.proc_sc_amplitudes = self.sorted_dir / 'amplitudes.npy'
@@ -164,7 +165,7 @@ class FilePaths:
             self.proc_pp_figure_output = self.processed_dir / 'figures'
             self.proc_pp_artefact_positions = self.processed_dir / 'artefact_positions.csv'
 
-            # define trails file
+            # define trials file
             self.proc_pp_trials = self.processed_dir / 'trials.csv'
 
             # Define the final dataset file
@@ -188,7 +189,6 @@ class FilePaths:
         print(f'Checking if all data is available for {self.sid}:')
         assert self.processed_dir.exists()
         assert self.raw_dir.exists()
-        assert self.blocker in self.blocker_names, f'{self.blocker}'
         assert self.slice_nr in self.slice_names
 
         assert len(self.raw_trials) > 0, f'no trial files found'
@@ -238,11 +238,11 @@ class FilePaths:
         if len(recording_names) == 0:
             raise ValueError('no recordings found')
 
-        recnames_int = [int(r.split('_')[2]) for r in recording_names]
+        recnames_int = [int(r.split('_')[1]) for r in recording_names]
         self.recording_names = [recording_names[i] for i in np.argsort(recnames_int)]
 
 
 if __name__ == '__main__':
-    sid = '161024_A'
-    f = FilePaths(sid)
+    sid = '250904_A'
+    f = FilePaths(sid, local_raw_dir=None)
     f.check_data()

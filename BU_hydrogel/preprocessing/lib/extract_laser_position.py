@@ -1,10 +1,10 @@
 from utils import load_obj, simple_fig, save_fig, save_obj, interp_color, make_figure
 import numpy as np
 import pandas as pd
-from axorus.preprocessing.lib.get_probe_layout import get_probe_layout
-from axorus.preprocessing.params import (nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir,
+from audrey.preprocessing.lib.get_probe_layout import get_probe_layout
+from audrey.preprocessing.params import (nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir,
                                          data_voltage_resolution, data_type, data_trigger_channels)
-from axorus.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.lib.filepaths import FilePaths
 import h5py
 
 

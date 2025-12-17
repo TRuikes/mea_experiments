@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.13 (mea_experiments)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (mea_experiments)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="$USER_HOME$/anaconda3/envs/pa-analysis" project-jdk-type="Python SDK" />
 </project>
