@@ -104,9 +104,9 @@ class FilePaths:
                 self.slice_nr = 'A'
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
-            self.raw_dir = self.dataset_dir / sid / 'raw'
+            #self.raw_dir = self.dataset_dir / sid / 'raw'
             self.csv_dir = self.dataset_dir / sid / 'csv'
-            #self.raw_dir = self.dataset_dir / sid / 'sorted'
+            self.raw_dir = self.dataset_dir / sid / 'sorted'
 
             if self.local_raw_dir is not None:
                 self.blocker = detect_blocker(self.local_raw_dir)

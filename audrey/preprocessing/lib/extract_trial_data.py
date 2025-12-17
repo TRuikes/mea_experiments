@@ -36,6 +36,7 @@ def extract_trial_data(filepaths: FilePaths):
         train_i += 1
 
         rec_nr = r['Recording Number']
+        print(rec_nr)
         recording_name = None
 
         for rr in filepaths.recording_names:
