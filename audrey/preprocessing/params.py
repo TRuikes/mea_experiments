@@ -1,6 +1,7 @@
-dataset_dir = r'/media/aleong/Audrey-experiments/'
-
+# dataset_dir = r'/media/aleong/Audrey-experiments/'
+dataset_dir = r'D:/'
 # dataset_dir = r'C:\axorus'
+
 data_trigger_channels = dict(
     dmd=127,
     laser=128,
