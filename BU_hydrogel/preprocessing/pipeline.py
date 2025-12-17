@@ -31,6 +31,6 @@ for sid, s_specs in dataset_sessions.items():
     else:
         print(f'NO SORTED DATA FOUND')
 
-    create_dataset_object(filepaths, include_waveforms=True, 
+    create_dataset_object(filepaths, include_waveforms=False, 
                           recording_numbers_to_skip=s_specs['skip_triggers'])
 
