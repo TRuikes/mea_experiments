@@ -24,16 +24,17 @@ def main():
     """
     Main handles
     """
-    data_io = DataIO(dataset_dir)
+    data_dir = dataset_dir / Path('dataset')
+    data_io = DataIO(data_dir)
 
     print(f'Loading data')
-    data_io.load_session('251014_A', load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session('251015', load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
     data_io.lock_modification()
-    detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
+    detect_significant_responses(data_io, data_dir / Path('bootstrapped'))
 
     print(f'Gathering results')
-    gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+    gather_cluster_responses(data_io, data_dir / Path('bootstrapped'), data_dir / Path(f'{data_io.session_id}_cells.csv'))
 
     print('Done')
     data_io.unlock_modification()
