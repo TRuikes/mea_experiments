@@ -72,7 +72,8 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         if SKIP_RECORDING:
             continue
         
-        if 'PA' in rec_id:
+        if 'PA' in rec_id or 'pa' in rec_id:
+            print(rec_id)
             pa_recordings_included.append(rec_id)
 
             pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
@@ -82,7 +83,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
             pa_n_bursts_triggers += len(pa_burst_onsets)
 
-        if 'DMD' in rec_id:
+        elif 'DMD' in rec_id or 'light' in rec_id:
             dmd_recordings_included.append(rec_id)
 
             dmd_train_onsets = triggers[rec_id]['dmd']['train_onsets']

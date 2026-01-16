@@ -97,6 +97,12 @@ def recording_onsets(filepaths: FilePaths):
             local_name = filepaths.sorted_dir / patch_name
 
 
+        # # Patch session 250904_A
+        # if '250904_A' in rec.name:
+        #     patch_name = '25' + rec.name.split('250')[1]
+        #     local_name = filepaths.sorted_dir / patch_name
+
+
         assert local_name.exists(), f'{local_name}'
 
 
@@ -135,8 +141,8 @@ def _extract_spiketimes(filepaths: FilePaths):
 
     for cluster_i, cluster_id in enumerate(cluster_overview.index.tolist()):
         new_id = f'uid_{filepaths.sid}_{cluster_i:03d}'
-        cluster_overview.at[cluster_id, 'new_id'] = new_id
-        cluster_overview.at[cluster_id, 'phy_cluster_id'] = cluster_id
+        cluster_overview.loc[cluster_id, 'new_id'] = new_id
+        cluster_overview.loc[cluster_id, 'phy_cluster_id'] = cluster_id
 
     spike_index_per_cluster = {}
     for cluster_id in cluster_overview.index:

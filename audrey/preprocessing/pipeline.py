@@ -37,5 +37,3 @@ for sid, s_specs in dataset_sessions.items():
 
     # Detect laser position
     # detect_laser_position(filepaths)   # doesnt work yet
-
-

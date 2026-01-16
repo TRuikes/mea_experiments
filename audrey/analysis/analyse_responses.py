@@ -28,7 +28,7 @@ def main():
     data_io = DataIO(data_dir)
 
     print(f'Loading data')
-    data_io.load_session('251015', load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session('250904_A', load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
     data_io.lock_modification()
     detect_significant_responses(data_io, data_dir / Path('bootstrapped'))
