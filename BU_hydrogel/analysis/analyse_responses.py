@@ -14,7 +14,7 @@ from typing import List, Tuple, cast, Optional, Any, Dict, Union
 from pathlib import Path
 
 import utils
-from BU_hydrogel.analysis.analysis_params import dataset_dir, figure_dir_analysis
+from BU_hydrogel.analysis.analysis_params import dataset_dir
 from data_io import DataIO
 
 DEBUG = False
@@ -25,7 +25,7 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2025-12-16 rat P23H 3318 A'
+    session_id = '2026-01-22 rat LE 9999 A'
     print(f'Loading data')
     data_io.load_session(session_id, load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()

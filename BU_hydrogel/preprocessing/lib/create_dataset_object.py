@@ -1,4 +1,5 @@
-from audrey.preprocessing.lib.filepaths import FilePaths
+from BU_hydrogel.preprocessing.lib.filepaths import FilePaths
+from BU_hydrogel.preprocessing.params import manuall_edited_sessions
 import pandas as pd
 import utils
 import h5py
@@ -72,7 +73,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         if SKIP_RECORDING:
             continue
         
-        if 'PA' in rec_id:
+        if 'PA' in rec_id or 'buSTIM1' in rec_id:
             pa_recordings_included.append(rec_id)
 
             pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
@@ -82,7 +83,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
             pa_n_bursts_triggers += len(pa_burst_onsets)
 
-        if 'DMD' in rec_id:
+        elif 'DMD' in rec_id:
             dmd_recordings_included.append(rec_id)
 
             dmd_train_onsets = triggers[rec_id]['dmd']['train_onsets']
@@ -92,13 +93,18 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             dmd_burst_onsets = triggers[rec_id]['dmd']['burst_onsets']
             dmd_n_bursts_triggers += len(dmd_burst_onsets)
 
+        else:
+            raise ValueError('stuff')
+        
+
     # Check PA triggers
     train_df_check = train_df.query('recording_name in @pa_recordings_included')
 
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
-    assert pa_n_trials_triggers == train_df_check.shape[0]
-    assert pa_n_bursts_triggers == train_df_check.laser_burst_count.sum()
+    if filepaths.sid not in manuall_edited_sessions:
+        assert pa_n_trials_triggers == train_df_check.shape[0], f'{filepaths.sid}'
+        assert pa_n_bursts_triggers == train_df_check.laser_burst_count.sum()
 
     # Check DMD triggers
     # train_df_check = train_df.query('recording_name in @dmd_recordings_included')
@@ -111,8 +117,6 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         write_file.parent.mkdir(parents=True)        
 
     with h5py.File(write_file, "w") as f:
-        print('x')
-
     
         # -----------------------------
         # 0) Top-level cluster info table
@@ -157,6 +161,15 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # Save dataset
         f.create_dataset("clusters/metadata", data=cluster_table,
                         compression="gzip", chunks=True)
+        
+        # Patches for broken data
+        if filepaths.sid in manuall_edited_sessions:
+            if filepaths.sid == '2025-12-17 rat P23H 3153 A':
+                train_df = train_df.loc[train_df.index < 'tid_2025-12-17 rat P23H 3153 A_038']
+                print(f'{filepaths.sid}: cutting rows from trial data')
+
+
+
         # -----------------------------
         # 1) Per recording data
         # -----------------------------
@@ -194,6 +207,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             bursts_list = []
             burst_offset = 0
             for train_id, trial_info in train_rec_df.iterrows():
+
                 if stim_type in ["laser", "dmd"]:
                     burst_count = int(trial_info[f"{stim_type}_burst_count"])
                     train_onsets = triggers[rec_id][stim_type]["train_onsets"]
@@ -207,6 +221,13 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                             burst_offsets[trigger_i],
                             str(train_id)
                         ])
+
+                        tbd = np.round(trial_info.burst_duration, 0)
+                        rbd = np.round(burst_offsets[trigger_i] - burst_onsets[trigger_i], 0)
+                        # The duration in the trials overview should match the duration measured
+                        # at the triggers
+                        assert tbd == rbd, f'{train_id}, {burst_i}, {tbd}, {rbd}'
+
                     burst_offset += burst_count
 
                 elif stim_type == "padmd":

@@ -1,4 +1,6 @@
-dataset_dir = r'D:\BU_IDV_hydrogel\ex_vivo'
+# dataset_dir = r'D:\BU_IDV_hydrogel\ex_vivo'  # laptop
+dataset_dir = r'F:\BU_IDV_hydrogel\ex_vivo'  # pc
+
 data_trigger_channels = dict(
     dmd=127,
     laser=128,
@@ -15,3 +17,4 @@ data_nb_channels = 256
 data_voltage_resolution = (2*4096) / (2**16)
 nb_bytes_by_datapoint = 2
 
+manuall_edited_sessions = ['2025-12-17 rat P23H 3153 A']
