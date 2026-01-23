@@ -46,7 +46,10 @@ class ProjectColors:
         return f'rgba({r}, {g}, {b}, 1)'
 
     @staticmethod
-    def duty_cycle(duty_cycle, *, alpha=None):
+    def duty_cycle(duty_cycle, *, alpha=None, dc_min=None, dc_max=None):
+        if dc_min is not None:
+            duty_cycle = int((duty_cycle - dc_min) / (dc_max - dc_min) * 100)
+
         # default opacity if not specified
         if alpha is None:
             alpha = 1.0

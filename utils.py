@@ -456,7 +456,8 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
             file = savename.parent / (savename.name + f'.png')
         elif 'html' in formats:
             file = savename.parent / (savename.name + f'.html')
-        os.system(f'start {file}')
+        # os.system(f'start {file}')
+        os.startfile(file)
 
 
 def run_job(job_fn, n_proceses, joblist):

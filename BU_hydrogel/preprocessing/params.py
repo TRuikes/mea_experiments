@@ -1,4 +1,4 @@
-dataset_dir = r'/home/omarreteam/Desktop/data_thijs'
+dataset_dir = r'D:\BU_IDV_hydrogel\ex_vivo'
 data_trigger_channels = dict(
     dmd=127,
     laser=128,
