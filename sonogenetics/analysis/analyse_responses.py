@@ -26,7 +26,9 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = data_io.sessions[0]
+    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+
+    # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
     data_io.load_session(session_id, load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
@@ -174,8 +176,6 @@ def find_first_long_consecutive_sequence(
 
 
 
-
-
 def detect_significant_responses(data_io: "DataIO", output_dir: Path) -> None:
     """
     Handles calls to bootstrap function for single cells.
@@ -302,7 +302,14 @@ def bootstrap_data(
         response_idx: np.ndarray = np.where((bin_centres >= response_window[0]) & (bin_centres <= response_window[1]))[0]
 
         # Detect burst onsets for this train
-        stimtype: str = str(data_io.burst_df.query('train_id == @train_id').iloc[0].stimtype)  # type: ignore
+        if 'has_laser' in data_io.burst_df.columns:
+            if data_io.burst_df.query('train_id == @train_id').iloc[0].has_laser:
+                stimtype = 'laser'
+            else:
+                stimtype = 'dmd'
+        else:
+            stimtype: str = str(data_io.burst_df.query('train_id == @train_id').iloc[0].stimtype)
+            # type: ignore
         if stimtype in ('laser', 'padmd'):
             burst_onsets: np.ndarray = data_io.burst_df.query('train_id == @train_id').laser_burst_onset.values # type: ignore
         elif stimtype == 'dmd':

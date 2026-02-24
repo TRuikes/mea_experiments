@@ -202,19 +202,6 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             if train_rec_df.empty:
                 continue
 
-            stim_type = 'laser'
-            # # Determine stim type
-            # if "_PA_" in rec_id:
-            #     stim_type = "laser"
-            # elif "_DMD_" in rec_id:
-            #     stim_type = "dmd"
-            # elif "_PADMD_" in rec_id:
-            #     stim_type = "padmd"
-            # else:
-            #     raise ValueError(f"Unknown recording type: {rec_id}")
-
-            train_rec_df['stimtype'] = stim_type
-            
             # Group for this recording
             rec_grp = f.require_group(f"recordings/{rec_id}")
 
@@ -224,43 +211,57 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             bursts_list = []
             burst_offset = 0
 
+            if train_rec_df['has_laser'].sum() > 1:
+                laser_train_onsets = triggers[rec_id]["laser"]["train_onsets"]
+                laser_burst_onsets = triggers[rec_id]["laser"]["burst_onsets"]
+                laser_burst_offsets = triggers[rec_id]["laser"]["burst_offsets"]
+            else:
+                laser_train_onsets = None
+                laser_burst_onsets = None
+                laser_burst_offsets = None
+
+            if train_rec_df['has_dmd'].sum() > 1:
+                dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
+                dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
+                dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
+            else:
+                dmd_train_onsets = None
+                dmd_burst_onsets = None
+                dmd_burst_offsets = None
+
             # Ticker to index into laser and dmd trigger onsets
-            # This becomes relevent if in 1 recording there are trials with
-            # andwithout dual stimulation. In which case there are more
+            # This becomes relevant if in 1 recording there are trials with
+            # without dual stimulation. In which case there are more
             # dmd or laser triggers
             # The ticks are a bit redundant, but the could would break if there
             # are fewer detected triggers than trials, so its a nice backup
             dmd_tick, laser_tick = 0, 0
             dmd_burst_tick, laser_burst_tick = 0, 0
+            dmd_train_count, laser_train_count = 0, 0
 
             for train_id, trial_info in train_rec_df.iterrows():
-                if trial_info['has_dmd']:
-                    burst_count = int(trial_info['dmd_burst_count'])
-                elif trial_info['has_laser']:
-                    burst_count = int(trial_info['laser_burst_count'])
-                else:
-                    raise ValueError(f"laser or dmd should have bursts")
+                laser_burst_count = trial_info['laser_burst_count'] if trial_info['has_laser'] else 0
+                dmd_burst_count = trial_info['dmd_burst_count'] if trial_info['has_dmd'] else 0
 
-                if trial_info['has_laser']:
-                    laser_burst_count = int(trial_info.laser_burst_count)
-                    laser_train_onsets = triggers[rec_id]["laser"]["train_onsets"]
-                    laser_burst_onsets = triggers[rec_id]["laser"]["burst_onsets"]
-                    laser_burst_offsets = triggers[rec_id]["laser"]["burst_offsets"]
+                if trial_info['has_laser'] and trial_info['has_dmd']:
+                    assert laser_burst_count == dmd_burst_count
+                    burst_count = laser_burst_count
+                elif trial_info['has_laser'] and not trial_info['has_dmd']:
+                    burst_count = laser_burst_count
+                elif trial_info['has_dmd'] and not trial_info['has_laser']:
+                    burst_count = dmd_burst_count
                 else:
-                    laser_train_onsets = None
-                    laser_burst_onsets = None
-                    laser_burst_offsets = None
+                    raise ValueError('i should not have ended up here?')
 
-                if trial_info['has_dmd']:
-                    dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
-                    dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
-                    dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
-                else:
-                    dmd_train_onsets = None
-                    dmd_burst_onsets = None
-                    dmd_burst_offsets = None
+                if trial_info['has_dmd'] and trial_info['has_laser']:
+                    dt = dmd_train_onsets[dmd_tick] - laser_train_onsets[laser_tick]
+                    # print(dt, trial_info['laser_onset_delay'])
 
-                for burst_i in range(burst_count):
+                for burst_i in range(int(burst_count)):
+
+                    if trial_info['has_dmd'] and trial_info['has_laser']:
+                        dt = dmd_burst_onsets[dmd_burst_tick] - laser_burst_onsets[laser_burst_tick]
+                        print(train_id, dt , trial_info['laser_onset_delay'], dmd_burst_onsets[dmd_burst_tick], laser_burst_onsets[laser_burst_tick])
 
                     bursts_list.append([
                         dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else 0,
@@ -275,7 +276,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                     if trial_info['has_dmd']:
                         dmd_burst_tick += 1
                     if trial_info['has_laser']:
-                        laser_burst_tick
+                        laser_burst_tick += 1
 
                 burst_offset += burst_count
                 if trial_info['has_dmd']:
