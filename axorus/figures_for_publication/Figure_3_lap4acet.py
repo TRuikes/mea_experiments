@@ -5,7 +5,8 @@ plot_250520_A and plot_250527_A in /analysis
 this panel goes to figure 2 in the axorus 2025 publication
 
 """
-
+import sys
+sys.path.append('.')
 from pathlib import Path
 from axorus.data_io import DataIO
 import numpy as np
@@ -84,7 +85,7 @@ def gather_figure_stats(update=False):
                 tids = df.train_id.unique()
                 n_sig = 0
                 for tid in tids:
-                    if cells_df.loc[cluster_id, (tid, 'is_significant')] is True:
+                    if cells_df.loc[cluster_id, (tid, 'is_significant')] == True:
                         n_sig += 1
 
                 if n_sig > 1:

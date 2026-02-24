@@ -10,13 +10,13 @@ class ProjectColors:
     @staticmethod
     def laser_level(laser_level, alpha=1):
 
-        min_laser_level = 50
-        max_laser_level = 100
+        min_laser_level = 3000
+        max_laser_level = 8000
 
-        laser_level = int((laser_level - min_laser_level) / (max_laser_level - min_laser_level) * 100)
+        laser_level_rel = int((laser_level - min_laser_level) / (max_laser_level - min_laser_level) * 100)
 
         # cmaps.cet_l_bmy.discrete(100).colors
-        r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[laser_level, :]
+        r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[laser_level_rel, :]
         return f'rgba({r}, {g}, {b}, {alpha})'
 
     @staticmethod

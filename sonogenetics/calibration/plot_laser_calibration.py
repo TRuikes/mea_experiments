@@ -1,11 +1,13 @@
 import sys
 sys.path.append('.')
-from utils import *
+import utils
+
+# from utils import *
 from pathlib import Path
 import json
 import pandas as pd
 from sonogenetics.project_colors import ProjectColors
-import plotly.graph_objects as go
+import numpy as np
 
 CALIBRATION_PATH = r'C:\sono'  # This path contains all the laser calibration files
 
@@ -15,6 +17,7 @@ def main():
     laser_calibration_dates = [f.name.split('_')[0] for f in laser_calibration_files]
 
     for f, d in zip(laser_calibration_files, laser_calibration_dates):
+        print(f)
         data = read_calibration_file(f)
         plot_calibration_data(data, d)
 
@@ -35,9 +38,9 @@ def read_calibration_file(filename):
 
             for power, power_data in prr_data.items():
                 df.at[i, 'fiber_connection'] = fiber_connection
-                df.at[i, 'pulse_repetition_rate'] = prr
-                df.at[i, 'voltage'] = power
-                df.at[i, 'power'] = power_data
+                df.at[i, 'pulse_repetition_rate'] = float(prr)
+                df.at[i, 'voltage'] = float(power)
+                df.at[i, 'power'] = float(power_data)
                 # df.at[i, 'burst_duration'] = metadata['burst_duration']
                 # df.at[i, 'burst_period'] = metadata['burst_period']
                 # df.at[i, 'pulsewidth'] = metadata['pulsewidth']
@@ -51,14 +54,22 @@ def plot_calibration_data(data: pd.DataFrame, rec_date):
 
     connections = [c for c in data.fiber_connection.unique() if c != 'none']
     for c in connections:
-        
-        # fig = make_figure(
-        #     width=1, height=1,
-        #     x_domains={1: [[0.1, 0.9]]},
-        #     y_domains={1: [[0.1, 0.9]]}
-        # )
+        fig = utils.make_figure(
+            width    = 1,
+            height   = 1,
+            x_domains={1: [[0.1, 0.9]],
+                                    
+                    },
+            y_domains={1: [[0.1, 0.9]], 
+                   },
+            subplot_titles={1: [''], }
+        )
 
-        fig = go.Figure()
+        # fig = go.Figure()
+
+        xtext, xticks = None, None
+
+        ymin, ymax = None, None
 
         c_df = data.query('fiber_connection == @c')
         for prr, prr_df in c_df.groupby('pulse_repetition_rate'):
@@ -71,24 +82,39 @@ def plot_calibration_data(data: pd.DataFrame, rec_date):
                 line=dict(color=clr),
                 marker=dict(color=clr),
                 showlegend=True,
-                name=prr,
+                name=f'prr={prr}Hz',
             )
 
+            if xtext is None:
+                xtext = prr_df['voltage'].values
+                xticks = prr_df['voltage'].values   
+
+            if ymin is None or prr_df['power'].min() < ymin:
+                ymin = prr_df['power'].min()
+            if ymax is None or prr_df['power'].max() > ymax:
+                ymax = prr_df['power'].max()
+
+            
+
         fig.update_xaxes(
-            tickvals=np.arange(0, 8000, 500),
-            ticktext=np.arange(0, 8000, 500)/1000,
+            tickvals=np.arange(3000, 6001, 250),
+            ticktext=np.arange(3000, 6001, 250),
             title_text='DAC voltage [V]',
-            # row=1, col=1,
+            row=1, col=1,
         )
 
+        yticks = np.round(np.arange(ymin, ymax+1, (ymax-ymin)/5), -1)
+
         fig.update_yaxes(
-            tickvals=np.arange(0, 200, 5),
+            tickvals=yticks,
+            ticktext=yticks,
             title_text='Power [mW]',
-            # row=1, col=1
+            range=[ymin, ymax*1.1],
+            row=1, col=1
         )
 
         savename = Path(CALIBRATION_PATH) / 'calibration_figures' / f'{rec_date}_{c}'
-        save_fig(fig, savename, display=True)
+        utils.save_fig(fig, savename, display=True if 'c2' in c else False)
 
 
 if __name__ == '__main__':
