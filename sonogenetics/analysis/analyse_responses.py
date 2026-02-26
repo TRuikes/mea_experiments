@@ -5,20 +5,52 @@ current_dir = Path().resolve()
 sys.path.append(current_dir.as_posix().split('mea_experiments')[0] + 'mea_experiments')
 
 import pandas as pd
-import threading
 from tqdm import tqdm
 import numpy as np
 from scipy.stats import bootstrap
 from scipy.signal import medfilt
-from typing import List, Tuple, cast, Optional, Any, Dict, Union
+from typing import List, Tuple, cast, Any, Dict, Union
 from pathlib import Path
 
 import utils
 from sonogenetics.analysis.analysis_params import dataset_dir
-from sonogenetics.preprocessing.dataset_sessions import dataset_sessions
 from data_io import DataIO
 
-DEBUG = False
+
+class BootstrapOutput:
+    bins=None  # type: np.ndarray
+    bin_size=None  # type: int
+    binned_sp=None  # type: np.ndarray
+    firing_rate=None  # type: np.ndarray
+    firing_rate_ci_low=None  # type: np.ndarray
+    firing_rate_ci_high=None  # type: np.ndarray
+    spike_times=None  # type: List[np.ndarray]
+
+    baseline_firing_rate=None
+
+    is_excited=None
+    excitation_bins=None
+    excitation_max_fr=None
+    excitation_start=None
+    excitation_duration=None
+    excitation_end=None
+
+    is_inhibited=None
+    inhibition_bins=None
+    inhibition_min_fr=None
+    inhibition_start=None
+    inhibition_duration=None
+    inhibition_end=None
+
+    has_data=False
+    reason='none'
+
+    def get(self, name):
+        assert hasattr(self, name), f'{name} not in attributes'
+        return getattr(self, name)
+
+
+DEBUG = True
 
 
 def main():
@@ -32,41 +64,51 @@ def main():
     print(f'Loading data: {session_id}')
     data_io.load_session(session_id, load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
-    data_io.lock_modification()
-    detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
 
-    print(f'Gathering results')
+    data_io.lock_modification()
+
+    # Analyse the cell responses following the triggers
+    analyse_responses(data_io, dataset_dir / 'bootstrapped')
+
+    data_io.unlock_modification()
+
+    # Gather all the response statistics into a single table
     gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
 
     print('Done')
-    data_io.unlock_modification()
 
 
 def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Path):
     """
     gathers output from detect_significant_responses into a single dataframe`
     """
-    baseline_t0 = -200
-    baseline_t1 = -100
 
+    # Names to store into cells dataframe
     names_to_register = [
-        'is_significant',
-        'response_firing_rate',
+        'is_excited',
+        'is_inhibited',
+
+        'excitation_max_fr',
+        'excitation_start',
+        'excitation_duration',
+
+        'inhibition_min_fr',
+        'inhibition_start',
+        'inhibition_duration',
+
         'baseline_firing_rate',
-        'response_latency',
-        'response_duration',
-        'response_type',
-        'laser_distance',
+        # 'laser_distance',
+
     ]
 
+    # Setup pandas dataframe
     columns: List[Tuple[str, str]] = []
-    for burst_id in data_io.burst_df.train_id.unique():
+    for train_id in data_io.train_df.index.values:
         for n in names_to_register:
-            columns.append((burst_id,n))
+            columns.append((train_id,n))
     multi_index = pd.MultiIndex.from_tuples(columns)
 
     cell_responses = pd.DataFrame(index=data_io.cluster_df.index.values, columns=multi_index)
-
 
     for cluster_id in tqdm(cell_responses.index.values):
         loadname = bootstrap_dir / f'bootstrap_{cluster_id}.pkl'
@@ -74,109 +116,28 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
         if not loadname.exists():
             raise ValueError(f'loadname does not exist: {loadname}')
 
-        data: dict[str, dict[str, bool]] = utils.load_obj(loadname)  # type: ignore
+        data: dict[str, BootstrapOutput] = utils.load_obj(loadname)  # type: ignore
 
         cluster_x = cast(float, data_io.cluster_df.loc[cluster_id, 'cluster_x'])
         cluster_y = cast(float, data_io.cluster_df.loc[cluster_id, 'cluster_y'])
 
 
         for tid, tdata in data.items():
-            row_index = data_io.burst_df.index[data_io.burst_df['train_id'] == tid ]
-            laser_x: float = cast(float, data_io.burst_df.loc[row_index, 'laser_x'])
-            laser_y: float = cast(float, data_io.burst_df.loc[row_index, 'laser_y'])
+            laser_x: float = cast(float, data_io.train_df.loc[tid, 'laser_x'])
+            laser_y: float = cast(float, data_io.train_df.loc[tid, 'laser_y'])
 
             d = np.sqrt((cluster_x - laser_x)**2 + (cluster_y - laser_y)**2)
             cell_responses.at[cluster_id, (tid, 'laser_distance')] = d
-            cell_responses.at[cluster_id, (tid, 'is_significant')] = tdata['is_sig']
 
-            # Detect indices for baseline and response times
-            bin_centres: np.ndarray = tdata['bins']  # type: ignore
-            baseline_idx = np.where((bin_centres >= baseline_t0) & (bin_centres <= baseline_t1))[0]
-            response_idx = np.where((bin_centres > 0) & (bin_centres <= 200))[0]
-
-            # smooth the firing rate a little
-            firing_rate: np.ndarray = tdata['firing_rate']  # type: ignore
-
-            if firing_rate is None:  # type: ignore
-                continue
-
-            firing_rate_smooth = medfilt(firing_rate, 3)
-
-            # Detect if the cell is inhibited or excited
-            mean_baseline_fr = np.nanmean(firing_rate_smooth[baseline_idx])
-            mean_response_fr = np.nanmean(firing_rate_smooth[response_idx])
-
-            if mean_response_fr < mean_baseline_fr:
-                response_type = 'inhibited'
-            else:
-                response_type = 'excited'
-
-            cell_responses.at[cluster_id, (tid, 'response_type')] = response_type
-            cell_responses.at[cluster_id, (tid, 'baseline_firing_rate')] = mean_baseline_fr
-
-            # Detect minimum or maximum firing rate
-            if response_type == 'inhibited':
-                cell_responses.at[cluster_id, (tid, 'response_firing_rate')] = np.nanmin(
-                    firing_rate_smooth[response_idx])
-            else:
-                cell_responses.at[cluster_id, (tid, 'response_firing_rate')] = np.nanmax(
-                    firing_rate_smooth[response_idx])
-
-            if not tdata['is_sig']:
-                continue
-
-            sig_idx: np.ndarray = tdata['significant_bins']  # type: ignore
-
-            # Find the first consecutive sentence of significant bins, following
-            # burst onset
-            b0 = np.where(bin_centres >= 0)[0][0]
-            s = [s for s in sig_idx if s >= b0]
-            res = find_first_long_consecutive_sequence(s, min_length=3)
-
-            if res is None:
-                latency = None
-            else:
-                latency = bin_centres[res[0]]
-
-            cell_responses.at[cluster_id, (tid, 'response_latency')] = latency
+            for n in names_to_register:
+                cell_responses.at[cluster_id, (tid, n)] = data[tid].get(n)
 
     cell_responses.to_csv(savename)
     
     print(f'Saved: {savename}')
 
 
-
-def find_first_long_consecutive_sequence(
-    nums: List[int], 
-    min_length: int = 3
-) -> Optional[List[int]]:
-    """
-    Find the first sequence of consecutive integers in `nums` longer than `min_length`.
-    Returns the sequence as a list, or None if no such sequence exists.
-    """
-    start: Optional[int] = None
-    length: int = len(nums)
-
-    for i in range(length - 1):
-        if nums[i + 1] == nums[i] + 1:
-            if start is None:
-                start = i
-        else:
-            if start is not None:
-                if (i - start + 1) > min_length:
-                    # Return the first sequence of consecutive integers longer than min_length
-                    return nums[start:i + 1]
-            start = None
-
-    # Check for the case where the sequence ends at the last element
-    if start is not None and (length - start) > min_length:
-        return nums[start:length]
-
-    return None
-
-
-
-def detect_significant_responses(data_io: "DataIO", output_dir: Path) -> None:
+def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
     """
     Handles calls to bootstrap function for single cells.
     """
@@ -186,9 +147,7 @@ def detect_significant_responses(data_io: "DataIO", output_dir: Path) -> None:
 
     # Detect per trial, which cell respond significantly
     num_threads: int = 10
-    threads: List[threading.Thread] = []
     tasks: List[Dict[str, Any]] = []
-    lock: threading.Lock = threading.Lock()
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile: Path = output_dir / f'bootstrap_{cluster_id}.pkl'
@@ -203,51 +162,12 @@ def detect_significant_responses(data_io: "DataIO", output_dir: Path) -> None:
     if len(tasks) == 0:
         return
 
-    # Check if we are in debugging mode
-    if not DEBUG:
-        with tqdm(total=len(tasks)) as progress_bar:
-            for _ in range(num_threads):
-                t: threading.Thread = threading.Thread(target=thread_task,  # type: ignore
-                                                    args=(tasks, progress_bar, lock))
-                threads.append(t)
-                t.start()
-
-            for t in threads:
-                t.join()
-
-    else:
-        n_tasks = len(tasks)
-        for i in range(n_tasks):
-            bootstrap_data(**tasks[i])
-            print(f'Completed {i+1}/{n_tasks}')
-
-
-
-def thread_task(
-    tasks: List[Dict[str, Any]],
-    progress_bar: Optional[tqdm],  # type: ignore
-    lock: threading.Lock
-) -> None:
-    """
-    Worker thread for processing bootstrap tasks.
-
-    Args:
-        tasks: List of dictionaries containing task arguments.
-        progress_bar: tqdm progress bar instance (or None).
-        lock: threading.Lock to synchronize access to tasks and progress bar.
-    """
-    while tasks:
-        with lock:
-            if not tasks:
-                break
-
-        task = tasks.pop(0)
-        bootstrap_data(**task)
-
-        with lock:
-            if progress_bar is not None:
-                progress_bar.update(1)
-
+    utils.run_job(
+        job_fn=bootstrap_data,
+        tasks=tasks,
+        num_threads=num_threads,
+        debug=DEBUG,
+    )
 
 
 def bootstrap_data(
@@ -272,25 +192,16 @@ def bootstrap_data(
     baseline: List[int] = [-200, -100]
     response_window: List[int] = [0, 200]
 
-    output_data: Dict[Union[int, str], Dict[str, Any]] = {}
+    min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
+    min_excitation_duration = 15  # minimum duration of excitation in [ms]
+
+    output_data: Dict[str, BootstrapOutput] = {}
 
     for train_id in data_io.burst_df.train_id.unique():
-        output_data[train_id] = dict(
-            bins=None,  # type: np.ndarray
-            bin_size=None,  # type: int
-            binned_sp=None,  # type: np.ndarray
-            firing_rate=None,  # type: np.ndarray
-            firing_rate_ci_low=None,  # type: np.ndarray
-            firing_rate_ci_high=None,  # type: np.ndarray
-            spike_times=None,  # type: List[np.ndarray]
-            significant_bins=None,  # type: List[int]
-            is_sig=None,  # type: bool
-            has_data=False,
-            reason='none',
-        )
+        results = BootstrapOutput()
 
         # Detect recording file of the current trial
-        rec_id: str = str(data_io.burst_df.query('train_id == @train_id').iloc[0].rec_id)  # type: ignore
+        rec_id: str = str(data_io.train_df.loc[train_id, 'rec_id'])
 
         # Detect nr of bins
         n_bins: int = bin_centres.size
@@ -298,24 +209,13 @@ def bootstrap_data(
         # Find baseline index
         baseline_idx: np.ndarray = np.where((bin_centres >= baseline[0]) & (bin_centres <= baseline[1]))[0]
 
-        # Find response window index
-        response_idx: np.ndarray = np.where((bin_centres >= response_window[0]) & (bin_centres <= response_window[1]))[0]
-
         # Detect burst onsets for this train
-        if 'has_laser' in data_io.burst_df.columns:
-            if data_io.burst_df.query('train_id == @train_id').iloc[0].has_laser:
-                stimtype = 'laser'
-            else:
-                stimtype = 'dmd'
+        if data_io.train_df.loc[train_id, 'has_laser']:
+            burst_onsets: np.ndarray = data_io.burst_df.query(
+                'train_id == @train_id').laser_burst_onset.values  # type: ignore
         else:
-            stimtype: str = str(data_io.burst_df.query('train_id == @train_id').iloc[0].stimtype)
-            # type: ignore
-        if stimtype in ('laser', 'padmd'):
-            burst_onsets: np.ndarray = data_io.burst_df.query('train_id == @train_id').laser_burst_onset.values # type: ignore
-        elif stimtype == 'dmd':
-            burst_onsets = data_io.burst_df.query('train_id == @train_id').dmd_burst_onset.values # type: ignore
-        else:
-            burst_onsets = np.array([])
+            burst_onsets = data_io.burst_df.query('train_id == @train_id'
+                                                  ).dmd_burst_onset.values  # type: ignore
 
         n_trains: int = len(burst_onsets)
 
@@ -340,13 +240,13 @@ def bootstrap_data(
                 idx = np.where((spiketrain >= t0) & (spiketrain < t1))[0]
                 binned_sp[burst_i, bin_i] = idx.size
 
-        output_data[train_id]['bins'] = bin_centres
-        output_data[train_id]['bin_size'] = binwidth
-        output_data[train_id]['binned_sp'] = binned_sp
-        output_data[train_id]['spike_times'] = spike_times
+        results.bins = bin_centres
+        results.bin_size = binwidth
+        results.binned_sp = binned_sp
+        results.spike_times = spike_times
 
         if np.sum(binned_sp) < 1 * 3:  # if there are less than 10 spikes don't bother
-            output_data[train_id]['reason'] = 'not enough spikes'
+            results.reason = 'not enough spikes'
             continue
 
         # Bootstrap confidence intervals for each bin
@@ -376,7 +276,7 @@ def bootstrap_data(
             has_btrp = False
 
         if not has_btrp:
-            output_data[train_id]['reason'] = 'bootstrap failed'
+            results.reason = 'bootstrap failed'
             continue
 
         ci_baseline: List[float] = [float(np.nanmean(ci_low[baseline_idx])), float(np.nanmean(ci_high[baseline_idx]))]
@@ -384,40 +284,66 @@ def bootstrap_data(
         if ci_baseline[0] < 0.05:
             ci_baseline[0] = 0
 
-        # Detect which bins do not overlap with baseline bins
-        sig_idx: List[int] = [i for i in response_idx if not intervals_overlap((ci_low[i], ci_high[i]), ci_baseline)]  # type: ignore
+        results.firing_rate = np.mean(binned_sp, axis=0) / (binwidth / 1000)
+        results.firing_rate = medfilt(results.firing_rate, 3)
+        results.firing_rate_ci_high= ci_high / (binwidth / 1000)
+        results.firing_rate_ci_low= ci_low / (binwidth / 1000)
 
-        output_data[train_id]['is_sig'] = True if len(sig_idx) * stepsize >= 25 else False
-        output_data[train_id]['significant_bins'] = sig_idx
+        # Detect which bins are increased relative to baseline
+        ex_idx = np.where((ci_low > ci_baseline[1]) & (bin_centres >= response_window[0]) &
+                          (bin_centres < response_window[1]))[0]
+        ex_idx = first_consecutive_run(ex_idx, int(min_excitation_duration / stepsize))
 
-        firing_rate: np.ndarray = np.mean(binned_sp, axis=0) / (binwidth / 1000)
-        firing_rate_ci_high: np.ndarray = ci_high / (binwidth / 1000)
-        firing_rate_ci_low: np.ndarray = ci_low / (binwidth / 1000)
+        # Get statistics for excitatory response
+        results.excitation_bins = ex_idx
+        results.is_excited = True if ex_idx is not None else False
+        if results.is_excited:
+            results.excitation_start = bin_centres[ex_idx[0]]
+            results.excitation_end = bin_centres[ex_idx[-1]]
+            results.excitation_duration = len(ex_idx) * stepsize
+            results.excitation_max_fr = np.max(results.firing_rate[ex_idx])
 
-        output_data[train_id]['firing_rate'] = firing_rate
-        output_data[train_id]['firing_rate_ci_low'] = firing_rate_ci_low
-        output_data[train_id]['firing_rate_ci_high'] = firing_rate_ci_high
+        # Detect which bins are decrease relative to baseline
+        in_idx = np.where((ci_high < ci_baseline[0]) & (bin_centres >= response_window[0]) &
+                          (bin_centres < response_window[1]))[0]
+        in_idx = first_consecutive_run(in_idx, int(min_inhibition_duration / stepsize))
+
+        # Get statistics for excitatory response
+        results.inhibition_bins = in_idx
+        results.is_inhibited = True if in_idx is not None else False
+        if results.is_inhibited:
+            results.inhibition_start = bin_centres[in_idx[0]]
+            results.inhibition_end = bin_centres[in_idx[-1]]
+            results.inhibition_duration = len(in_idx) * stepsize
+            results.inhibition_min_fr = np.min(results.firing_rate[in_idx])
+
+        output_data[train_id] = results
 
     utils.save_obj(output_data, savefile)  # type: ignore
 
 
-def intervals_overlap(
-    interval1: Tuple[Union[int, float], Union[int, float]],
-    interval2: Tuple[Union[int, float], Union[int, float]]
-) -> bool:
-    """
-    Checks if two intervals overlap.
+def first_consecutive_run(indices, min_bin_length=3):
+    if len(indices) == 0:
+        return None
 
-    Args:
-        interval1: Tuple of (start, end) for the first interval.
-        interval2: Tuple of (start, end) for the second interval.
+    run_start = indices[0]
+    run_length = 1
 
-    Returns:
-        True if intervals overlap, False otherwise.
-    """
-    a, b = interval1
-    c, d = interval2
-    return max(a, c) <= min(b, d)
+    for i in range(1, len(indices)):
+        if indices[i] == indices[i - 1] + 1:
+            run_length += 1
+        else:
+            if run_length > min_bin_length:
+                return np.arange(run_start, run_start + run_length)
+            run_start = indices[i]
+            run_length = 1
+
+    # Check final run
+    if run_length > min_bin_length:
+        return np.arange(run_start, run_start + run_length)
+
+    return None
+
 
 
 if __name__ == '__main__':

@@ -14,6 +14,9 @@ import h5py
 from pptx import Presentation
 from pptx.util import Inches
 from tqdm import tqdm
+import threading
+from typing import List, Tuple, cast, Optional, Any, Dict, Union, Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 FIG_SCALE = 5
 
@@ -462,30 +465,20 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
         os.startfile(file)
 
 
-def run_job(job_fn, n_proceses, joblist):
-    """
-    Run a function in parallel
 
-    :param job_fn: function to run the job on
-    :param n_proceses: nr of parallel processes
-    :param joblist: list of lists with input values for the function
-    :return:
-    """
-    gettrace = getattr(sys, 'gettrace', None)
 
-    if not gettrace():
-        pool = mp.Pool(processes=n_proceses)
-        for job in joblist:
-            pool.apply_async(job_fn, args=job)
+def run_job(job_fn, num_threads, tasks, debug):
 
-        # Call pool.close() and pool.join(), otherwise the main script will not wait for apply_async to
-        # finish and kill all workers
-        pool.close()
-        pool.join()
+    if not debug:
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(job_fn, **task) for task in tasks]
+
+            for _ in tqdm(as_completed(futures), total=len(futures)):
+                pass
+
     else:
-        print('DEBUGGING')
-        for job in joblist:
-            job_fn(*job)
+        for task in tqdm(tasks):
+            job_fn(**task)
 
 
 def interp_color(nsteps, step_nr, scalename, alpha, inverted=False):
