@@ -269,6 +269,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
                 linewidth=0.5,
                 linecolor=font_color,
                 showline=True,
+                showgrid=False,
 
                 # Title properties
                 title=dict(
@@ -304,6 +305,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
                 linewidth=0.5,
                 linecolor=font_color,
                 showline=True,
+                showgrid=False,
 
                 # Title properties
                 title=dict(
