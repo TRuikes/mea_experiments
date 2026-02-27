@@ -130,7 +130,15 @@ class DataIO:
         self.waveforms = waveforms if load_waveforms else None
         self.recording_ids = rec_ids
 
-        print(F'DEBUG: added data')
+        train_df = pd.DataFrame()
+        for tid, tdf in burst_df.groupby("train_id"):
+            for c in tdf.columns:
+                if c in ['burst_id'] or 'burst_onset' in c or 'burst_offset' in c:
+                    continue
+                assert len(tdf[c].unique()) == 1, c
+                train_df.at[tid, c]= tdf.iloc[0][c]
+        self.train_df = train_df
+
         self.cluster_ids = self.cluster_df.index.values
 
     def lock_modification(self):
