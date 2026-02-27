@@ -20,6 +20,18 @@ from data_io import DataIO
 
 DEBUG = False
 
+class BootstrapOutput:
+    is_excited=None
+    is_inhibited=None
+    excitation_max_fr=None
+    excitation_start=None
+    excitation_duration=None
+    inhibition_min_fr=None
+    inhibition_start=None
+    inhibition_duration=None
+    baseline_firing_rate=None
+    laser_distance=None
+
 
 def main():
     """

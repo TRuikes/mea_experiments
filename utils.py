@@ -302,7 +302,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
                 ),
 
                 # Xaxis line
-                linewidth=0.5,
+                linewidth=0.1,
                 linecolor=font_color,
                 showline=True,
                 showgrid=False,
