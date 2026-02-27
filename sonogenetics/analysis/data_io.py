@@ -14,7 +14,7 @@ class DataIO:
     spiketimes: dict[str, dict[str, np.ndarray]] = {} # type: ignore
     waveforms = {}
     cluster_ids = []
-
+    sid_short = None
 
     def __init__(self, datadir: Path):
         self.datadir = Path(datadir)
@@ -38,6 +38,9 @@ class DataIO:
         self.session_id: str = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 
+        date = session_id.split()[0].split('-')
+        date_short = f'{date[0][2:]}{date[1]}{date[2]}_{session_id.split()[-1]}'
+        self.sid_short = date_short
         if load_pickle and self.pickle_file.is_file():
             print(f'Loading pickled data (not from h5 file)')
             self.load_pickle()
@@ -109,8 +112,13 @@ class DataIO:
 
                     # Add trial info for matching train_id
                     train_id = row["train_id"]
-                    trial_row = trial_info_df.loc[train_id] 
+                    trial_row = trial_info_df.loc[train_id]
                     for k, v in trial_row.items():
+                        if isinstance(v, str) and not isinstance(v, bool):
+                            if v.lower() == 'false':
+                                v = False
+                            elif v.lower() == 'true':
+                                v = True
                         burst_df.at[new_id, k] = v
 
                 # Load per-recording clusters
@@ -155,7 +163,8 @@ class DataIO:
             cluster_df=self.cluster_df,
             burst_df=self.burst_df,
             recording_ids=self.recording_ids,
-            cluster_ids=self.cluster_ids
+            cluster_ids=self.cluster_ids,
+            train_df=self.train_df,
         )
         with open(self.pickle_file.as_posix(), 'wb') as f:
             pickle.dump(data_to_pickle, f)
@@ -165,3 +174,13 @@ class DataIO:
             loaded_instance = pickle.load(f)
             for k, v in loaded_instance.items():
                 self.__setattr__(k, v)
+
+if __name__ == "__main__":
+    from sonogenetics.analysis.analysis_params import dataset_dir, figure_dir_analysis
+
+    data_io = DataIO(dataset_dir)
+    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+
+    figure_dir_analysis = figure_dir_analysis / session_id
+    print(session_id)
+    data_io.load_session(session_id, load_pickle=False, load_waveforms=False)

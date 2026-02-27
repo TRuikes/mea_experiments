@@ -21,10 +21,11 @@ class BootstrapOutput:
     bins=None  # type: np.ndarray
     bin_size=None  # type: int
     binned_sp=None  # type: np.ndarray
+    spike_times=None
+
     firing_rate=None  # type: np.ndarray
     firing_rate_ci_low=None  # type: np.ndarray
     firing_rate_ci_high=None  # type: np.ndarray
-    spike_times=None  # type: List[np.ndarray]
 
     baseline_firing_rate=None
 

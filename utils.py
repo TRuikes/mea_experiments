@@ -129,10 +129,15 @@ def simple_fig(n_cols=1, n_rows=1, width=1, x_offset=None, height=0.5, equal_wid
 
     return fig
 
-def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
+def make_figure(width=1, height=1, x_domains=None, y_domains=None, **kwargs) -> go.Figure:
     for i, k in kwargs.items():
         assert i in ['subplot_titles', 'specs', 'equal_width_height', 'equal_width_height_axes', 'bg_color',
                      'xticks', 'yticks'], f'{i}'
+
+    if x_domains is None:
+        x_domains = {1: [[0.1, 0.9]]}
+    if y_domains is None:
+        y_domains = {1: [[0.1, 0.9]]}
 
     # Check dimensions of x_domains and y_domains
     for row in x_domains.keys():

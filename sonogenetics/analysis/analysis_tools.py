@@ -17,32 +17,44 @@ params_abbreviation = {
 
 def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame):
     # %% Detect electrode stim site with most significant responses, per cell
-    pref_ec_df = pd.DataFrame()
+    output = {}
 
-    for cluster_id in cells_df.index.tolist():
+    protocols = data_io.train_df.protocol.unique()
 
-        pref_ec = None
-        n_sig_pref_ec = None
+    for protocol in protocols:
+        pref_ec_df = pd.DataFrame()
 
-        for ec in data_io.burst_df.electrode.unique():
+        for cluster_id in cells_df.index.tolist():
 
-            df = data_io.burst_df.query(f'electrode == {float(ec)}')
-            tids = df.train_id.unique()
-            n_sig = 0
 
-            for tid in tids:
-                if cells_df.loc[cluster_id, (tid, 'is_significant')] == True:
-                    n_sig += 1
+            pref_ec = None
+            n_sig_pref_ec = None
 
-            if n_sig > 0:
-                if pref_ec is None or n_sig > n_sig_pref_ec:
-                    pref_ec = ec
-                    n_sig_pref_ec = n_sig
-                # elif n_sig == n_sig_pref_ec:
-                #     print(f'cluster {cluster_id} has 2 pref ecs')
+            trials = data_io.train_df.query('protocol == @protocol')
+            electrodes = trials.electrode.unique()
 
-        pref_ec_df.at[cluster_id, 'ec'] = pref_ec
+            for ec in electrodes:
 
-    return pref_ec_df
+                df = data_io.train_df.query(f'electrode == {float(ec)} and protocol == @protocol')
+                n_sig = 0
+
+                for tid in df.index.values:
+                    if cells_df.loc[cluster_id, (tid, 'is_excited')] == True or cells_df.loc[cluster_id, (tid, 'is_inhibited')] == True:
+                        n_sig += 1
+
+                if n_sig > 0:
+                    if pref_ec is None or n_sig > n_sig_pref_ec:
+                        pref_ec = ec
+                        n_sig_pref_ec = n_sig
+                    # elif n_sig == n_sig_pref_ec:
+                    #     print(f'cluster {cluster_id} has 2 pref ecs')
+
+            pref_ec_df.at[cluster_id, 'ec'] = pref_ec
+
+
+        output[protocol] = pref_ec_df
+
+
+    return output
 
 
