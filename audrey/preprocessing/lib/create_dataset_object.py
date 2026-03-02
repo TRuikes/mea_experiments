@@ -72,7 +72,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         if SKIP_RECORDING:
             continue
         
-        if 'PA' in rec_id or 'pa' in rec_id:
+        if 'PA' in rec_id or 'pa' in rec_id or 'prr' in rec_id:
             print(rec_id)
             pa_recordings_included.append(rec_id)
 
@@ -98,7 +98,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
     # Verify that every burst registered in the trials dataframe
     # also exists in the trigger data
-    assert pa_n_trials_triggers == train_df_check.shape[0]
+    assert pa_n_trials_triggers == train_df_check.shape[0], f"pa_n_trials_triggers = {pa_n_trials_triggers}, train_df_check.shape = {train_df_check.shape[0]}"
     assert pa_n_bursts_triggers == train_df_check.laser_burst_count.sum()
 
     # Check DMD triggers

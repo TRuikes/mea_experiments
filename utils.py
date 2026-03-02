@@ -142,7 +142,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
         for i in y_domains[row]:
             assert len(i) == 2
 
-    font_famliy = 'calibri'
+    font_famliy = 'arial'
     figwidth_pxl = 498 * width
     figheight_pxl = 842 * 0.25 * height
     if 'equal_width_height' in kwargs.keys():

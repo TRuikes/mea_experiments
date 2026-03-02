@@ -49,7 +49,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         print(f'\treading data ({rec_duration:.0f} min)')
 
         trigger_types = []
-        if 'PA' in rec or 'pa' in rec:
+        if 'PA' in rec or 'pa' in rec or 'prr' in rec or '009' in rec or '012':
             trigger_types.append('laser')
 
         if 'DMD' in rec or 'light' in rec:

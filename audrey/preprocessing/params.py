@@ -4,6 +4,8 @@
 # For the analyse_responses.py
 dataset_dir = r'/media/aleong/Audrey-experiments'
 
+# dataset_dir = r'/media/aleong/Elements/'
+
 # dataset_dir = r'D:/'
 # dataset_dir = r'C:\axorus'
 

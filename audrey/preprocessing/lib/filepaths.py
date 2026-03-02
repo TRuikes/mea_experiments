@@ -89,7 +89,8 @@ class FilePaths:
             raise ValueError(f'Cannot find datasetdir: {dataset_dir}')
         self.dataset_dir = Path(dataset_dir)
         self.laser_calib_week = laser_calib_week
-        self.dataset_out_dir = self.dataset_dir / 'dataset'
+        #self.dataset_out_dir = self.dataset_dir / 'dataset'
+        self.dataset_out_dir = self.dataset_dir / sid / 'Analysis'
         self.local_raw_dir = local_raw_dir
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
