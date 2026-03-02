@@ -570,13 +570,12 @@ def extract_cell_type(cell_type_value):
     else:
         return None   # unexpected type (float NaN, etc.)
 
-    name_upper = name.upper()
     # Check ON-OFF first so it isn't caught by the bare ON / OFF checks
-    if 'ON-OFF' in name_upper or 'ON/OFF' in name_upper:
+    if 'ON-OFF' in name or 'ON/OFF' in name:
         return 'ON-OFF'
-    elif 'OFF' in name_upper:
+    elif 'OFF' in name:
         return 'OFF'
-    elif "ON " in name_upper:
+    elif "ON" in name:
         return 'ON'
     return None
 
