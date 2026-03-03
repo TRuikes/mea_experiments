@@ -49,7 +49,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         print(f'\treading data ({rec_duration:.0f} min)')
 
         trigger_types = []
-        if 'PA' in rec or 'pa' in rec:
+        if 'PA' in rec or 'pa' in rec or 'prr' in rec or '009' in rec or '012':
             trigger_types.append('laser')
 
         if 'DMD' in rec or 'light' in rec:
@@ -98,14 +98,14 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
 
                     if idx.size > 0:
-                        trigger_high = np.concat([trigger_high, t])
+                        trigger_high = np.concatenate([trigger_high, t])
 
                 elif trigger_type == 'dmd':
                     idx = np.where(chdata > data_trigger_thresholds['dmd'])[0]
                     t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
 
                     if idx.size > 0:
-                        trigger_high = np.concat([trigger_high, t])
+                        trigger_high = np.concatenate([trigger_high, t])
 
                 else:
                     raise ValueError('error!')
