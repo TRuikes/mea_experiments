@@ -50,20 +50,7 @@ class BootstrapOutput:
         assert hasattr(self, name), f'{name} not in attributes'
         return getattr(self, name)
 
-
 DEBUG = True
-
-class BootstrapOutput:
-    is_excited=None
-    is_inhibited=None
-    excitation_max_fr=None
-    excitation_start=None
-    excitation_duration=None
-    inhibition_min_fr=None
-    inhibition_start=None
-    inhibition_duration=None
-    baseline_firing_rate=None
-    laser_distance=None
 
 
 def main():
@@ -75,7 +62,7 @@ def main():
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
-    data_io.load_session(session_id, load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
     data_io.dump_as_pickle()
 
     data_io.lock_modification()
@@ -197,12 +184,12 @@ def bootstrap_data(
         savefile: Path to save the bootstrap results.
     """
     print(f'Starting bootstrapping cluster: {cluster_id}')
-    t_pre: int = 200
-    t_after: int = 500
+    t_pre: int = 100
+    t_after: int = 300
     stepsize: int = 5
     binwidth: int = 20
     bin_centres: np.ndarray = np.arange(-t_pre, t_after, stepsize)
-    baseline: List[int] = [-200, -100]
+    baseline: List[int] = [-100, -0]
     response_window: List[int] = [0, 200]
 
     min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
@@ -226,9 +213,11 @@ def bootstrap_data(
         if data_io.train_df.loc[train_id, 'has_laser']:
             burst_onsets: np.ndarray = data_io.burst_df.query(
                 'train_id == @train_id').laser_burst_onset.values  # type: ignore
-        else:
+        elif data_io.train_df.loc[train_id, 'has_dmd']:
             burst_onsets = data_io.burst_df.query('train_id == @train_id'
                                                   ).dmd_burst_onset.values  # type: ignore
+        else:
+            raise ValueError('something is wrong here')
 
         n_trains: int = len(burst_onsets)
 

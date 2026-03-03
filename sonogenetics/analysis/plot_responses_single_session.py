@@ -24,9 +24,12 @@ def plot_raster_per_protocol(data_io: DataIO) -> pd.DataFrame:
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
+    savenames = []
     for protocol in data_io.burst_df.protocol.unique():
 
         for cluster_id in cluster_ids:
+
+
             for ec in electrodes:
 
                 if ec == pref_ec[protocol].loc[cluster_id, 'ec']:
@@ -36,12 +39,18 @@ def plot_raster_per_protocol(data_io: DataIO) -> pd.DataFrame:
 
                 plotname = f'{cluster_id}_{ec}_{protocol}'
 
+                savename = figure_dir_analysis / data_io.session_id / 'raster_plots' / protocol / subgroup / plotname
+                savename_png = savename.parent / (savename.name + '.png')
+
+                if savename_png.exists():
+                    continue
+
                 tasks.append({
                     "data_io": data_io,
                     "cluster_id": cluster_id,
                     "protocol": protocol,
                     "electrode": ec,
-                    "savename": (figure_dir_analysis / data_io.session_id / 'raster_plots' / protocol / subgroup / plotname)
+                    "savename": savename,
                 })
 
     run_job(
@@ -56,39 +65,36 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
                                 savename: Path):
 
     # Setup figure layout
-    fig = make_figure(
-        width    =1,
-        height   =1.5,
-        x_domains={
-            1: [[0.2, 0.99]],
-        },
-        y_domains={
-            1: [[0.1, 0.9]]
-        },
-    )
+    fig = make_figure(width=1, height=1.5, x_domains={1: [[0.2, 0.99]]},
+                      y_domains={1: [[0.1, 0.9]]})
+
+    # Select data to plot
+    d_select = data_io.burst_df.query('electrode == @electrode and '
+                                        'protocol == @protocol').copy()
+    cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
+
+    # Make sure we defined the grouping for the stimulation protocol
+    assert protocol in params_per_protocol.keys(), f'{protocol}'
+    params_to_groupby = params_per_protocol[protocol]
+
+    # Load response statistics
+    loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
+    cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
 
     # Setup variables for plotting
     burst_offset   = 0
     x_plot, y_plot = [], []
     x_lines_laser, y_lines_laser = [], []
     x_lines_dmd, y_lines_dmd = [], []
+    ex_x, ex_y, in_x, in_y = [], [], [], []
 
     yticks         = []
     ytext          = []
     pos            = dict(row=1, col=1)
 
-    d_select = data_io.burst_df.query('electrode == @electrode and '
-                                        'protocol == @protocol').copy()
-    cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
-
-    assert protocol in params_per_protocol.keys(), f'{protocol}'
-
-    params_to_groupby = params_per_protocol[protocol]
-
     for prm_val, df in d_select.groupby(params_to_groupby):
 
         train_plot_height_start = burst_offset
-
         tids = df.train_id.unique()
         assert len(tids) == 1
         tid = tids[0]
@@ -114,6 +120,7 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
                                     np.ones(sp.size)* burst_offset +1, np.full(sp.size, np.nan)]).T.flatten())
             burst_offset += 1
 
+        # Draw shaded areas for laser burst
         has_laser = data_io.train_df.loc[tid, 'has_laser']
         bd_laser = data_io.train_df.loc[tid, 'laser_burst_duration']
         if has_laser and bd_laser > 0:
@@ -121,9 +128,9 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
             y_lines_laser.extend([train_plot_height_start, train_plot_height_start,
                                   burst_offset, burst_offset, train_plot_height_start, None])
 
+        # Draw shaded areas for dmd burst
         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
         bd_dmd = data_io.train_df.loc[tid, 'dmd_burst_duration']
-
         if has_dmd and bd_dmd > 0:
             if has_laser:
                 ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
@@ -134,7 +141,23 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
             y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
                                   burst_offset, burst_offset, train_plot_height_start, None])
 
+        # Draw excitation and inhibition onset latencies
+        if cells_df.loc[cluster_id, (tid, 'is_excited')]:
+            ex_start = cells_df.loc[cluster_id, (tid, 'excitation_start')]
+            ex_d = cells_df.loc[cluster_id, (tid, 'excitation_duration')]
+
+            ex_x.extend([ex_start, ex_start+ex_d, ex_start+ex_d, ex_start, ex_start, None])
+            ex_y.extend([train_plot_height_start, train_plot_height_start, burst_offset, burst_offset, train_plot_height_start, None])
+
+        if cells_df.loc[cluster_id, (tid, 'is_inhibited')]:
+            in_start = cells_df.loc[cluster_id, (tid, 'inhibition_start')]
+            in_d = cells_df.loc[cluster_id, (tid, 'inhibition_duration')]
+
+            in_x.extend([in_start, in_start+in_d, in_start+in_d, in_start, in_start, None])
+            in_y.extend([train_plot_height_start, train_plot_height_start, burst_offset, burst_offset, train_plot_height_start, None])
+
     if len(x_plot) == 0:
+        print('returning')
         return
 
     x_plot = np.hstack(x_plot)
@@ -158,6 +181,19 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
             **pos,
         )
 
+    if len(ex_x) > 0:
+        ex_x = np.hstack(ex_x)
+        ex_y = np.hstack(ex_y)
+        fig.add_scatter(x=ex_x, y=ex_y, mode='lines', line=dict(width=0.00001, color='black'),
+                        fill='toself', fillcolor='rgba(0, 200, 0, 0.3)', showlegend=False, **pos)
+
+    if len(in_x) > 0:
+        in_x = np.hstack(in_x)
+        in_y = np.hstack(in_y)
+        fig.add_scatter(x=in_x, y=in_y, mode='lines', line=dict(width=0.00001, color='black'),
+                        fill='toself', fillcolor='rgba(0, 200, 200, 0.3)', showlegend=False, **pos)
+
+
     fig.add_scatter(
         x = x_plot, y = y_plot,
         mode = 'lines', line = dict(color='black', width=0.5),
@@ -178,7 +214,7 @@ def single_condition_rasterplot(data_io: DataIO, cluster_id: str,
         ticktext = ytext,
         **pos,
     )
-
+    print(f'saved {savename}')
     save_fig(fig, savename, display=False, verbose=False)
 
 
@@ -222,7 +258,7 @@ def plot_response_heatmap_per_protocol(data_io: DataIO):
     run_job(
         job_fn=single_cell_response_heatmap_per_protocol,
         tasks=tasks,
-        num_threads=10,
+        num_threads=3,
         debug=DEBUG,
     )
 
@@ -243,10 +279,12 @@ def single_cell_response_heatmap_per_protocol(data_io: DataIO,
     smooth_sigma = 3
     baseline_t0 = -120
     baseline_t1 = 0
-    max_z = 8
+    max_z = 20
 
 
     trials = data_io.train_df.query('protocol == @protocol and electrode == @electrode')
+    loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
+    cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
 
     frates = []
     for ti, tid in enumerate(trials.index.values):
@@ -350,5 +388,5 @@ if __name__ == '__main__':
     dd.load_session(session_id, load_pickle=True, load_waveforms=False)
     dd.dump_as_pickle()
 
-    plot_raster_per_protocol(dd)
-    # plot_response_heatmap_per_protocol(dd)
+    # plot_raster_per_protocol(dd)
+    plot_response_heatmap_per_protocol(dd)
