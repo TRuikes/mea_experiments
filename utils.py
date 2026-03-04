@@ -310,7 +310,7 @@ def make_figure(width=1, height=1, x_domains=None, y_domains=None, **kwargs) -> 
                 ),
 
                 # Xaxis line
-                linewidth=0.1,
+                linewidth=0.5,
                 linecolor=font_color,
                 showline=True,
                 showgrid=False,
