@@ -36,7 +36,6 @@ def extract_trial_data(filepaths: FilePaths):
         train_i += 1
 
         rec_nr = r['Recording Number']
-        print(rec_nr)
         recording_name = None
 
         for rr in filepaths.recording_names:
@@ -58,7 +57,7 @@ def extract_trial_data(filepaths: FilePaths):
     mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
     for i, r in df.iterrows():
         if pd.isna(r.electrode):
-            if 'dmd' or 'light' in r.protocol:
+            if 'dmd' in r.protocol:
                 continue
             else:
                 raise ValueError('error??')

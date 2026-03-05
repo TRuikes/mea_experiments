@@ -24,16 +24,19 @@ def main():
     """
     Main handles
     """
-    data_io = DataIO(dataset_dir)
+    session_id = '250904_A'
+
+    data_dir = dataset_dir / Path(f'{session_id}/Analysis')
+    data_io = DataIO(data_dir)
 
     print(f'Loading data')
-    data_io.load_session('251014_A', load_waveforms=False, load_pickle=False )  # type: ignore
+    data_io.load_session(session_id, load_waveforms=False, load_pickle=False )  # type: ignore
     data_io.dump_as_pickle()
     data_io.lock_modification()
-    detect_significant_responses(data_io, dataset_dir / 'bootstrapped')
+    detect_significant_responses(data_io, data_dir / Path('bootstrapped'))
 
     print(f'Gathering results')
-    gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+    gather_cluster_responses(data_io, data_dir / Path('bootstrapped'), data_dir / Path(f'{data_io.session_id}_cells.csv'))
 
     print('Done')
     data_io.unlock_modification()
@@ -84,7 +87,12 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
 
             d = np.sqrt((cluster_x - laser_x)**2 + (cluster_y - laser_y)**2)
             cell_responses.at[cluster_id, (tid, 'laser_distance')] = d
+            # cell_responses.xs(cluster_id)[tid, 'laser_distance'] = d
+            print(cell_responses.index)
+            # cell_responses.at[cluster_id, (tid, 'laser_distance')] = d
             cell_responses.at[cluster_id, (tid, 'is_significant')] = tdata['is_sig']
+            # cell_responses.xs(cluster_id)[tid, 'is_significant'] = tdata['is_sig']
+            # cell_responses.loc[cluster_id, (tid, 'is_significant')] = tdata['is_sig']
 
             # Detect indices for baseline and response times
             bin_centres: np.ndarray = tdata['bins']  # type: ignore

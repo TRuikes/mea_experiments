@@ -34,7 +34,7 @@ class DataIO:
             load_pickle (bool, optional): use a pickle version of the dataset file for faster loading. Defaults to True.
         """        
         
-        assert session_id in self.sessions, f'{session_id} not in {self.sessions}'
+        assert session_id in self.sessions, f'{session_id} not in {self.sessions}, check {self.datadir}'
         self.session_id: str = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 

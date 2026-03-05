@@ -8,7 +8,7 @@ class ProjectColors:
         return
 
     @staticmethod
-    def laser_level(laser_level, alpha=1):
+    def laser_prr(laser_level, alpha=1):
 
         min_laser_level = 3000
         max_laser_level = 8000
@@ -60,6 +60,24 @@ class ProjectColors:
             .cut(0.2, 'right')
             .discrete(100)
             .colors[int(duty_cycle), :]
+        )
+        return f'rgba({r}, {g}, {b}, {alpha})'
+
+    @staticmethod
+    def burst_duration(bd, *, alpha=None, bd_min=10, bd_max=50):
+        if bd_min is not None:
+            bd = int((bd - bd_min) / (bd_max - bd_min) * 100)
+
+        # default opacity if not specified
+        if alpha is None:
+            alpha = 1.0
+
+        r, g, b = (
+            cmaps.torch
+            .cut(0.2, 'left')
+            .cut(0.2, 'right')
+            .discrete(100)
+            .colors[int(bd), :]
         )
         return f'rgba({r}, {g}, {b}, {alpha})'
 
