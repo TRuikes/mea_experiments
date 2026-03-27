@@ -32,10 +32,27 @@ print("Available recording ids:")
 for rec_id in data_io.recording_ids:
     print(f"- {rec_id}")
 
+#
+# from sonogenetics.analysis.plot_responses_single_session import raster_per_protocol_master
+#
+# for i, r in data_io.burst_df.iterrows():
+#     data_io.burst_df.at[i, 'protocol'] = r.recording_name
+#
+# raster_per_protocol_master(data_io=data_io)
 
-from sonogenetics.analysis.plot_responses_single_session import raster_per_protocol_master
+from sonogenetics.analysis.plot_responses_single_session import plot_raster_single_cluster
 
-for i, r in data_io.burst_df.iterrows():
-    data_io.burst_df.at[i, 'protocol'] = r.recording_name
+data_io.burst_df['protocol'] = data_io.burst_df['recording_name']
+protocol_name = 'rec_4_A_20260325_dmd_full_field'
+cid = data_io.cluster_ids[1]
 
-raster_per_protocol_master(data_io=data_io)
+for cid in data_io.cluster_ids:
+    savename = figure_dir_analysis / 'raster_plots' / protocol_name / f'{cid}'
+    # print(savename)
+    plot_raster_single_cluster(
+        data_io=data_io,
+        cluster_id=cid,
+        protocol=protocol_name,
+        electrode=10,
+        savename=savename
+    )

@@ -25,15 +25,12 @@ def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    if 'protocol' not in data_io.burst_df.columns:
-        df = data_io.burst_df.copy()
-        for i, r in df.iterrows():
-            df.at[i, 'protocol'] = r.recording_name
-            print(r.recording_name)
-    else:
-        df = data_io.burst_df.copy()
+    df = data_io.burst_df.copy()
 
     for protocol in df.protocol.unique():
+
+        if protocol != 'rec_4_A_20260325_dmd_full_field':
+            continue
 
         for cluster_id in cluster_ids:
             for ec in electrodes:
@@ -55,14 +52,14 @@ def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
 
 
     run_job(
-        job_fn=raster_per_protocol_slave,
+        job_fn=plot_raster_single_cluster,
         tasks=tasks,
         num_threads=20,
         debug=DEBUG,
     )
 
 
-def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
+def plot_raster_single_cluster(data_io: DataIO, cluster_id: str,
                               protocol: str, electrode: str,
                               savename: Path):
 
@@ -90,6 +87,9 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
 
     d_select = data_io.burst_df.query('electrode == @electrode and '
                                         'protocol == @protocol').copy()
+    if len(d_select) == 0:
+        raise ValueError('selected dataframe is empty')
+
     cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
 
     assert protocol in params_per_protocol.keys(), f'{protocol}'
@@ -97,7 +97,6 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
     params_to_groupby = params_per_protocol[protocol]
 
     for prm_val, df in d_select.groupby(params_to_groupby):
-
         train_plot_height_start = burst_offset
 
         tids = df.train_id.unique()
@@ -106,6 +105,7 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
 
         if tid not in cluster_data.keys():
             continue
+
         trial_data = cluster_data[tid]
 
         spike_times = trial_data.spike_times
@@ -190,6 +190,7 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
         **pos,
     )
 
+    print(f'saved: {savename}')
     save_fig(fig, savename, display=False, verbose=False)
 
 

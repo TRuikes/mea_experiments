@@ -6,7 +6,8 @@ params_per_protocol = {
     'pa_dmd_pilot1': ['laser_onset_delay'],
     'pa_dose_sequence_1': ['dac_voltage', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
     'rec_2_A_20260325_pa_intensity_test': ['laser_power', 'laser_pulse_repetition_rate', ],
-    'rec_3_A_20260325_pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay']
+    'rec_3_A_20260325_pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay'],
+    'rec_4_A_20260325_dmd_full_field': ['dmd_onset_delay'],
 }
 
 params_abbreviation = {
@@ -19,7 +20,7 @@ params_abbreviation = {
 }
 
 
-def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame):
+def  detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame):
     # %% Detect electrode stim site with most significant responses, per cell
     output = {}
 

@@ -270,7 +270,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
                     if trial_info['has_dmd'] and trial_info['has_laser']:
                         dt = dmd_burst_onsets[dmd_burst_tick] - laser_burst_onsets[laser_burst_tick]
-                        print(train_id, dt , trial_info['laser_onset_delay'], dmd_burst_onsets[dmd_burst_tick], laser_burst_onsets[laser_burst_tick])
+                        # print(train_id, dt , trial_info['laser_onset_delay'], dmd_burst_onsets[dmd_burst_tick], laser_burst_onsets[laser_burst_tick])
 
                     bursts_list.append([
                         dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else 0,
