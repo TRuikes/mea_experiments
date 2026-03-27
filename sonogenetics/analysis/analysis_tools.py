@@ -5,6 +5,8 @@ from sonogenetics.analysis.data_io import DataIO
 params_per_protocol = {
     'pa_dmd_pilot1': ['laser_onset_delay'],
     'pa_dose_sequence_1': ['dac_voltage', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
+    'rec_2_A_20260325_pa_intensity_test': ['laser_power', 'laser_pulse_repetition_rate', ],
+    'rec_3_A_20260325_pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay']
 }
 
 params_abbreviation = {
@@ -12,6 +14,8 @@ params_abbreviation = {
     'laser_burst_duration': 'l-bd',
     'laser_pulse_repetition_rate': 'l-pp',
     'dac_voltage': 'l-pwr',
+    'laser_power': 'l-pwr',
+    'dmd_onset_delay': 'd-del',
 }
 
 
@@ -19,6 +23,9 @@ def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame):
     # %% Detect electrode stim site with most significant responses, per cell
     output = {}
 
+    if 'protocol' not in data_io.train_df.columns:
+        for i, r in data_io.train_df.iterrows():
+            data_io.train_df.at[i, 'protocol'] = r['recording_name']
     protocols = data_io.train_df.protocol.unique()
 
     for protocol in protocols:

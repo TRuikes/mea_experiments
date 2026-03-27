@@ -17,6 +17,8 @@ from tqdm import tqdm
 import threading
 from typing import List, Tuple, cast, Optional, Any, Dict, Union, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from sonogenetics.analysis.bootstrap import BootstrapOutput
+
 
 FIG_SCALE = 5
 

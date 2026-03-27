@@ -6,11 +6,11 @@ import numpy as np
 from typing import List, Any, Dict
 import pandas as pd
 from pathlib import Path
-from sonogenetics.analysis.analyse_responses import BootstrapOutput
 from scipy.ndimage import gaussian_filter1d
 from sonogenetics.project_colors import ProjectColors
+from sonogenetics.analysis.bootstrap import BootstrapOutput
 
-DEBUG = False
+DEBUG = True
 
 def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
 
@@ -25,7 +25,15 @@ def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for protocol in data_io.burst_df.protocol.unique():
+    if 'protocol' not in data_io.burst_df.columns:
+        df = data_io.burst_df.copy()
+        for i, r in df.iterrows():
+            df.at[i, 'protocol'] = r.recording_name
+            print(r.recording_name)
+    else:
+        df = data_io.burst_df.copy()
+
+    for protocol in df.protocol.unique():
 
         for cluster_id in cluster_ids:
             for ec in electrodes:
@@ -45,12 +53,14 @@ def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
                     "savename": (figure_dir_analysis / data_io.session_id / 'raster_plots' / protocol / subgroup / plotname)
                 })
 
+
     run_job(
         job_fn=raster_per_protocol_slave,
         tasks=tasks,
-        num_threads=10,
+        num_threads=20,
         debug=DEBUG,
     )
+
 
 def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
                               protocol: str, electrode: str,

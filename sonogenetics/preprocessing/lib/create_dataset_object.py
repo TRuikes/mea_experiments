@@ -192,6 +192,15 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # -----------------------------
         for rec_id in filepaths.recording_names:
 
+            SKIP_REC = False
+            for nr in recording_numbers_to_skip:
+                if f'_{nr:.0f}_' in rec_id:
+                    print(f'\tskipping recording {rec_id}')
+                    SKIP_REC = True
+            if SKIP_REC:
+                continue
+
+
             # Skip recordings if needed
             if recording_numbers_to_skip and any(f'{nr:03d}' in rec_id for nr in recording_numbers_to_skip):
                 print(f"Skipping recording {rec_id}")
@@ -211,7 +220,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             bursts_list = []
             burst_offset = 0
 
-            if train_rec_df['has_laser'].sum() > 1:
+            if train_rec_df['has_laser'].sum() > 0:
                 laser_train_onsets = triggers[rec_id]["laser"]["train_onsets"]
                 laser_burst_onsets = triggers[rec_id]["laser"]["burst_onsets"]
                 laser_burst_offsets = triggers[rec_id]["laser"]["burst_offsets"]
@@ -220,7 +229,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 laser_burst_onsets = None
                 laser_burst_offsets = None
 
-            if train_rec_df['has_dmd'].sum() > 1:
+            if train_rec_df['has_dmd'].sum() > 0:
                 dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
                 dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
                 dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
@@ -306,24 +315,46 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             # -----------------------------
             # 1b) Trial info
             # -----------------------------
+
+            valid_columns = [
+                col for col in train_rec_df.columns
+                if not pd.isna(train_rec_df[col]).all()
+            ]
+
             dtype_fields = []
-            for col in train_rec_df.columns:
-                if train_rec_df[col].dtype.kind in "i":
+            for col in valid_columns:
+                col_data = train_rec_df[col]
+
+                if col_data.dtype.kind in "i":
                     dtype_fields.append((col, "i4"))
-                elif train_rec_df[col].dtype.kind in "f":
+                elif col_data.dtype.kind in "f":
                     dtype_fields.append((col, "f4"))
                 else:
-                    maxlen_col = train_rec_df[col].astype(str).map(len).max()
+                    # handle object/string columns
+                    maxlen_col = col_data.astype(str).map(len).max()
                     dtype_fields.append((col, f"S{maxlen_col}"))
 
             table_array = np.zeros(len(train_rec_df), dtype=np.dtype(dtype_fields))
+
+            # -------------------------------
+            # Fill array
+            # -------------------------------
             for i, (_, row) in enumerate(train_rec_df.iterrows()):
-                for col in train_rec_df.columns:
+                for col in valid_columns:
                     val = row[col]
+                    col_dtype = train_rec_df[col].dtype.kind
+
                     if isinstance(val, str):
                         table_array[i][col] = val.encode("utf-8")
+
                     elif pd.isna(val):
-                        table_array[i][col] = np.nan if train_rec_df[col].dtype.kind in "f" else -1
+                        if col_dtype in "f":
+                            table_array[i][col] = np.nan
+                        elif col_dtype in "i":
+                            table_array[i][col] = -1
+                        else:
+                            table_array[i][col] = b""  # empty string for object
+
                     else:
                         table_array[i][col] = val
 

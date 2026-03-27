@@ -74,10 +74,12 @@ def extract_trial_data(filepaths: FilePaths):
         laser_specs = None
 
     for i, r in df.iterrows():
-        if 'protocol' in r.keys():
+        if 'protocol_name' in r.keys():
             sequence_name = r.protocol
-        else:
+        elif 'sequence_name' in r.keys():
             sequence_name = r.sequence_name
+        else:
+            sequence_name = 'unkown'
 
         if sequence_name in [
             'pa_prr_series', 'pa_light_prr_series', 'pilot_stimparams', 'pa_dose_sequence_1',

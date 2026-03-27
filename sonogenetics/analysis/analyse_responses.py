@@ -16,62 +16,17 @@ import utils
 from sonogenetics.analysis.analysis_params import dataset_dir
 from data_io import DataIO
 
-
-class BootstrapOutput:
-    bins=None  # type: np.ndarray
-    bin_size=None  # type: int
-    binned_sp=None  # type: np.ndarray
-    spike_times=None
-
-    firing_rate=None  # type: np.ndarray
-    firing_rate_ci_low=None  # type: np.ndarray
-    firing_rate_ci_high=None  # type: np.ndarray
-
-    baseline_firing_rate=None
-
-    is_excited=None
-    excitation_bins=None
-    excitation_max_fr=None
-    excitation_start=None
-    excitation_duration=None
-    excitation_end=None
-
-    is_inhibited=None
-    inhibition_bins=None
-    inhibition_min_fr=None
-    inhibition_start=None
-    inhibition_duration=None
-    inhibition_end=None
-
-    has_data=False
-    reason='none'
-
-    def get(self, name):
-        assert hasattr(self, name), f'{name} not in attributes'
-        return getattr(self, name)
+from sonogenetics.analysis.bootstrap import BootstrapOutput
 
 
 DEBUG = True
-
-class BootstrapOutput:
-    is_excited=None
-    is_inhibited=None
-    excitation_max_fr=None
-    excitation_start=None
-    excitation_duration=None
-    inhibition_min_fr=None
-    inhibition_start=None
-    inhibition_duration=None
-    baseline_firing_rate=None
-    laser_distance=None
-
 
 def main():
     """
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
