@@ -476,17 +476,22 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
 
 def run_job(job_fn, num_threads, tasks, debug):
 
+    results = []
+
     if not debug:
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             futures = [executor.submit(job_fn, **task) for task in tasks]
 
-            for _ in tqdm(as_completed(futures), total=len(futures)):
-                pass
+            for f in tqdm(as_completed(futures), total=len(futures)):
+                result = f.result()  # collect return value
+                results.append(result)
 
     else:
         for task in tqdm(tasks):
-            job_fn(**task)
+            result = job_fn(**task)
+            results.append(result)
 
+    return results
 
 def interp_color(nsteps, step_nr, scalename, alpha, inverted=False):
     cols = getattr(getattr(plotly.colors, scalename[0]), scalename[1])
