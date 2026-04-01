@@ -1,15 +1,13 @@
 import sys
 from pathlib import Path
-from utils import make_figure, save_fig
 
 current_dir = Path().resolve()
 sys.path.append(current_dir.parent.parent.as_posix())
 import os
 import pandas as pd
-from sonogenetics.analysis.data_io import DataIO
-import numpy as np
-from sonogenetics.project_colors import ProjectColors
-from sonogenetics.analysis.analysis_params import dataset_dir, figure_dir_analysis
+from sonogenetics.analysis.lib.data_io import DataIO
+from sonogenetics.analysis.lib.analysis_params import dataset_dir
+
 
 def main():
     # Load data

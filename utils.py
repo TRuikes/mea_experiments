@@ -2,23 +2,16 @@ import numpy as np
 from pathlib import Path
 import pickle
 
-import pandas as pd
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from plotly.io import write_image
 import os
-import multiprocessing as mp
 import plotly
-import sys
 import h5py
 from pptx import Presentation
 from pptx.util import Inches
 from tqdm import tqdm
-import threading
-from typing import List, Tuple, cast, Optional, Any, Dict, Union, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from sonogenetics.analysis.bootstrap import BootstrapOutput
-
 
 FIG_SCALE = 5
 

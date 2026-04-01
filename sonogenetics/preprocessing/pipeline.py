@@ -19,7 +19,7 @@ for sid, s_specs in dataset_sessions.items():
     filepaths.check_data()
 
     # # Extract stimulation triggers
-    extract_triggers(filepaths, update=False, visualize_detection=False,
+    extract_triggers(filepaths, update=True, visualize_detection=False,
                      recording_numbers_to_skip=s_specs['skip_triggers'])
 
     # Extract trial data
@@ -27,7 +27,7 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=False, waveform_extraction=False)
+        extract_phy_data(filepaths, update=True, waveform_extraction=False)
     else:
         print(f'NO SORTED DATA FOUND')
 

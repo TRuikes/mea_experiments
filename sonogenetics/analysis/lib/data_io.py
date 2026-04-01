@@ -4,7 +4,8 @@ import pandas as pd
 import threading
 import pickle
 import numpy as np
-from typing import List, no_type_check, Any
+from typing import List, no_type_check
+
 
 class DataIO:
     sessions = []
@@ -182,7 +183,7 @@ class DataIO:
                 self.__setattr__(k, v)
 
 if __name__ == "__main__":
-    from sonogenetics.analysis.analysis_params import dataset_dir, figure_dir_analysis
+    from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
     session_id = '2026-02-19 mouse c57 5713 Mekano6 A'

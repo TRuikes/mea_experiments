@@ -1,9 +1,11 @@
-FILENAME = r"E:\sono\2026-03-25 mouse c57 617 Mekano6 A\raw\rec_4_A_20260325_dmd_full_field.raw"
+FILENAME = r"E:\sono\2026-03-25 mouse c57 617 Mekano6 A\raw\rec_2_A_20260325_pa_intensity_test.raw"
 FIGURE_SAVEDIR =  r'E:\sono\figures\2026-03-25 mouse c57 617 Mekano6 A\MUA'
 PROBE_FILE = r"E:\sono\2026-03-25 mouse c57 617 Mekano6 A\raw\2026-03-25_MEA_position.csv"
-TRIGGER_TYPE = 'dmd'
+PICKLE_FILE = r"E:\sono\dmp.pkl"
+TRIGGER_TYPE = 'laser'
+
 T_PRE = 10
-T_POST = 50
+T_POST = 100
 PLOT_CHANNEL = 100
 
 from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
@@ -18,6 +20,8 @@ from pathlib import Path
 import matplotlib
 # matplotlib.use('Agg')  # <-- use non-interactive backend
 import pandas as pd
+import pickle
+
 
 def get_channel_index(data_size, channel_i):
     return np.arange(channel_i - 1, data_size, data_nb_channels, dtype=int)
@@ -83,8 +87,8 @@ def read_triggers(data, trigger_type):
 
 
 
-def get_filtered_daa_and_spikes(data, channel_i, trigger_time, trigger_i):
-
+def get_filtered_daa_and_spikes(data, channel_i, trigger_time, trigger_i, train_i):
+    # trigger tmie should be in [ms]
     # --- Convert ms → samples ---
     trigger_sample = int(trigger_time * data_sample_rate)
     pre_samples = int((T_PRE / 1000) * data_sample_rate)
@@ -108,7 +112,7 @@ def get_filtered_daa_and_spikes(data, channel_i, trigger_time, trigger_i):
     b0 = 400
     b1 = 3000
 
-    if channel_i not in [126, 127]:
+    if channel_i not in [126, 127, 128]:
         b, a = butter(3, [b0 / nyq, b1 / nyq], btype='band')
         filtered = filtfilt(b, a, raw_segment)
     else:
@@ -153,9 +157,6 @@ def get_filtered_daa_and_spikes(data, channel_i, trigger_time, trigger_i):
     }
 
 
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 def interactive_probe_map(
     data_list,
@@ -262,42 +263,144 @@ def interactive_probe_map(
     plt.show()
 
 
+def interactive_raster_probe_map_trials(
+    data_list,
+    mea_position,
+    figsize=(12,12),
+    spike_color='black',
+    trigger_color='red',
+    grid_size=15,
+    margin=0.02
+):
+    """
+    Interactive probe layout raster plot:
+    - Each channel shows a raster with rows = triggers (trials)
+    - Click a channel to enlarge its raster
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from collections import defaultdict
+
+    fig = plt.figure(figsize=figsize)
+
+    # Normalize positions
+    x_um = mea_position['x'].values
+    y_um = mea_position['y'].values
+    x_norm = (x_um - x_um.min()) / (x_um.max() - x_um.min())
+    y_norm = (y_um - y_um.min()) / (y_um.max() - y_um.min())
+
+    ax_size = (1.0 - margin*(grid_size+1)) / grid_size
+    axes_list = []
+
+    # --- Group data: channel -> list of trials ---
+    channel_trials = defaultdict(list)
+    for d in data_list:
+        channel_trials[d['channel_i']].append(d)
+
+    # # Sort trials per channel by trigger_i (important!)
+    # for ch in channel_trials:
+    #     channel_trials[ch] = sorted(channel_trials[ch], key=lambda x: x['trigger_i'])
+
+    for ch_idx in range(len(mea_position)):
+        if ch_idx not in channel_trials:
+            continue
+
+        trials = channel_trials[ch_idx]
+
+        xpos = x_norm[ch_idx]
+        ypos = y_norm[ch_idx]
+
+        ax_x = margin + xpos*(1.0 - ax_size - 2*margin)
+        ax_y = margin + ypos*(1.0 - ax_size - 2*margin)
+        ax = fig.add_axes([ax_x, ax_y, ax_size, ax_size])
+        axes_list.append((ax, ch_idx))
+
+        # --- Plot raster: each trial = one row ---
+        for i, trial in enumerate(trials):
+            spike_times = trial['spike_times']
+            for t in spike_times:
+                ax.vlines(t, i, i+1, color=spike_color, linewidth=0.4)
+
+        # Trigger line (same for all rows)
+        ax.axvline(0, linestyle='--', color=trigger_color, linewidth=0.5)
+
+        ax.set_ylim(0, len(trials))
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    fig.suptitle("Electrode layout raster (rows = triggers, click to enlarge)")
+
+    # --- Click event ---
+    def on_click(event):
+        for ax, ch_idx in axes_list:
+            if event.inaxes == ax:
+                trials = channel_trials[ch_idx]
+
+                fig2, ax2 = plt.subplots(figsize=(8, 5))
+
+                for i, trial in enumerate(trials):
+                    spike_times = trial['spike_times']
+                    for t in spike_times:
+                        ax2.vlines(t, i, i+1, color=spike_color, linewidth=0.8)
+
+                ax2.axvline(0, linestyle='--', color=trigger_color, linewidth=1)
+
+                ax2.set_ylim(0, len(trials))
+                ax2.set_xlabel("Time (ms)")
+                ax2.set_ylabel("Trigger index (sorted)")
+                ax2.set_title(f"Channel {ch_idx} Raster (multi-trial)")
+
+                ax2.grid(True, axis='x', alpha=0.3)
+                plt.show()
+                break
+
+    fig.canvas.mpl_connect('button_press_event', on_click)
+    plt.show()
+
 
 def main(filename, trigger_channel):
 
     # Load channel data
-    data = np.memmap(filename, dtype=data_type)
-    filename = Path(filename)
-    n_samples = int(data.size / data_nb_channels)
-    rec_duration = (n_samples / data_sample_rate) / 60  # [min]
+    # data = np.memmap(filename, dtype=data_type)
+    # filename = Path(filename)
+    # n_samples = int(data.size / data_nb_channels)
+    # rec_duration = (n_samples / data_sample_rate) / 60  # [min]
+    #
+    #
+    # # Define indices of current channel in data object
+    # triggers = read_triggers(data, trigger_channel)
+    # n_trains = len(triggers['train_onsets'])
+    # n_bursts = len(triggers['burst_onsets'])
+    #
+    # # Print file information
+    # print(f'\t\t\t{filename.name}\n')
+    # print(f'\trecording duration: {rec_duration:.0f} min\n')
+    # print(f'\tdetected {n_trains} trains on {trigger_channel} trigger')
+    # print(f'\tdetected {n_bursts} bursts on {trigger_channel} trigger')
+    #
+    #
+    # ### CUT DATA AROUND TRIGGER
+    # trigger_time = triggers['burst_onsets'][0] / 1e3  # in [s]
+    #
+    # job_list = []
+    #
+    # # for train_i in range(n_trains-1):
+    # train_i = 10
+    # burst_onsets_idx = np.where(
+    #     (triggers['burst_onsets'] >= triggers['train_onsets'][train_i]) &
+    #     (triggers['burst_onsets'] < triggers['train_onsets'][train_i+1])
+    # )[0]
+    # print(burst_onsets_idx.size)
 
-
-    # Define indices of current channel in data object
-    triggers = read_triggers(data, trigger_channel)
-    n_trains = len(triggers['train_onsets'])
-    n_bursts = len(triggers['burst_onsets'])
-
-    # Print file information
-    print(f'\t\t\t{filename.name}\n')
-    print(f'\trecording duration: {rec_duration:.0f} min\n')
-    print(f'\tdetected {n_trains} trains on {trigger_channel} trigger')
-    print(f'\tdetected {n_bursts} bursts on {trigger_channel} trigger')
-
-
-    ### CUT DATA AROUND TRIGGER
-    trigger_time = triggers['burst_onsets'][0] / 1e3  # in [s]
-
-    job_list = []
-
-    for trigger_i, t_time in enumerate(triggers['burst_onsets']):
-        if trigger_i > 3:
-            break
+    for burst_i, burst_time in enumerate(triggers['burst_onsets'][burst_onsets_idx]):
         for i in range(0, data_nb_channels):
             job_list.append({
                 'data': data,
                 'channel_i': i,
                 'trigger_time': trigger_time / 1e3,
-                'trigger_i': trigger_i,
+                'trigger_i': burst_i,
+                'train_i': train_i,
             })
 
     spike_data = utils.run_job(
@@ -307,16 +410,24 @@ def main(filename, trigger_channel):
         debug=False,
     )
 
+    with open(PICKLE_FILE, 'wb') as f:
+        pickle.dump(spike_data, f)
+
+    with open(PICKLE_FILE, "rb") as f:
+        spike_data = pickle.load(f)
+
     mea_position = pd.read_csv(PROBE_FILE, index_col=0, header=0)
 
-    interactive_probe_map(
+    interactive_raster_probe_map_trials(
         data_list=spike_data,
         mea_position=mea_position,
-        trigger_i=2,
     )
 
-
-
+    # interactive_probe_map(
+    #     data_list=spike_data,
+    #     mea_position=mea_position,
+    #     trigger_i=2,
+    # )
 
 if __name__ == "__main__":
     main(FILENAME, TRIGGER_TYPE)

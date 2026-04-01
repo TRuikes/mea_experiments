@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-sys.path.append('.')
+sys.path.append('')
 current_dir = Path().resolve()
 sys.path.append(current_dir.as_posix().split('mea_experiments')[0] + 'mea_experiments')
 
@@ -13,20 +13,20 @@ from typing import List, Tuple, cast, Any, Dict, Union
 from pathlib import Path
 
 import utils
-from sonogenetics.analysis.analysis_params import dataset_dir
-from data_io import DataIO
+from sonogenetics.analysis.lib.analysis_params import dataset_dir
+from sonogenetics.analysis.lib.data_io import DataIO
 
-from sonogenetics.analysis.bootstrap import BootstrapOutput
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 
 
-DEBUG = True
+DEBUG = False
 
 def main():
     """
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
+    session_id = '2026-02-11 mouse c57 565 eMSCL A'
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
@@ -37,7 +37,6 @@ def main():
 
     # Analyse the cell responses following the triggers
     analyse_responses(data_io, dataset_dir / 'bootstrapped')
-
     data_io.unlock_modification()
 
     # Gather all the response statistics into a single table
