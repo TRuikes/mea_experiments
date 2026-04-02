@@ -26,7 +26,7 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-02-11 mouse c57 565 eMSCL A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
@@ -36,7 +36,7 @@ def main():
     data_io.lock_modification()
 
     # Analyse the cell responses following the triggers
-    analyse_responses(data_io, dataset_dir / 'bootstrapped')
+    analyse_responses(data_io, dataset_dir / 'bootstrapped', overwrite=True)
     data_io.unlock_modification()
 
     # Gather all the response statistics into a single table
@@ -104,7 +104,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
     print(f'Saved: {savename}')
 
 
-def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
+def analyse_responses(data_io: "DataIO", output_dir: Path, overwrite) -> None:
     """
     Handles calls to bootstrap function for single cells.
     """
@@ -118,7 +118,7 @@ def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile: Path = output_dir / f'bootstrap_{cluster_id}.pkl'
-        if savefile.exists():
+        if not overwrite and savefile.exists():
             continue
         tasks.append({
             "data_io": data_io,

@@ -15,6 +15,20 @@ from multiprocessing import Pool
 
 DEBUG = False
 
+def write_figure(json_file_path):
+    if json_file_path is None:
+        return None
+    fig = pio.from_json(Path(json_file_path).read_text())
+    png_file = Path(json_file_path).with_suffix(".png")
+    fig.write_image(
+        png_file,
+        engine='kaleido',
+        scale=4,
+        format='png',
+    )
+    Path(json_file_path).unlink()  # clean up
+    return str(png_file)
+
 def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
 
     print(f'saving data in: {figure_dir_analysis / data_io.session_id / "raster plots"}')
@@ -58,26 +72,13 @@ def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
     batch_size = 50
     for i in range(0, len(plot_data), batch_size):
         batch = plot_data[i:i+batch_size]
-        with Pool(processes=8) as pool:
+        with Pool(processes=4) as pool:
             # Wrap the iterator with tqdm to show progress
             for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
                           desc=f"batch {i//batch_size + 1}"):
                 pass  # imap_unordered runs the function and tqdm updates the bar
 
-
-def write_figure(json_file_path):
-    if json_file_path is None:
-        return None
-    fig = pio.from_json(Path(json_file_path).read_text())
-    png_file = Path(json_file_path).with_suffix(".png")
-    fig.write_image(
-        png_file,
-        engine='kaleido',
-        scale=5,
-        format='png',
-    )
-    Path(json_file_path).unlink()  # clean up
-    return str(png_file)
+    data_io.unlock_modification()
 
 
 def plot_raster_single_cluster(data_io: DataIO,
@@ -124,6 +125,9 @@ def plot_raster_single_cluster(data_io: DataIO,
     assert protocol in params_per_protocol.keys(), f'{protocol}'
     params_to_group_by = params_per_protocol[protocol]
 
+    if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in d_select.columns:
+        d_select['dac_voltage'] = d_select['laser_power']
+
     for prm_val, df in d_select.groupby(params_to_group_by):
         train_plot_height_start = burst_offset
 
@@ -162,17 +166,17 @@ def plot_raster_single_cluster(data_io: DataIO,
 
         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
 
-        if has_dmd and bd_dmd > 0:
+        if has_dmd:
             bd_dmd = data_io.train_df.loc[tid, 'dmd_burst_duration']
+            if bd_dmd > 0:
+                if has_laser:
+                    ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
+                else:
+                    ldelay = 0
 
-            if has_laser:
-                ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
-            else:
-                ldelay = 0
-
-            x_lines_dmd.extend([-ldelay, bd_dmd, bd_dmd, -ldelay, -ldelay, None])
-            y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
-                                  burst_offset, burst_offset, train_plot_height_start, None])
+                x_lines_dmd.extend([-ldelay, bd_dmd, bd_dmd, -ldelay, -ldelay, None])
+                y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
+                                      burst_offset, burst_offset, train_plot_height_start, None])
 
     if len(x_plot) == 0:
         return
@@ -232,7 +236,7 @@ def plot_raster_single_cluster(data_io: DataIO,
     return str(json_savename)
 
 
-def generate_heatmaps_session(data_io: DataIO, ref_rec_id: str=None, ref_prot: str=None,):
+def generate_heatmaps_session(data_io: DataIO, sig_only=True):
     cluster_ids = data_io.cluster_df.index.values
     print(f'saving data in: {figure_dir_analysis / data_io.session_id / "heatmaps"}')
 
@@ -249,9 +253,11 @@ def generate_heatmaps_session(data_io: DataIO, ref_rec_id: str=None, ref_prot: s
                 subgroup = 'significant'
             else:
                 subgroup = 'not_selected'
+                if sig_only:
+                    continue
 
             plot_name = f'{cluster_id}_{ec}'
-            savename = (figure_dir_analysis / data_io.session_id / 'raster_plots' /
+            savename = (figure_dir_analysis / data_io.session_id / 'heatmaps' /
                         rec_id / protocol / subgroup / plot_name)
 
             tasks.append({
@@ -262,6 +268,8 @@ def generate_heatmaps_session(data_io: DataIO, ref_rec_id: str=None, ref_prot: s
                 "savename": savename,
                 "recording_id": rec_id,
             })
+
+    print(f'{len(tasks)} tasks')
 
     figure_files = run_job(
         job_fn=heatmap_per_protocol_slave,
@@ -304,23 +312,28 @@ def heatmap_per_protocol_slave(data_io: DataIO,
                                     f'and rec_id == "{recording_id}"').copy()
 
     frates = []
+    yticks         = []
+    ytext          = []
+    ytick = 0
 
     params_to_group_by = params_per_protocol[protocol]
+
+    if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in trials.columns:
+        trials['dac_voltage'] = trials['laser_power']
 
     for prm_val, df in trials.groupby(params_to_group_by):
 
         assert df.shape[0] == 1
+        tid = df.iloc[0].train_id
 
         # Get rename + spike train
         spiketrain = data_io.spiketimes[recording_id][cluster_id]
 
-        tid = df.iloc[0].train_id
-
         # Get burst onsets
         if df.iloc[0]['has_dmd']:
-            burst_onsets = data_io.burst_df.query('train_id == @tid').dmd_burst_onset
+            burst_onsets = data_io.burst_df.query(f'train_id ==  "{tid}"').dmd_burst_onset
         else:
-            burst_onsets = data_io.burst_df.query('train_id == @tid').laser_burst_onset
+            burst_onsets = data_io.burst_df.query(f'train_id == "{tid}"').laser_burst_onset
 
         n_trains = burst_onsets.size
 
@@ -349,6 +362,13 @@ def heatmap_per_protocol_slave(data_io: DataIO,
         # Get mean firing rate
         mean_fr = np.mean(binned_sp, axis=0)
         frates.append(mean_fr)
+
+        ystr = ''
+        for p, v in zip(params_to_group_by, prm_val):
+            ystr += f'{params_abbreviation[p]}: {v:.0f} | '
+        ytext.append(ystr)
+        yticks.append(ytick)
+        ytick += 1
 
     cell_fr = np.array(frates)
 
@@ -383,7 +403,8 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     # -----------------------------
     fig = make_figure(
         height=2,
-        y_domains={1: [[0.1, 0.99]]}
+        x_domains={1: [[0.25, 0.99]]},
+        y_domains={1: [[0.15, 0.99]]},
     )
 
     fig.add_heatmap(
@@ -402,12 +423,19 @@ def heatmap_per_protocol_slave(data_io: DataIO,
         title_text='time [ms]'
     )
 
+    fig.update_yaxes(
+        tickvals=yticks,
+        ticktext=ytext,
+    )
+
     # save_fig(fig=fig, savename=savename, display=False)
     json_savename = savename.with_suffix(".json")
 
     if not json_savename.parent.exists():
         json_savename.parent.mkdir(parents=True, exist_ok=True)
     json_savename.write_text(fig.to_json())
+
+    # print(f'saved: {json_savename}')
     return str(json_savename)
 
 

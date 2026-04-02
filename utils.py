@@ -12,8 +12,11 @@ from pptx import Presentation
 from pptx.util import Inches
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
+import __main__
+__main__.BootstrapOutput = BootstrapOutput
 
-FIG_SCALE = 5
+FIG_SCALE = 4
 
 def save_obj(obj, savename: Path):
     """

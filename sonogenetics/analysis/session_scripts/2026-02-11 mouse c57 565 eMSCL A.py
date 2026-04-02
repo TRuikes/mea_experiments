@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-from sonogenetics.project_colors import ProjectColors
 from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 from sonogenetics.analysis.lib.data_io import DataIO
 from sonogenetics.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session
@@ -30,13 +29,9 @@ def main():
     for i, r in data_io.burst_df.iterrows():
         data_io.burst_df.at[i, 'protocol'] = r['recording_name']
 
-    #
-    # generate_raster_plots_session(
-    #     data_io=data_io
-    # )
-    #
 
-    generate_heatmaps_session(data_io=data_io)
+    # generate_raster_plots_session(data_io=data_io)
+    generate_heatmaps_session(data_io=data_io, sig_only=True)
 
 
 if __name__ == '__main__':

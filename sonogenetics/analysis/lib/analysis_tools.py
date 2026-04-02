@@ -12,6 +12,7 @@ params_per_protocol = {
     'rec_2_A_20260325_pa_intensity_test': ['laser_power', 'laser_pulse_repetition_rate', ],
     'rec_3_A_20260325_pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay'],
     'rec_4_A_20260325_dmd_full_field': ['dmd_onset_delay'],
+    'pilot_stimparams': ['dac_voltage', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
 
 }
 
