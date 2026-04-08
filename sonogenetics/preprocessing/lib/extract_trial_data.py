@@ -21,9 +21,10 @@ def extract_trial_data(filepaths: FilePaths):
 
     if df.shape[1] == 0:  # use another delimiter
         df = pd.read_csv(
-            filepaths.raw_trials, index_col=0, header=0,
+            filepaths.raw_trials[0], index_col=0, header=0,
             delimiter=';'
         )
+        print(f'EXTRACT TRIAL DATA: SHOULD CHEC KTHIS')
 
     train_i = 0
     df = df.reset_index(drop = True)
@@ -75,7 +76,7 @@ def extract_trial_data(filepaths: FilePaths):
 
     for i, r in df.iterrows():
         if 'protocol_name' in r.keys():
-            sequence_name = r.protocol
+            sequence_name = r.protocol_name
         elif 'sequence_name' in r.keys():
             sequence_name = r.sequence_name
         else:

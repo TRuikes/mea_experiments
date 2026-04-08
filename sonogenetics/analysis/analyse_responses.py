@@ -26,7 +26,7 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 B'
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')

@@ -6,7 +6,7 @@ from sonogenetics.analysis.lib.display_tools import generate_raster_plots_sessio
 
 def main():
     # Setup session ID + create figure output directory
-    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 B'
     fig_save_dir = figure_dir_analysis / session_id
     if not os.path.exists(fig_save_dir):
         os.makedirs(fig_save_dir)
@@ -29,7 +29,7 @@ def main():
             data_io.burst_df.at[i, 'protocol'] = r['recording_name']
 
 
-    # generate_raster_plots_session(data_io=data_io)
+    generate_raster_plots_session(data_io=data_io)
     generate_heatmaps_session(data_io=data_io, sig_only=True)
 
 if __name__ == '__main__':

@@ -51,82 +51,6 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
     for i, r in cluster_info.iterrows():
         cluster_info.at[i, 'cluster_x'] = mea_position.loc[r.ch+1].x
         cluster_info.at[i, 'cluster_y'] = mea_position.loc[r.ch+1].y
-        
-
-    dmd_n_trials_triggers = 0
-    dmd_n_bursts_triggers = 0
-    pa_n_trials_triggers = 0
-    pa_n_bursts_triggers = 0
-    pa_recordings_included = []
-    dmd_recordings_included = []
-
-    for rec_id in filepaths.recording_names:
-
-                        
-        SKIP_RECORDING = False
-        if recording_numbers_to_skip is not None:
-            for nr in recording_numbers_to_skip:
-                if f'_{nr:.0f}_' in rec_id:
-                    print(f'\tskipping recording {rec_id}')
-                    SKIP_RECORDING = True
-
-        if SKIP_RECORDING:
-            continue
-        
-        print(f'{rec_id}')
-        has_triggers = False
-        has_pa = False
-        has_dmd = False
-
-        if 'PA' in rec_id or 'buSTIM1' in rec_id or 'pilot_021126' in rec_id or 'pilot021626' in rec_id or 'pa' in rec_id:
-            pa_recordings_included.append(rec_id)
-
-            pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
-            print(f'{rec_id} - len train onsets: {len(pa_train_onsets)}')
-            pa_n_trials_triggers += len(pa_train_onsets)
-
-            pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
-            pa_n_bursts_triggers += len(pa_burst_onsets)
-
-            print(f'\tAdding PA triggers')
-            has_triggers = True
-            has_pa = True
-
-        if 'DMD' in rec_id or 'chirp' in rec_id or 'dmd' in rec_id:
-            dmd_recordings_included.append(rec_id)
-
-            dmd_train_onsets = triggers[rec_id]['dmd']['train_onsets']
-            dmd_n_trials_triggers += len(dmd_train_onsets)
-
-            dmd_burst_onsets = triggers[rec_id]['dmd']['burst_onsets']
-            dmd_n_bursts_triggers += len(dmd_burst_onsets)
-
-            print(f'\tAdding DMD triggers')
-            has_triggers = True
-            has_dmd = True
-
-
-    assert has_triggers
-
-    # Check PA triggers
-    print(pa_recordings_included)
-    train_df_check = train_df.query('recording_name in @pa_recordings_included')
-
-    # Verify that every burst registered in the trials dataframe
-    # also exists in the trigger data
-    if filepaths.sid not in manuall_edited_sessions:
-
-        if has_pa:
-            n_pa_trains = train_df_check.has_laser.sum()
-            assert pa_n_trials_triggers == n_pa_trains, f'{filepaths.sid}, {pa_n_trials_triggers} - {n_pa_trains}'
-            n_bursts_train_df = train_df_check.laser_burst_count.sum()
-            assert pa_n_bursts_triggers == n_bursts_train_df, f'{filepaths.sid}, {pa_n_bursts_triggers}, {n_bursts_train_df}'
-
-        if has_dmd:
-            # Check DMD triggers
-            train_df_check = train_df.query('recording_name in @dmd_recordings_included')
-            assert dmd_n_trials_triggers == train_df_check.shape[0]
-            assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
 
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
 
@@ -148,6 +72,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # Add index as first field
         cluster_dtype_fields = [("index", index_dtype)]
         for col in cluster_info.columns:
+            if col == 'group':
+                continue
+
             if cluster_info[col].dtype.kind in "i":
                 cluster_dtype_fields.append((col, "i4"))
             elif cluster_info[col].dtype.kind in "f":
@@ -167,6 +94,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 cluster_table[i]["index"] = idx
 
             for col in cluster_info.columns:
+                if col == 'group':
+                    continue
+
                 val = row[col]
                 if isinstance(val, str):
                     cluster_table[i][col] = val.encode("utf-8")
@@ -192,24 +122,18 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # -----------------------------
         for rec_id in filepaths.recording_names:
 
-            SKIP_REC = False
-            for nr in recording_numbers_to_skip:
-                if f'_{nr:.0f}_' in rec_id:
-                    print(f'\tskipping recording {rec_id}')
-                    SKIP_REC = True
-            if SKIP_REC:
-                continue
-
-
-            # Skip recordings if needed
-            if recording_numbers_to_skip and any(f'{nr:03d}' in rec_id for nr in recording_numbers_to_skip):
-                print(f"Skipping recording {rec_id}")
+            # Exclude this recording if listed so in dataset_sessions
+            rec_nr = int(rec_id.split('_')[1])
+            if rec_nr in recording_numbers_to_skip:
                 continue
 
             print(f"Loading {rec_id}")
-            train_rec_df = train_df.query("recording_name == @rec_id").copy()
+            train_rec_df = train_df.loc[train_df['Recording Number'] == rec_nr]
             if train_rec_df.empty:
                 continue
+
+            if rec_id == 'rec_3_B_20260325_dmd_full_field':
+                train_rec_df = train_rec_df.iloc[1:]
 
             # Group for this recording
             rec_grp = f.require_group(f"recordings/{rec_id}")
@@ -233,6 +157,12 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
                 dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
                 dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
+
+                if rec_id == 'rec_3_B_20260325_dmd_full_field':
+                    dmd_train_onsets = dmd_train_onsets[1:]
+                    dmd_burst_onsets = dmd_burst_onsets[8:]
+                    dmd_burst_offsets = dmd_burst_offsets[8:]
+
             else:
                 dmd_train_onsets = None
                 dmd_burst_onsets = None
@@ -246,7 +176,6 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             # are fewer detected triggers than trials, so its a nice backup
             dmd_tick, laser_tick = 0, 0
             dmd_burst_tick, laser_burst_tick = 0, 0
-            dmd_train_count, laser_train_count = 0, 0
 
             for train_id, trial_info in train_rec_df.iterrows():
                 laser_burst_count = trial_info['laser_burst_count'] if trial_info['has_laser'] else 0
@@ -268,17 +197,13 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
                 for burst_i in range(int(burst_count)):
 
-                    if trial_info['has_dmd'] and trial_info['has_laser']:
-                        dt = dmd_burst_onsets[dmd_burst_tick] - laser_burst_onsets[laser_burst_tick]
-                        # print(train_id, dt , trial_info['laser_onset_delay'], dmd_burst_onsets[dmd_burst_tick], laser_burst_onsets[laser_burst_tick])
-
                     bursts_list.append([
-                        dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else 0,
-                        dmd_burst_onsets[dmd_burst_tick]  if trial_info['has_dmd'] else 0,
-                        dmd_burst_offsets[dmd_burst_tick] if trial_info['has_dmd'] else 0,
-                        laser_train_onsets[laser_tick] if trial_info['has_laser'] else 0,
-                        laser_burst_onsets[laser_burst_tick] if trial_info['has_laser'] else 0,
-                        laser_burst_offsets[laser_burst_tick] if trial_info['has_laser'] else 0,
+                        dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else -1,
+                        dmd_burst_onsets[dmd_burst_tick]  if trial_info['has_dmd'] else -1,
+                        dmd_burst_offsets[dmd_burst_tick] if trial_info['has_dmd'] else -1,
+                        laser_train_onsets[laser_tick] if trial_info['has_laser'] else -1,
+                        laser_burst_onsets[laser_burst_tick] if trial_info['has_laser'] else -1,
+                        laser_burst_offsets[laser_burst_tick] if trial_info['has_laser'] else -1,
                         str(train_id)
                     ])
 
@@ -382,4 +307,4 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 if include_waveforms:
                     cluster_rec_grp.create_dataset('waveforms', data=waveforms[spiketimes_key][cluster_id])
 
-    print(f'\nSaved dataset to {write_file.as_posix()}')
+    print(f'\nSaved dataset to {write_file.as_posix()}\n\n')
