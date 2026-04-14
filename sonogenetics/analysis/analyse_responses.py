@@ -13,8 +13,8 @@ from typing import List, Tuple, cast, Any, Dict, Union
 from pathlib import Path
 
 import utils
-from sonogenetics.analysis.analysis_params import dataset_dir
-from data_io import DataIO
+from sonogenetics.analysis.lib.analysis_params import dataset_dir
+from sonogenetics.analysis.lib.data_io import DataIO
 
 
 class BootstrapOutput:

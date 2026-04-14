@@ -1,1 +1,0 @@
-emcc -lembind -o mcdreader.js main.cpp -s ALLOW_MEMORY_GROWTH -s MAXIMUM_MEMORY=4GB -s WASM_BIGINT -O3
