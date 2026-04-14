@@ -4,7 +4,8 @@ import pandas as pd
 import threading
 import pickle
 import numpy as np
-from typing import List, no_type_check, Any
+from typing import List, no_type_check
+
 
 class DataIO:
     sessions = []
@@ -139,12 +140,18 @@ class DataIO:
         self.recording_ids = rec_ids
 
         train_df = pd.DataFrame()
+        train_df = train_df.astype(object)
         for tid, tdf in burst_df.groupby("train_id"):
             for c in tdf.columns:
                 if c in ['burst_id'] or 'burst_onset' in c or 'burst_offset' in c:
                     continue
                 assert len(tdf[c].unique()) == 1, c
-                train_df.at[tid, c]= tdf.iloc[0][c]
+
+                val = tdf.iloc[0][c]
+                if isinstance(val, bool):
+                    val = float(val)  # True → 1.0, False → 0.0
+
+                train_df.at[tid, c]= val
         self.train_df = train_df
 
         self.cluster_ids = self.cluster_df.index.values
@@ -176,7 +183,7 @@ class DataIO:
                 self.__setattr__(k, v)
 
 if __name__ == "__main__":
-    from sonogenetics.analysis.analysis_params import dataset_dir, figure_dir_analysis
+    from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
     session_id = '2026-02-19 mouse c57 5713 Mekano6 A'

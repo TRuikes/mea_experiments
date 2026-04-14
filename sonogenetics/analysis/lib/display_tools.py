@@ -1,22 +1,37 @@
-from sonogenetics.analysis.analysis_tools import detect_preferred_electrode, params_per_protocol, params_abbreviation
-from sonogenetics.analysis.data_io import DataIO
-from sonogenetics.analysis.analysis_params import dataset_dir, figure_dir_analysis
+from sonogenetics.analysis.lib.analysis_tools import detect_preferred_electrode, params_per_protocol, params_abbreviation
+from sonogenetics.analysis.lib.data_io import DataIO
+from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 from utils import load_obj, make_figure, run_job, save_fig
 import numpy as np
 from typing import List, Any, Dict
 import pandas as pd
 from pathlib import Path
-from sonogenetics.analysis.analyse_responses import BootstrapOutput
 from scipy.ndimage import gaussian_filter1d
 from sonogenetics.project_colors import ProjectColors
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
+import plotly.io as pio
+from tqdm import tqdm
+from multiprocessing import Pool
 
 DEBUG = False
 
-def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
+def write_figure(json_file_path):
+    if json_file_path is None:
+        return None
+    fig = pio.from_json(Path(json_file_path).read_text())
+    png_file = Path(json_file_path).with_suffix(".png")
+    fig.write_image(
+        png_file,
+        engine='kaleido',
+        scale=4,
+        format='png',
+    )
+    Path(json_file_path).unlink()  # clean up
+    return str(png_file)
 
-    cluster_ids = data_io.cluster_df.index.values
-    electrodes  = data_io.burst_df.electrode.unique()
-    print(f'saving data in: {figure_dir_analysis / "raster plots"}')
+def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
+
+    print(f'saving data in: {figure_dir_analysis / data_io.session_id / "raster plots"}')
 
     loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
     cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
@@ -25,36 +40,54 @@ def raster_per_protocol_master(data_io: DataIO) -> pd.DataFrame:
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for protocol in data_io.burst_df.protocol.unique():
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(
+            ['rec_id', 'protocol', 'electrode']):
 
-        for cluster_id in cluster_ids:
-            for ec in electrodes:
+        for cluster_id in data_io.cluster_ids:
+            if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
+                subgroup = 'significant'
+            else:
+                subgroup = 'not_selected'
 
-                if ec == pref_ec[protocol].loc[cluster_id, 'ec']:
-                    subgroup = 'significant'
-                else:
-                    subgroup = 'not_selected'
+            plot_name = f'{cluster_id}_{ec}'
+            savename = (figure_dir_analysis / data_io.session_id /
+                        'raster_plots' / rec_id / protocol / subgroup / plot_name)
 
-                plotname = f'{cluster_id}_{ec}_{protocol}'
+            tasks.append({
+                "data_io": data_io,
+                "cluster_id": cluster_id,
+                "recording_id": rec_id,
+                "protocol": protocol,
+                "electrode": ec,
+                "savename": savename,
+            })
 
-                tasks.append({
-                    "data_io": data_io,
-                    "cluster_id": cluster_id,
-                    "protocol": protocol,
-                    "electrode": ec,
-                    "savename": (figure_dir_analysis / data_io.session_id / 'raster_plots' / protocol / subgroup / plotname)
-                })
-
-    run_job(
-        job_fn=raster_per_protocol_slave,
+    plot_data = run_job(
+        job_fn=plot_raster_single_cluster,
         tasks=tasks,
-        num_threads=10,
+        num_threads=20,
         debug=DEBUG,
     )
 
-def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
-                              protocol: str, electrode: str,
-                              savename: Path):
+    batch_size = 50
+    for i in range(0, len(plot_data), batch_size):
+        batch = plot_data[i:i+batch_size]
+        with Pool(processes=4) as pool:
+            # Wrap the iterator with tqdm to show progress
+            for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
+                          desc=f"batch {i//batch_size + 1}"):
+                pass  # imap_unordered runs the function and tqdm updates the bar
+
+    data_io.unlock_modification()
+
+
+def plot_raster_single_cluster(data_io: DataIO,
+                               cluster_id: str,
+                               recording_id: str,
+                               protocol: str,
+                               electrode: str,
+                               savename: Path,
+                              ):
 
     # Setup figure layout
     fig = make_figure(
@@ -78,16 +111,24 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
     ytext          = []
     pos            = dict(row=1, col=1)
 
-    d_select = data_io.burst_df.query('electrode == @electrode and '
-                                        'protocol == @protocol').copy()
+    d_select = data_io.burst_df.query(f'electrode == {electrode} and '
+                                      f'rec_id == "{recording_id}" and '
+                                      f'protocol == "{protocol}"').copy()
+
+    if len(d_select) == 0:
+        print(f'cid: {cluster_id}, rid: {recording_id}, ec: {electrode}')
+        return
+        # raise ValueError('selected dataframe is empty')
+
     cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
 
     assert protocol in params_per_protocol.keys(), f'{protocol}'
+    params_to_group_by = params_per_protocol[protocol]
 
-    params_to_groupby = params_per_protocol[protocol]
+    if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in d_select.columns:
+        d_select['dac_voltage'] = d_select['laser_power']
 
-    for prm_val, df in d_select.groupby(params_to_groupby):
-
+    for prm_val, df in d_select.groupby(params_to_group_by):
         train_plot_height_start = burst_offset
 
         tids = df.train_id.unique()
@@ -96,13 +137,14 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
 
         if tid not in cluster_data.keys():
             continue
+
         trial_data = cluster_data[tid]
 
         spike_times = trial_data.spike_times
         bins = trial_data.bins
 
         ystr = ''
-        for p, v in zip(params_to_groupby, prm_val):
+        for p, v in zip(params_to_group_by, prm_val):
             ystr += f'{params_abbreviation[p]}: {v:.0f} | '
 
         ytext.append(ystr)
@@ -123,17 +165,18 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
                                   burst_offset, burst_offset, train_plot_height_start, None])
 
         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
-        bd_dmd = data_io.train_df.loc[tid, 'dmd_burst_duration']
 
-        if has_dmd and bd_dmd > 0:
-            if has_laser:
-                ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
-            else:
-                ldelay = 0
+        if has_dmd:
+            bd_dmd = data_io.train_df.loc[tid, 'dmd_burst_duration']
+            if bd_dmd > 0:
+                if has_laser:
+                    ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
+                else:
+                    ldelay = 0
 
-            x_lines_dmd.extend([-ldelay, bd_dmd, bd_dmd, -ldelay, -ldelay, None])
-            y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
-                                  burst_offset, burst_offset, train_plot_height_start, None])
+                x_lines_dmd.extend([-ldelay, bd_dmd, bd_dmd, -ldelay, -ldelay, None])
+                y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
+                                      burst_offset, burst_offset, train_plot_height_start, None])
 
     if len(x_plot) == 0:
         return
@@ -180,13 +223,22 @@ def raster_per_protocol_slave(data_io: DataIO, cluster_id: str,
         **pos,
     )
 
-    save_fig(fig, savename, display=False, verbose=False)
+    # return fig, savename
+
+    # print(f'saved: {savename}')
+    # save_fig(fig, savename, display=False, verbose=False)
+    # Save as HTML immediately
+    json_savename = savename.with_suffix(".json")
+
+    if not json_savename.parent.exists():
+        json_savename.parent.mkdir(parents=True, exist_ok=True)
+    json_savename.write_text(fig.to_json())
+    return str(json_savename)
 
 
-def heatmap_per_protocol_master(data_io: DataIO):
+def generate_heatmaps_session(data_io: DataIO, sig_only=True):
     cluster_ids = data_io.cluster_df.index.values
-    electrodes  = data_io.burst_df.electrode.unique()
-    print(f'saving data in: {figure_dir_analysis / "heatmaps"}')
+    print(f'saving data in: {figure_dir_analysis / data_io.session_id / "heatmaps"}')
 
     loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
     cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
@@ -195,43 +247,52 @@ def heatmap_per_protocol_master(data_io: DataIO):
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for protocol in data_io.burst_df.protocol.unique():
-        stimsites = data_io.burst_df.query('protocol == @protocol').electrode.unique()
-
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
         for cluster_id in cluster_ids:
-
-            ec = pref_ec[protocol].loc[cluster_id, 'ec']
-
-            if ec is None:
-                ecs = stimsites
-                is_sig = 'not_sig'
+            if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
+                subgroup = 'significant'
             else:
-                ecs = [ec]
-                is_sig = 'sig'
+                subgroup = 'not_selected'
+                if sig_only:
+                    continue
 
-            for ec in ecs:
-                plotname = f'{cluster_id}_{ec}_{protocol}'
+            plot_name = f'{cluster_id}_{ec}'
+            savename = (figure_dir_analysis / data_io.session_id / 'heatmaps' /
+                        rec_id / protocol / subgroup / plot_name)
 
-                tasks.append({
-                    "data_io": data_io,
-                    "cluster_id": cluster_id,
-                    "electrode": ec,
-                    "protocol": protocol,
-                    "savename": (figure_dir_analysis / data_io.session_id / 'heatmaps' / protocol / is_sig / plotname)
-                })
+            tasks.append({
+                "data_io": data_io,
+                "cluster_id": cluster_id,
+                "electrode": ec,
+                "protocol": protocol,
+                "savename": savename,
+                "recording_id": rec_id,
+            })
 
-    run_job(
+    print(f'{len(tasks)} tasks')
+
+    figure_files = run_job(
         job_fn=heatmap_per_protocol_slave,
         tasks=tasks,
         num_threads=10,
         debug=DEBUG,
     )
 
+    batch_size = 50
+    for i in range(0, len(figure_files), batch_size):
+        batch = figure_files[i:i+batch_size]
+        with Pool(processes=8) as pool:
+            # Wrap the iterator with tqdm to show progress
+            for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
+                          desc=f"batch {i//batch_size + 1}"):
+                pass  # imap_unordered runs the function and tqdm updates the bar
+
 
 def heatmap_per_protocol_slave(data_io: DataIO,
                                cluster_id: str,
                                electrode: str,
                                protocol: str,
+                               recording_id: str,
                                savename: Path):
     # -----------------------------
     # Parameters
@@ -247,20 +308,32 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     max_z = 8
 
 
-    trials = data_io.train_df.query('protocol == @protocol and electrode == @electrode')
+    trials = data_io.train_df.query(f'protocol == "{protocol}" and electrode == {electrode}'
+                                    f'and rec_id == "{recording_id}"').copy()
 
     frates = []
-    for ti, tid in enumerate(trials.index.values):
+    yticks         = []
+    ytext          = []
+    ytick = 0
+
+    params_to_group_by = params_per_protocol[protocol]
+
+    if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in trials.columns:
+        trials['dac_voltage'] = trials['laser_power']
+
+    for prm_val, df in trials.groupby(params_to_group_by):
+
+        assert df.shape[0] == 1
+        tid = df.iloc[0].train_id
 
         # Get rename + spike train
-        rec_id = trials.loc[tid, 'recording_name']
-        spiketrain = data_io.spiketimes[rec_id][cluster_id]
+        spiketrain = data_io.spiketimes[recording_id][cluster_id]
 
-        # Get burs tonsets
-        if data_io.train_df.loc[tid, 'has_dmd']:
-            burst_onsets = data_io.burst_df.query('train_id == @tid').dmd_burst_onset
+        # Get burst onsets
+        if df.iloc[0]['has_dmd']:
+            burst_onsets = data_io.burst_df.query(f'train_id ==  "{tid}"').dmd_burst_onset
         else:
-            burst_onsets = data_io.burst_df.query('train_id == @tid').laser_burst_onset
+            burst_onsets = data_io.burst_df.query(f'train_id == "{tid}"').laser_burst_onset
 
         n_trains = burst_onsets.size
 
@@ -289,6 +362,13 @@ def heatmap_per_protocol_slave(data_io: DataIO,
         # Get mean firing rate
         mean_fr = np.mean(binned_sp, axis=0)
         frates.append(mean_fr)
+
+        ystr = ''
+        for p, v in zip(params_to_group_by, prm_val):
+            ystr += f'{params_abbreviation[p]}: {v:.0f} | '
+        ytext.append(ystr)
+        yticks.append(ytick)
+        ytick += 1
 
     cell_fr = np.array(frates)
 
@@ -323,7 +403,8 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     # -----------------------------
     fig = make_figure(
         height=2,
-        y_domains={1: [[0.1, 0.99]]}
+        x_domains={1: [[0.25, 0.99]]},
+        y_domains={1: [[0.15, 0.99]]},
     )
 
     fig.add_heatmap(
@@ -342,7 +423,20 @@ def heatmap_per_protocol_slave(data_io: DataIO,
         title_text='time [ms]'
     )
 
-    save_fig(fig=fig, savename=savename, display=False)
+    fig.update_yaxes(
+        tickvals=yticks,
+        ticktext=ytext,
+    )
+
+    # save_fig(fig=fig, savename=savename, display=False)
+    json_savename = savename.with_suffix(".json")
+
+    if not json_savename.parent.exists():
+        json_savename.parent.mkdir(parents=True, exist_ok=True)
+    json_savename.write_text(fig.to_json())
+
+    # print(f'saved: {json_savename}')
+    return str(json_savename)
 
 
 def firing_rate_per_protocol_master(data_io: DataIO):

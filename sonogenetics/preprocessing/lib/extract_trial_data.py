@@ -21,9 +21,10 @@ def extract_trial_data(filepaths: FilePaths):
 
     if df.shape[1] == 0:  # use another delimiter
         df = pd.read_csv(
-            filepaths.raw_trials, index_col=0, header=0,
+            filepaths.raw_trials[0], index_col=0, header=0,
             delimiter=';'
         )
+        print(f'EXTRACT TRIAL DATA: SHOULD CHEC KTHIS')
 
     train_i = 0
     df = df.reset_index(drop = True)
@@ -74,10 +75,12 @@ def extract_trial_data(filepaths: FilePaths):
         laser_specs = None
 
     for i, r in df.iterrows():
-        if 'protocol' in r.keys():
-            sequence_name = r.protocol
-        else:
+        if 'protocol_name' in r.keys():
+            sequence_name = r.protocol_name
+        elif 'sequence_name' in r.keys():
             sequence_name = r.sequence_name
+        else:
+            sequence_name = 'unkown'
 
         if sequence_name in [
             'pa_prr_series', 'pa_light_prr_series', 'pilot_stimparams', 'pa_dose_sequence_1',

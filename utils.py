@@ -2,23 +2,21 @@ import numpy as np
 from pathlib import Path
 import pickle
 
-import pandas as pd
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from plotly.io import write_image
 import os
-import multiprocessing as mp
 import plotly
-import sys
 import h5py
 from pptx import Presentation
 from pptx.util import Inches
 from tqdm import tqdm
-import threading
-from typing import List, Tuple, cast, Optional, Any, Dict, Union, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
+import __main__
+__main__.BootstrapOutput = BootstrapOutput
 
-FIG_SCALE = 5
+FIG_SCALE = 4
 
 def save_obj(obj, savename: Path):
     """
@@ -474,17 +472,22 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
 
 def run_job(job_fn, num_threads, tasks, debug):
 
+    results = []
+
     if not debug:
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             futures = [executor.submit(job_fn, **task) for task in tasks]
 
-            for _ in tqdm(as_completed(futures), total=len(futures)):
-                pass
+            for f in tqdm(as_completed(futures), total=len(futures)):
+                result = f.result()  # collect return value
+                results.append(result)
 
     else:
         for task in tqdm(tasks):
-            job_fn(**task)
+            result = job_fn(**task)
+            results.append(result)
 
+    return results
 
 def interp_color(nsteps, step_nr, scalename, alpha, inverted=False):
     cols = getattr(getattr(plotly.colors, scalename[0]), scalename[1])

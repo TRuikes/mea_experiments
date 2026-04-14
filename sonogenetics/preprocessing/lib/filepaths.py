@@ -115,9 +115,9 @@ class FilePaths:
             assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
             self.mea_position_file = raw_mea_position[0]
 
-            files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
-            assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
-            self.laser_calibration_file = files[0]
+            # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
+            # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
+            # self.laser_calibration_file = files[0]
 
             # define processed files
             self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'

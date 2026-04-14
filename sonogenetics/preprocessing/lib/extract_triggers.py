@@ -3,9 +3,6 @@ from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data
                                          data_trigger_thresholds)
 from sonogenetics.preprocessing.lib.filepaths import FilePaths
 import utils
-from pathlib import Path
-
-
 from tqdm import tqdm
 import numpy as np
 
@@ -45,12 +42,12 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         print(f'\treading data ({rec_duration:.0f} min)')
 
-        trigger_types = []
-        if 'PA' in rec or 'pa' in rec:
-            trigger_types.append('laser')
-
-        if 'DMD' in rec or 'dmd' in rec:
-            trigger_types.append('dmd')
+        trigger_types = ['laser', 'dmd']
+        # if 'PA' in rec or 'pa' in rec:
+        #     trigger_types.append('laser')
+        #
+        # if 'DMD' in rec or 'dmd' in rec:
+        #     trigger_types.append('dmd')
 
         assert len(trigger_types) > 0, 'no trigger types found!'
 
@@ -131,6 +128,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     fig.update_yaxes(tickvals=np.arange(0, 500, 4500), title_text='voltage [mV]')
                     savename = filepaths.proc_pp_figure_output / 'triggers' / rec / trigger_type / f'{i}'
                     utils.save_fig(fig, savename, display=False, verbose=False)
+
+            if trigger_high.size == 0:
+                print(F'{rec} does not have {trigger_type}')
+                continue
 
             # Process laser trigger times
             dt = np.diff(trigger_high)  # time difference between triggers, in ms

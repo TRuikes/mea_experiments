@@ -1,5 +1,8 @@
+# Dataset dir is the topfolder containing all folders with sessions data
 # dataset_dir = r'D:\BU_IDV_hydrogel\ex_vivo'  # laptop
-dataset_dir = r'D:\sono'  # pc
+# dataset_dir = r'D:\sono'  # pc
+dataset_dir = r'C:\thijs\sono_data'
+# dataset_dir = r'E:\sono'
 
 data_trigger_channels = dict(
     dmd=127,
