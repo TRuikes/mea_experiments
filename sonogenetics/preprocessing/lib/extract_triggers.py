@@ -29,7 +29,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         if SKIP_RECORDING:
             continue
 
-        print(f'\treading recording: {rec}')
+        print(f'\n\n\treading recording: {rec}')
 
         trigger_data[rec] = {}
 

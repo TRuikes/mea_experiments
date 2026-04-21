@@ -7,6 +7,6 @@ data_list = [
     # '2026-03-25 mouse c57 617 Mekano6 B',
     # '2026-03-25 mouse c57 617 Mekano6 C',
     '2026-04-08 mouse c57 621 Mekano4 A',
-    '2026-04-08 mouse c57 621 Mekano4 B'
+    # '2026-04-08 mouse c57 621 Mekano4 B'
 
 ]
