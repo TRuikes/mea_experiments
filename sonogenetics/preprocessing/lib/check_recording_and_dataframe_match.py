@@ -28,12 +28,24 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
         train_df_check = train_df.loc[train_df['Recording Number'] == rec_nr]
 
         if 'PA' in rec_id or 'buSTIM1' in rec_id or 'pilot_021126' in rec_id or 'pilot021626' in rec_id or 'pa' in rec_id:
+
             pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
             print(f'{rec_id} - len train onsets: {len(pa_train_onsets)}')
             pa_n_train_recording = len(pa_train_onsets)
 
             pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
             pa_n_bursts_triggers = len(pa_burst_onsets)
+
+            # import numpy as np
+            # for i in range(pa_n_train_recording-1):
+            #     t0 = pa_train_onsets[i]
+            #     t1 = pa_train_onsets[i+1]
+            #     idx = np.where((pa_burst_onsets >= t0) & (pa_burst_onsets < t1))[0]
+            #     # print(idx.size)
+            #
+            #     dt = triggers[rec_id]['laser']['burst_offsets'][idx] - pa_burst_onsets[idx]
+            #     print(f'{np.mean(dt):.1f}')
+
 
             print(f'\tAdding PA triggers')
             has_triggers = True
