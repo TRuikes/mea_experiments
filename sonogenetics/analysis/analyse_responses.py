@@ -13,42 +13,10 @@ from typing import List, Tuple, cast, Any, Dict, Union
 from pathlib import Path
 
 import utils
-from sonogenetics.analysis.lib.analysis_params import dataset_dir
+from sonogenetics.analysis.lib.analysis_params import dataset_dir, data_list
 from sonogenetics.analysis.lib.data_io import DataIO
 
-
-class BootstrapOutput:
-    bins=None  # type: np.ndarray
-    bin_size=None  # type: int
-    binned_sp=None  # type: np.ndarray
-    spike_times=None
-
-    firing_rate=None  # type: np.ndarray
-    firing_rate_ci_low=None  # type: np.ndarray
-    firing_rate_ci_high=None  # type: np.ndarray
-
-    baseline_firing_rate=None
-
-    is_excited=None
-    excitation_bins=None
-    excitation_max_fr=None
-    excitation_start=None
-    excitation_duration=None
-    excitation_end=None
-
-    is_inhibited=None
-    inhibition_bins=None
-    inhibition_min_fr=None
-    inhibition_start=None
-    inhibition_duration=None
-    inhibition_end=None
-
-    has_data=False
-    reason='none'
-
-    def get(self, name):
-        assert hasattr(self, name), f'{name} not in attributes'
-        return getattr(self, name)
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 
 DEBUG = True
 
@@ -58,53 +26,37 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
 
-    # session_id = data_io.sessions[0]
-    print(f'Loading data: {session_id}')
-    data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
-    data_io.dump_as_pickle()
+    for session_id in data_list:
 
-    data_io.lock_modification()
+        # session_id = data_io.sessions[0]
+        print(f'Loading data: {session_id}')
+        data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
+        data_io.dump_as_pickle()
 
-    # Analyse the cell responses following the triggers
-    analyse_responses(data_io, dataset_dir / 'bootstrapped')
+        data_io.lock_modification()
 
-    data_io.unlock_modification()
+        # Analyse the cell responses following the triggers
+        analyse_responses(data_io, dataset_dir / 'bootstrapped')
 
-    # Gather all the response statistics into a single table
-    gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+        data_io.unlock_modification()
 
-    print('Done')
+        # Gather all the response statistics into a single table
+        gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+
+        print('Done')
 
 
 def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Path):
     """
     gathers output from detect_significant_responses into a single dataframe`
     """
-
-    # Names to store into cells dataframe
-    names_to_register = [
-        'is_excited',
-        'is_inhibited',
-
-        'excitation_max_fr',
-        'excitation_start',
-        'excitation_duration',
-
-        'inhibition_min_fr',
-        'inhibition_start',
-        'inhibition_duration',
-
-        'baseline_firing_rate',
-        # 'laser_distance',
-
-    ]
+    bootstrap_example = BootstrapOutput()
 
     # Setup pandas dataframe
     columns: List[Tuple[str, str]] = []
     for train_id in data_io.train_df.index.values:
-        for n in names_to_register:
+        for n in bootstrap_example.single_value_stats:
             columns.append((train_id,n))
     multi_index = pd.MultiIndex.from_tuples(columns)
 
@@ -129,7 +81,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
             d = np.sqrt((cluster_x - laser_x)**2 + (cluster_y - laser_y)**2)
             cell_responses.at[cluster_id, (tid, 'laser_distance')] = d
 
-            for n in names_to_register:
+            for n in tdata.single_value_stats:
                 cell_responses.at[cluster_id, (tid, n)] = data[tid].get(n)
 
     cell_responses.to_csv(savename)

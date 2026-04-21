@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 from sonogenetics.analysis.lib.data_io import DataIO
-from sonogenetics.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session
+from sonogenetics.analysis.lib.display_tools import generate_heatmaps_session
 
 def main():
     # Setup session ID + create figure output directory

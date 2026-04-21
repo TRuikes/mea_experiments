@@ -16,16 +16,44 @@ params_per_protocol = {
     'rec_3_B_20260325_dmd_full_field': ['dmd_onset_delay'],
     'rec_4_A_20260325_dmd_full_field': ['dmd_onset_delay'],
     'pilot_stimparams': ['dac_voltage', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
+    'pa_intensity_test': ['laser_power', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
+    'pa_dose_sequence': ['laser_power', 'laser_pulse_repetition_rate', 'laser_burst_duration'],
+    'pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay'],
+
+    'dmd_fullfield': ['dmd_intensity'],
 
 }
+
+def get_params_protocol(protocol_name):
+    if protocol_name in params_per_protocol.keys():
+        return params_per_protocol[protocol_name]
+
+    elif 'pa_intensity' in protocol_name or 'pa_extremes' in protocol_name:
+        return params_per_protocol['pa_intensity_test']
+
+    elif 'pa_dose_sequence' in protocol_name:
+        return params_per_protocol['pa_dose_sequence']
+
+    elif 'pa_dmd_pilot' in protocol_name:
+        return params_per_protocol['pa_dmd_pilot1']
+
+    elif 'pa_dmd_timing' in protocol_name:
+        return params_per_protocol['pa_dmd_timing']
+
+    elif 'dmd_fullfield' in protocol_name:
+        return params_per_protocol['dmd_fullfield']
+
+    else:
+        raise ValueError(f'{protocol_name}')
 
 params_abbreviation = {
     'laser_onset_delay':'l-del',
     'laser_burst_duration': 'l-bd',
-    'laser_pulse_repetition_rate': 'l-pp',
+    'laser_pulse_repetition_rate': 'l-prr',
     'dac_voltage': 'l-pwr',
     'laser_power': 'l-pwr',
     'dmd_onset_delay': 'd-del',
+    'dmd_intensity': 'd-int',
 }
 
 
@@ -42,13 +70,17 @@ def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame) -> Dict[
 
             pref_ec = None
             n_sig_pref_ec = None
-
+            # print(cluster_id)
             for ec, edf in rdf.groupby('electrode'):
                 n_sig = 0
 
+
                 for tid in edf.index.values:
+                    # print(cells_df.loc[cluster_id, (tid, 'is_excited')])
                     if cells_df.loc[cluster_id, (tid, 'is_excited')] == True or cells_df.loc[cluster_id, (tid, 'is_inhibited')] == True:
                         n_sig += 1
+
+                # print(f'{ec} {n_sig}')
 
                 if n_sig > 0:
                     if pref_ec is None or n_sig > n_sig_pref_ec:

@@ -1,7 +1,7 @@
-from sonogenetics.analysis.lib.analysis_tools import detect_preferred_electrode, params_per_protocol, params_abbreviation
+from sonogenetics.analysis.lib.analysis_tools import detect_preferred_electrode, get_params_protocol, params_abbreviation
 from sonogenetics.analysis.lib.data_io import DataIO
 from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
-from utils import load_obj, make_figure, run_job, save_fig
+from utils import load_obj, make_figure, run_job, update_subplot_titles
 import numpy as np
 from typing import List, Any, Dict
 import pandas as pd
@@ -13,7 +13,7 @@ import plotly.io as pio
 from tqdm import tqdm
 from multiprocessing import Pool
 
-DEBUG = False
+DEBUG = True
 
 def write_figure(json_file_path):
     if json_file_path is None:
@@ -122,8 +122,7 @@ def plot_raster_single_cluster(data_io: DataIO,
 
     cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
 
-    assert protocol in params_per_protocol.keys(), f'{protocol}'
-    params_to_group_by = params_per_protocol[protocol]
+    params_to_group_by = get_params_protocol(protocol)
 
     if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in d_select.columns:
         d_select['dac_voltage'] = d_select['laser_power']
@@ -249,6 +248,9 @@ def generate_heatmaps_session(data_io: DataIO, sig_only=True):
 
     for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
         for cluster_id in cluster_ids:
+            if cluster_id not in pref_ec[rec_id][protocol].index.values:
+                continue
+
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
                 subgroup = 'significant'
             else:
@@ -316,13 +318,15 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     ytext          = []
     ytick = 0
 
-    params_to_group_by = params_per_protocol[protocol]
+    params_to_group_by = get_params_protocol(protocol)
 
     if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in trials.columns:
         trials['dac_voltage'] = trials['laser_power']
 
     for prm_val, df in trials.groupby(params_to_group_by):
 
+        if df.shape[0] != 1:
+            print('?')
         assert df.shape[0] == 1
         tid = df.iloc[0].train_id
 
@@ -439,7 +443,7 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     return str(json_savename)
 
 
-def firing_rate_per_protocol_master(data_io: DataIO):
+def firing_rate_per_protocol_master(data_io: DataIO, sig_only=True):
     cluster_ids = data_io.cluster_df.index.values
     print(f'saving data in: {figure_dir_analysis / "firing_rates"}')
 
@@ -450,40 +454,45 @@ def firing_rate_per_protocol_master(data_io: DataIO):
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for protocol in data_io.burst_df.protocol.unique():
-
-        if protocol not in ['pa_dose_sequence_1']:
-            continue
-        stimsites = data_io.burst_df.query('protocol == @protocol').electrode.unique()
-
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
         for cluster_id in cluster_ids:
+            if cluster_id not in pref_ec[rec_id][protocol].index.values:
+                continue
 
-            ec = pref_ec[protocol].loc[cluster_id, 'ec']
-
-            if ec is None:
-                ecs = stimsites
-                is_sig = 'not_sig'
+            if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
+                subgroup = 'significant'
             else:
-                ecs = [ec]
-                is_sig = 'sig'
+                subgroup = 'not_selected'
+                if sig_only:
+                    continue
 
-            for ec in ecs:
-                plotname = f'{cluster_id}_{ec}_{protocol}'
+            plotname = f'{cluster_id}_{ec}_{protocol}'
+            savename = (figure_dir_analysis / data_io.session_id / 'firing_rates' /
+                        rec_id / protocol / subgroup / plotname)
 
-                tasks.append({
-                    "data_io": data_io,
-                    "cluster_id": cluster_id,
-                    "electrode": ec,
-                    "protocol": protocol,
-                    "savename": (figure_dir_analysis / data_io.session_id / 'firing_rate' / protocol / is_sig / plotname)
-                })
+            tasks.append({
+                "data_io": data_io,
+                "cluster_id": cluster_id,
+                "electrode": ec,
+                "protocol": protocol,
+                "savename": savename,
+            })
 
-    run_job(
+    figure_files = run_job(
         job_fn=firing_rate_per_protocol_slave,
         tasks=tasks,
         num_threads=10,
         debug=DEBUG,
     )
+
+    batch_size = 50
+    for i in range(0, len(figure_files), batch_size):
+        batch = figure_files[i:i+batch_size]
+        with Pool(processes=8) as pool:
+            # Wrap the iterator with tqdm to show progress
+            for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
+                          desc=f"batch {i//batch_size + 1}"):
+                pass  # imap_unordered runs the function and tqdm updates the bar
 
 
 def firing_rate_per_protocol_slave(data_io: DataIO,
@@ -494,36 +503,38 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
     # -----------------------------
     # Parameters
     # -----------------------------
-    t_pre = 100
-    t_after = 200
-    stepsize = 5
-    binwidth = 30
 
-    smooth_sigma = 3
-    baseline_t0 = -120
-    baseline_t1 = 0
+    cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
+
+
+    # t_pre = 100
+    # t_after = 200
+    # stepsize = 5
+    # binwidth = 30
+
+    # smooth_sigma = 3
+    # baseline_t0 = -120
+    # baseline_t1 = 0
+
+    recording_id = data_io.recording_ids[0]
 
     clrs = ProjectColors()
 
-
-    fig = make_figure(
-        width=1,
-        height=2,
-        x_domains={
-            1: [[0.05, 0.3], [0.35, 0.6], [0.65, 0.9]],
-            2: [[0.05, 0.3], [0.35, 0.6], [0.65, 0.9]],
-            3: [[0.05, 0.3], [0.35, 0.6], [0.65, 0.9]],
-        },
-        y_domains={
+    fig_x_domains ={
+            1: [[0.02, 0.27], [0.32, 0.57], [0.62, 0.87]],
+            2: [[0.02, 0.27], [0.32, 0.57], [0.62, 0.87]],
+            3: [[0.02, 0.27], [0.32, 0.57], [0.62, 0.87]],
+        }
+    fig_y_domains = {
             1: [[0.7, 0.9], [0.7, 0.9], [0.7, 0.9]],
             2: [ [0.4, 0.6], [0.4, 0.6], [0.4, 0.6]],
             3: [[0.1, 0.3], [0.1, 0.3], [0.1, 0.3]],
-        },
-        subplot_titles={
-            1:[f'ppr=6 kHz P=5', 'P=6', 'P=7'],
-            2:['bd=20 prr=4kHz', 'prr=6kHz', ''],
-            3:['bd=20 P=5', 'P=6', 'P=7']
-        },
+    }
+    fig = make_figure(
+        width=1,
+        height=2,
+        x_domains=fig_x_domains,
+        y_domains=fig_y_domains,
         xticks=[], yticks=[],
     )
 
@@ -535,128 +546,124 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
     # Configuration for each row
     row_configs = [
         {
-            "query_params": {"laser_pulse_repetition_rate": 6000},
+            "fixed_param": 'laser_pulse_repetition_rate',
             "groupby": ['train_id', 'dac_voltage', 'laser_burst_duration'],
-            "col_map": {5000: 1, 6000: 2, 7000: 3},
             "plotrow": 1,
             "col_field": "dac_voltage",
             "clr_field": "laser_burst_duration",
         },
         {
-            "query_params": {"laser_burst_duration": 20},
+            "fixed_param": 'laser_burst_duration',
             "groupby": ['train_id', 'dac_voltage', 'laser_pulse_repetition_rate'],
-            "col_map": {4000: 1, 6000: 2},
             "plotrow": 2,
             "col_field": "laser_pulse_repetition_rate",
             "clr_field": "dac_voltage",
         },
         {
-            "query_params": {"laser_burst_duration": 20},
+            "fixed_param": 'laser_burst_duration',
             "groupby": ['train_id', 'dac_voltage', 'laser_pulse_repetition_rate'],
-            "col_map": {5000: 1, 6000: 2, 7000: 3},
             "plotrow": 3,
             "col_field": "dac_voltage",
             "clr_field": "laser_pulse_repetition_rate",
         },
     ]
 
+    subplot_titles = {}
     r_min, r_max = {}, {}
 
+    if 'dac_voltage' not in data_io.train_df.columns:
+        data_io.train_df['dac_voltage'] = data_io.train_df['laser_power']
+
     for cfg in row_configs:
-        tdf = data_io.train_df.query('protocol == @protocol and electrode == @electrode and ' +
-                                     ' & '.join(f"{k} == {v}" for k, v in cfg["query_params"].items()))
 
-        for keys, df in tdf.groupby(cfg["groupby"]):
-            # keys can be a tuple even if single
-            col_ref_val = keys[cfg["groupby"].index(cfg["col_field"])]
-            col = cfg["col_map"].get(col_ref_val)
-            if col is None:
-                continue
+        plotrow = cfg["plotrow"]
 
-            plotrow = cfg["plotrow"]
+        # Find the fixed parameter and its fixed values
+        fixed_name = cfg['fixed_param']
+        fixed_val = data_io.train_df[fixed_name].max()
 
-            pos = dict(row=plotrow, col=col)
+        tdf = data_io.train_df.query(
+            f'rec_id == "{recording_id}" and '
+            f'protocol == "{protocol}" and '
+            f'electrode == {electrode} and '
+            f'{fixed_name} == {fixed_val}')
 
-            # Get rename + spike train
-            tid = keys[0]
-            rec_id = tdf.loc[tid, 'recording_name']
-            spiketrain = data_io.spiketimes[rec_id][cluster_id]
+        # Find the parameter to spread over the columns and its values
+        col_name = cfg['col_field']
+        col_values = tdf[col_name].unique()
 
-            # Get burs tonsets
-            if data_io.train_df.loc[tid, 'has_dmd']:
-                burst_onsets = data_io.burst_df.query('train_id == @tid').dmd_burst_onset
-            else:
-                burst_onsets = data_io.burst_df.query('train_id == @tid').laser_burst_onset
+        if len(col_values) > 3:
+            col_values = np.sort(col_values[-3:])
 
-            n_trains = burst_onsets.size
+        for col_i, col_value in enumerate(col_values):
+            cdf = tdf.query(f'{col_name} == {col_value}')
 
-            # Placeholder to extract data into
-            bin_centres = np.arange(-t_pre, t_after, stepsize)
-            n_bins = bin_centres.size
+            # Find the parameter and values to spread voer the colors in this subplot
+            clr_name = cfg['clr_field']
+            clr_values = cdf[clr_name].unique()
+            pos = dict(row=plotrow, col=col_i + 1)
 
-            # --- Robust baseline indexing ---
-            baseline_mask = (bin_centres >= baseline_t0) & (bin_centres < baseline_t1)
-            if not np.any(baseline_mask):
-                raise ValueError("Baseline window outside bin range.")
+            skey = (plotrow, col_i + 1)
+            if skey not in subplot_titles.keys():
+                if col_i == 0:
+                    txt = f'{params_abbreviation[fixed_name]}: {fixed_val:.0f} | '
+                else:
+                    txt = ''
+                txt += f'{params_abbreviation[col_name]}: {col_value:.0f}'
 
-            # Get spikes per bin
-            binned_sp = np.zeros((n_trains, n_bins))
+                subplot_titles[skey] = txt
 
-            for burst_i, burst_onset in enumerate(burst_onsets):
-                for bin_i, bin_centre in enumerate(bin_centres):
-
-                    # symmetric bin (recommended)
-                    t0 = burst_onset + bin_centre - binwidth / 2
-                    t1 = burst_onset + bin_centre + binwidth / 2
-
-                    count = np.sum((spiketrain >= t0) & (spiketrain < t1))
-                    binned_sp[burst_i, bin_i] = count
-
-            # Get mean firing rate
-            mean_fr = np.mean(binned_sp, axis=0)
-
-            # -----------------------------
-            # Optional smoothing
-            # -----------------------------
-            if smooth_sigma > 0:
-                mean_fr = gaussian_filter1d(mean_fr, sigma=smooth_sigma)
-
-            mean_fr = mean_fr / (binwidth / 1000)
-
-            plot_id = (plotrow, col)
-            if plot_id not in r_min.keys():
-                r_min[plot_id] = np.min(mean_fr)
-            else:
-                if np.min(mean_fr) < r_min[plot_id]:
-                    r_min[plot_id] = np.min(mean_fr)
-
-            if plot_id not in r_max.keys():
-                r_max[plot_id] = np.max(mean_fr)
-            else:
-                if np.max(mean_fr) > r_max[plot_id]:
-                    r_max[plot_id] = np.max(mean_fr)
+            for clr_value in clr_values:
+                plot_df = cdf.query(f'{clr_name} == {clr_value}')
+                assert plot_df.shape[0] == 1
 
 
-            clr_ref_val = keys[cfg["groupby"].index(cfg["clr_field"])]
+                train_id = plot_df.iloc[0].train_id
 
-            if cfg["clr_field"] == 'laser_burst_duration':
-                clr = clrs.burst_duration(clr_ref_val)
-            elif cfg["clr_field"] == 'laser_pulse_repetition_rate':
-                clr = clrs.laser_prr(clr_ref_val)
-            elif cfg["clr_field"] == 'dac_voltage':
-                clr =clrs.min_max_map(val=clr_ref_val, min_val=2000, max_val=8000)
-            else:
-                raise ValueError('')
 
-            fig.add_scatter(
-                x=bin_centres,
-                y=mean_fr,
-                mode='lines',
-                name=f'',
-                showlegend=False if col > 1 else False,
-                line=dict(color=clr, width=1.5),
-                **pos,
-            )
+                if train_id not in cluster_data.keys():
+                    continue
+
+                bins = cluster_data[train_id].get('bins')
+                firing_rate = cluster_data[train_id].get('firing_rate')
+                # firing_rate_ci_low = cluster_data[tid].get('firing_rate_ci_low')
+                # firing_rate_ci_high = cluster_data[tid].get('firing_rate_ci_high')
+
+                plot_id = (plotrow, col_i + 1)
+                if plot_id not in r_min.keys():
+                    r_min[plot_id] = np.min(firing_rate)
+                else:
+                    if np.min(firing_rate) < r_min[plot_id]:
+                        r_min[plot_id] = np.min(firing_rate)
+
+                if plot_id not in r_max.keys():
+                    r_max[plot_id] = np.max(firing_rate)
+                else:
+                    if np.max(firing_rate) > r_max[plot_id]:
+                        r_max[plot_id] = np.max(firing_rate)
+
+                if cfg["clr_field"] == 'laser_burst_duration':
+                    clr = clrs.burst_duration(clr_value)
+                elif cfg["clr_field"] == 'laser_pulse_repetition_rate':
+                    clr = clrs.laser_prr(clr_value)
+                elif cfg["clr_field"] == 'dac_voltage':
+                    clr =clrs.min_max_map(val=clr_value, min_val=2000, max_val=8000)
+                else:
+                    raise ValueError('')
+
+                fig.add_scatter(
+                    x=bins,
+                    y=firing_rate,
+                    mode='lines',
+                    name=f'{params_abbreviation[clr_name]}: {clr_value:.0f}',
+                    showlegend=True if col_i == 0 else False,
+                    legendgroup=f'{pos["row"]}',
+                    line=dict(color=clr, width=1.5),
+                    **pos,
+                )
+
+    if len(r_min.keys()) == 0:
+        return None
 
     row_positions = [
         (row, col)
@@ -692,9 +699,10 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
 
             fig.update_xaxes(
                 tickvals=np.arange(-200, 500, 50),
+                range=[-100, 200],
                 row=row, col=col,
                 ticklen=1.5, tickwidth=0.5,
-                ticktext=np.arange(-200, 500, 50) if col == 1 else ['' for _ in range(10)],
+                ticktext=np.arange(-200, 500, 50),
 
             )
 
@@ -703,20 +711,39 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
         legend=dict(
             xanchor='left',
             x=0.85,
+            yanchor='middle',
+            y=0.5,
             xref='paper',
             entrywidth=0.1,
             itemwidth=30,
         )
     )
 
-    save_fig(fig=fig, savename=savename, display=False)
+    fig = update_subplot_titles(fig,
+                                x_domains=fig_x_domains,
+                                y_domains=fig_y_domains,
+                                subplot_titles=subplot_titles,)
+
+    # save_fig(fig=fig, savename=savename, display=False)
+    json_savename = savename.with_suffix(".json")
+
+    if not json_savename.parent.exists():
+        json_savename.parent.mkdir(parents=True, exist_ok=True)
+    json_savename.write_text(fig.to_json())
+
+    # print(f'saved: {json_savename}')
+    return str(json_savename)
+
+
 
 if __name__ == '__main__':
     dd = DataIO(dataset_dir)
     session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
     dd.load_session(session_id, load_pickle=True, load_waveforms=False)
-    dd.dump_as_pickle()
+    # dd.dump_as_pickle()
 
     # plot_raster_per_protocol(dd)
     # plot_response_heatmap_per_protocol(dd)
-    firing_rate_per_protocol_master(dd)
+    res = firing_rate_per_protocol_slave(data_io=dd, cluster_id=dd.cluster_ids[3], electrode=47, protocol='pa_dose_sequence_1',
+                                   savename=figure_dir_analysis / 'test')
+    write_figure(res)
