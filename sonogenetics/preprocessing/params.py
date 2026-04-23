@@ -13,7 +13,6 @@ data_trigger_thresholds = dict(
     dmd=1000,
 
 )
-
 data_sample_rate = 2e4
 data_type = 'uint16'
 data_nb_channels = 256

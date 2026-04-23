@@ -63,7 +63,7 @@ def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame) -> Dict[
 
     # Detect per recording + protocol pair the most responsive stimulation site for each cell
     # Most responsive stimsite = electrode with most significant responses.
-    for (rec_id, protocol), rdf in data_io.train_df.groupby(['rec_id', 'protocol']):
+    for (rec_id, protocol), rdf in data_io.train_df.groupby(['rec_id', 'protocol_name']):
         pref_ec_df = pd.DataFrame()
 
         for cluster_id in cells_df.index.tolist():

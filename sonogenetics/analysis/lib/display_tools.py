@@ -41,7 +41,7 @@ def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
     tasks: List[Dict[str, Any]] = []
 
     for (rec_id, protocol, ec), df in data_io.train_df.groupby(
-            ['rec_id', 'protocol', 'electrode']):
+            ['rec_id', 'protocol_name', 'electrode']):
 
         for cluster_id in data_io.cluster_ids:
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
@@ -113,7 +113,7 @@ def plot_raster_single_cluster(data_io: DataIO,
 
     d_select = data_io.burst_df.query(f'electrode == {electrode} and '
                                       f'rec_id == "{recording_id}" and '
-                                      f'protocol == "{protocol}"').copy()
+                                      f'protocol_name == "{protocol}"').copy()
 
     if len(d_select) == 0:
         print(f'cid: {cluster_id}, rid: {recording_id}, ec: {electrode}')
@@ -246,7 +246,7 @@ def generate_heatmaps_session(data_io: DataIO, sig_only=True):
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol_name', 'electrode']):
         for cluster_id in cluster_ids:
             if cluster_id not in pref_ec[rec_id][protocol].index.values:
                 continue
@@ -310,7 +310,7 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     max_z = 8
 
 
-    trials = data_io.train_df.query(f'protocol == "{protocol}" and electrode == {electrode}'
+    trials = data_io.train_df.query(f'protocol_name == "{protocol}" and electrode == {electrode}'
                                     f'and rec_id == "{recording_id}"').copy()
 
     frates = []

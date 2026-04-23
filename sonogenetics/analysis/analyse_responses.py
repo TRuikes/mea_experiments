@@ -18,7 +18,7 @@ from sonogenetics.analysis.lib.data_io import DataIO
 
 from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 
-DEBUG = True
+DEBUG = False
 
 
 def main():
