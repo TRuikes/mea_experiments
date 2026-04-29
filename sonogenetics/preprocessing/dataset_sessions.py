@@ -18,4 +18,5 @@ dataset_sessions = {
     # '2026-04-14 mouse c57 612 eMSCL A': dict(skip_triggers=[1, 2]),
     # '2026-04-16 mouse c57 614 Mekano6 A': dict(skip_triggers=[1]),
     # '2026-04-16 mouse c57 614 Mekano6 B': dict(skip_triggers=[1]),
+    '2026-04-16 mouse c57 614 Mekano6 C': dict(skip_triggers=[1]),
 }
