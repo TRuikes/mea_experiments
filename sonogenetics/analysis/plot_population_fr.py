@@ -14,190 +14,6 @@ colors = {
 
 
 
-def plot_firing_rate(data_io: DataIO):
-    loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
-    cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
-    pref_ec = detect_preferred_electrode(data_io, cells_df)
-
-    burst_duration = 20
-    laser_prr = 4000
-
-    assert burst_duration in data_io.train_df.laser_burst_duration.values
-    assert laser_prr in data_io.train_df.laser_pulse_repetition_rate.values
-
-    for rec_id, rdict in pref_ec.items():
-        for protocol, pdf in rdict.items():
-
-            if 'dmd' in protocol:
-                continue
-
-            # Make figure
-            date, species, strain, animal_id, channel, slice_nr = data_io.session_id.split()
-            fig = make_figure(
-                width=0.5,
-                height=0.8,
-                subplot_titles={1: [f'{channel} {animal_id}']}
-            )
-
-            cell_cat_df = pd.DataFrame()
-
-            for cluster_id, cinfo in pdf.iterrows():
-
-                if pd.isna(cinfo.ec):
-                    continue
-
-                trials = data_io.train_df.query(
-                    f'protocol == "{protocol}" and '
-                    f'rec_id == "{rec_id}" and '
-                    f'electrode == {cinfo.ec} and '
-                    f'laser_burst_duration == {burst_duration} and '
-                    f'laser_pulse_repetition_rate == {laser_prr}'
-                )
-
-                n_trials = len(trials)
-
-                cell_bs_fr = np.zeros(n_trials)
-                cell_fr = np.zeros(n_trials)
-                cell_prr = np.zeros(n_trials)
-                cell_pwr = np.zeros(n_trials)
-                cell_clr = []
-
-                train_i = 0
-                for train_id, tinfo in trials.iterrows():
-                    cell_prr[train_i] = tinfo.laser_pulse_repetition_rate
-                    if 'dac_voltage' not in tinfo.keys():
-                        pwr = tinfo.laser_power
-                    else:
-                        pwr = tinfo.dac_voltage
-
-                    cell_pwr[train_i] = pwr
-                    cell_bs_fr[train_i] = cells_df.loc[cluster_id, train_id]['baseline_firing_rate_max']
-
-                    is_excited = cells_df.loc[cluster_id, train_id]['is_excited']
-                    is_inhibited = cells_df.loc[cluster_id, train_id]['is_inhibited']
-                    if is_excited:
-
-                        cell_fr[train_i] = cells_df.loc[cluster_id, train_id]['excitation_max_fr']
-                        cell_clr.append('red')
-
-                    elif is_inhibited:
-                        cell_fr[train_i] = cells_df.loc[cluster_id, train_id]['inhibition_min_fr']
-                        cell_clr.append('blue')
-                    else:
-                        cell_fr[train_i] = cells_df.loc[cluster_id, train_id]['max_response_if_not_sig']
-                        cell_clr.append('black')
-
-                    if is_excited and is_inhibited:
-                        cat = 'ex_in'
-                    elif is_excited and not is_inhibited:
-                        cat = 'ex'
-                    elif not is_excited and is_inhibited:
-                        cat = 'in'
-                    else:
-                        cat = 'none'
-
-                    cell_cat_df.at[cluster_id, pwr] = cat
-
-                    train_i += 1
-
-                cell_fr = cell_fr - cell_bs_fr
-                cell_bs_fr = cell_bs_fr - cell_bs_fr
-                # cell_bs_fr = cell_bs_fr / fr_max
-                # cell_fr = cell_fr / fr_max
-
-                plot_x = []
-                plot_y = []
-                plot_clr = []
-                for i in range(n_trials):
-                    jitter = np.random.randint(-50, 50, 1)[0]
-                    plot_x.extend([cell_pwr[i] - 250 + jitter, cell_pwr[i] + jitter, None])
-                    plot_y.extend([cell_bs_fr[i], cell_fr[i], None])
-                    plot_clr.extend(['black', cell_clr[i], 'black'])
-
-                plot_x = np.array(plot_x)
-                plot_y = np.array(plot_y)
-
-                fig.add_scatter(
-                    x=plot_x,
-                    y=plot_y,
-                    mode='lines+markers',
-                    line=dict( width=0.5, color='grey'),
-                    marker=dict(size=5, color=plot_clr),
-                    showlegend=False,
-                )
-
-            trials = data_io.train_df.query(
-                f'protocol == "{protocol}" and '
-                f'rec_id == "{rec_id}" and '
-                f'laser_burst_duration == {burst_duration}'
-            )
-            pwrs = cell_cat_df.columns
-
-
-            fig.update_xaxes(
-                title_text="Laser power [controller setting]",
-                tickvals=pwrs,
-                ticktext=pwrs,
-            )
-
-            fig.update_yaxes(
-                title_text="\u0394 FR. [Hz]",
-                tickvals=np.arange(-100, 200, 50),
-            )
-            savename = figure_dir_analysis / 'population_firing_rates' / f'{animal_id}_{channel}_{rec_id}_{protocol}_firing_rates'
-            save_fig(fig=fig, savename=savename, display=False)
-
-            pwrs = np.sort(cell_cat_df.columns)
-            n_pwrs = cell_cat_df.shape[1]
-            if n_pwrs == 0:
-                print('hi')
-            x_dom = []
-            y_dom = []
-            x_spacing = 0.05
-            x_offset = 0.1
-            x_width = (1 - 2 * x_offset - (n_pwrs-1) * x_spacing) / n_pwrs
-
-            for i in range(n_pwrs):
-                x0 = x_offset + i * (x_width + x_spacing)
-                x_dom.append([x0, x0+x_width])
-                y_dom.append([0.1, 0.9])
-
-            fig_pie = make_figure(
-                width=1,
-                height=1,
-                x_domains={1: x_dom},
-                y_domains={1: y_dom},
-                specs=[[{'type': 'domain'} for _ in range(n_pwrs)]],
-                subplot_titles={1: [f'power: {pwr:.0f}' for pwr in pwrs]}
-            )
-            order = ['ex_in', 'ex', 'in', 'none']
-            colors  =['#C77DFF', '#FF6B6B', '#4CC9F0', '#111827']
-
-            for i, pwr in enumerate(pwrs):
-                counts = cell_cat_df[pwr].value_counts().reindex(order, fill_value=0)
-
-                fig_pie.add_pie(
-                    values=counts.values,
-                    labels=counts.index,
-                    marker=dict(colors=colors),
-                    textinfo='label+percent',  # show labels on slices
-                    textposition='inside',
-                    direction="clockwise",
-                    pull=[0.01, 0.01, 0.01, 0],
-                    sort=False,
-                    row=1,
-                    col=i+1,
-
-                )
-
-            fig_pie.update_layout(
-                showlegend=False,
-            )
-            savename = figure_dir_analysis / 'population_firing_rates' / f'{animal_id}_{channel}_{rec_id}_{protocol}_pie'
-            save_fig(fig=fig_pie, savename=savename, display=False)
-
-
-
 def get_stats(data_io: DataIO):
     loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
     cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
@@ -214,6 +30,7 @@ def get_stats(data_io: DataIO):
     row_i = 0
 
     for rec_id in data_io.recording_ids:
+        print(rec_id)
         for (protocol, electrode), pdf in data_io.train_df.query(f'rec_id == "{rec_id}"').groupby(['protocol', 'electrode']):
             if 'dmd' in protocol:
                 continue
@@ -287,6 +104,7 @@ def get_stats(data_io: DataIO):
 
                     elif is_inhibited:
                         cell_cat_df.at[row_i, 'latency'] = cells_df.loc[cluster_id, (train_id, 'inhibition_start')]
+                        cell_cat_df.at[row_i, 'fr'] = cells_df.loc[cluster_id, (train_id, 'inhibition_min_fr')]
 
 
                     row_i += 1
@@ -362,6 +180,47 @@ def plot_frac_responding_per_power(cell_cat_df):
         savename = figure_dir_analysis / 'barplots_frac_cells' / f'{channel}_{rec_id}_pie'
         save_fig(fig=fig, savename=savename, display=True)
 
+def plot_firing_rate(cell_cat_df: pd.DataFrame):
+
+    channel = cell_cat_df.iloc[0].channel
+    for (rec_id, protocol), rdf in cell_cat_df.groupby(['rec_id', 'protocol']):
+
+        fig = make_figure(
+            width=0.7,
+            height=0.6,
+        )
+
+        pwrs = np.sort(rdf.pwr.unique())
+        cats = ['ex', 'in', 'none']
+        for pi, pwr in enumerate(pwrs):
+            for ci, cat in enumerate(cats):
+                x = pi * 4 + ci
+                df = rdf.query(f'pwr == {pwr} and cat == "{cat}"')
+                y = df.fr.values
+
+                fig.add_violin(
+                    x=np.ones_like(y) * x,
+                    y=y,
+                    marker=dict(color=colors[cat]),
+                    points='all',
+                    spanmode='hard',
+                    width=1,
+                    showlegend=False,
+                )
+
+        fig.update_xaxes(
+            tickvals=[i*3 + 1 for i in range(len(pwrs))],
+            ticktext=[f'{p/1000:.0f}' for p in pwrs],
+            title_text=f'{channel} - Laser power',
+        )
+
+        fig.update_yaxes(
+            title_text=f'Fr [Hz]',
+            tickvals=np.arange(0, 200, 50),
+        )
+        savename = figure_dir_analysis / 'firing_rate_cells' / f'{channel}_{rec_id}'
+        save_fig(fig=fig, savename=savename, display=True)
+
 
 def plot_response_latency(cell_cat_df):
 
@@ -411,46 +270,52 @@ def plot_response_latency(cell_cat_df):
         save_fig(fig=fig, savename=savename, display=True)
 
 
-def plot_firing_rates(cell_cat_df):
-    for rec_id in cell_cat_df.rec_id.unique():
-        df = cell_cat_df.query('rec_id == @rec_id and d < 250 and cat == "ex"')
+def plot_mean_firing_rate(cell_cat_df):
+
+    channel = cell_cat_df.iloc[0].channel
+    for (rec_id, protocol), rdf in cell_cat_df.groupby(['rec_id', 'protocol']):
 
         fig = make_figure(
-            width=0.3,
-            height=1,
-            x_domains={1: [[0.3, 0.95]]}
+            width=0.7,
+            height=0.6,
         )
 
-        for cid, cdf in df.groupby('cluster_id'):
+        pwrs = np.sort(rdf.pwr.unique())
+        cats = ['ex', 'in', 'none']
 
-            y = pwr_df.fr.values
+        for ci, cat in enumerate(cats):
+            x_plot = []
+            y_plot = []
+            y_se_plot = []
+            for pi, pwr in enumerate(pwrs):
+                x = pi * 4 + ci
+                df = rdf.query(f'cat == "{cat}" and pwr == {pwr}')
+                y = np.mean(df.fr.values)
+                y_se = np.std(df.fr.values) / np.sqrt(len(df.fr.values))
+                x_plot.append(x)
+                y_plot.append(y)
+                y_se_plot.append(y_se)
 
-            fig.add_violin(
-                x=np.ones_like(y) * pwr,
-                y=y,
-                marker=dict(color='black'),
-                points='all',
-                spanmode='hard',
-                width=0.3,
+            fig.add_scatter(
+                x=x_plot,
+                y=y_plot,
+                error_y=dict(array=y_se_plot),
+                marker=dict(color=colors[cat]),
                 showlegend=False,
             )
 
-        fig.update_yaxes(
-            title_text=f'Fr (Hz)',
-            tickvals=np.arange(0, 200, 50),
-            range=[0, 200, ],
-        )
-
-        channel = df.iloc[0].channel
-
         fig.update_xaxes(
-            tickvals=[0],
-            ticktext=[channel]
+            tickvals=[i*3 + 1 for i in range(len(pwrs))],
+            ticktext=[f'{p/1000:.0f}' for p in pwrs],
+            title_text=f'{channel} - Laser power',
         )
 
-        savename = figure_dir_analysis / 'latencies' / f'{channel}_{rec_id}_pie'
+        fig.update_yaxes(
+            title_text=f'Fr [Hz]',
+            tickvals=np.arange(0, 200, 50),
+        )
+        savename = figure_dir_analysis / 'firing_rate_cells_mean' / f'{channel}_{rec_id}'
         save_fig(fig=fig, savename=savename, display=True)
-
 
 def main():
     # Setup session ID + create figure output directory
@@ -480,6 +345,8 @@ def main():
         cell_cat_df = get_stats(data_io)
 
         plot_frac_responding_per_power(cell_cat_df)
+        # plot_firing_rate(cell_cat_df)
+        plot_mean_firing_rate(cell_cat_df)
         # plot_response_latency(cell_cat_df)
 
         print(f'Finished {session_id}\n\n')
