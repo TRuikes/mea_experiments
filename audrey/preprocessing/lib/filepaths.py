@@ -95,7 +95,7 @@ class FilePaths:
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
         else:
-            self.local_raw_dir is None
+            self.local_raw_dir = None
 
         if sid is not None:
             self.date = extract_date(sid)
@@ -125,8 +125,8 @@ class FilePaths:
 
             raw_trials_tmp = [f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name]
             raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
-            raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            sort_idx = np.argsort(raw_t_nrs)
+            #raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+            #sort_idx = np.argsort(raw_t_nrs)
             self.raw_trials = [raw_trials[s] for s in sort_idx]
 
             self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')

@@ -31,3 +31,8 @@ audrey/analysis/data_io.py
 audrey/preprocessing/dataset_sessions.py
 audrey/preprocessing/params.py
 audrey/preprocessing/lib/create_dataset_object.py
+audrey/preprocessing/lib/filepaths.py
+audrey/preprocessing/params.py
+audrey/preprocessing/params.py
+audrey/preprocessing/lib/filepaths.py
+audrey/preprocessing/dataset_sessions.py

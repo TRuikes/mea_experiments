@@ -9,8 +9,10 @@ skip_triggers: list of recording numbers to skip. recording numbers are recognis
 
 
 dataset_sessions = {
-    '250904_A': dict(laser_calib_week='week_49', fiber_connection='',
-                    local_dir=None, skip_triggers=[1, 2, 3, 4,7,8, 10]), # Skip triggers are recording numbers to skip
+    '260424': dict(laser_calib_week='week_49', fiber_connection='',
+                    local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 10]), # Skip triggers are recording numbers to skip
+    # '250904_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4,7,8, 10]), # Skip triggers are recording numbers to skip
     # '251014_A': dict(laser_calib_week='week_49', fiber_connection='',
     #                 local_dir=None, skip_triggers=[1, 2, 3, 4]), # Skip triggers are recording numbers to skip),
     # '251014_B': dict(laser_calib_week='week_49', fiber_connection='',
