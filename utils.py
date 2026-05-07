@@ -428,6 +428,43 @@ def make_panel(width, height, **kwargs):
     return fig
 
 
+def update_subplot_titles(
+        fig,
+        x_domains=None,
+        y_domains=None,
+        subplot_titles=None,
+):
+    fig.layout.annotations = []
+
+    if x_domains is None:
+        x_domains = {1: [[0.1, 0.9]]}
+    if y_domains is None:
+        y_domains = {1: [[0.1, 0.9]]}
+
+    # Detect the nr of cols
+    n_cols = 0
+    for row, specs in x_domains.items():
+        n_cols = np.max([n_cols, len(specs)])
+
+    for (row, col), title in subplot_titles.items():
+        x = x_domains[row][col-1][0]
+        y = y_domains[row][col-1][1] + 0.01
+
+        fig.add_annotation(
+            x=x,
+            y=y,
+            text=title,
+            font=dict(size=12, family='arial', color='black', ),
+            showarrow=False,
+            xanchor='left', yanchor='bottom',
+            xref='paper', yref='paper',
+        )
+
+    return fig
+
+
+
+
 
 def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=True,
              display=True):
