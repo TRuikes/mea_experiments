@@ -60,22 +60,30 @@ class FilePaths:
 
         raw/
             YYYY-MM-DD_MEA_position.csv
-            YYMMDD_SLICENR_RECNR_BLOCKER.mcd
-            YYMMDD_SLICENR_RECNR_BLOCKER.raw
-            YYMMDD_SLICENR_RECNR_BLOCKER_protocols.csv
-            YYMMDD_SLICENR_RECNR_BLOCKER_trials.csv
+            YYYY-MM-DD_onda_laser_calibration.json
+            probefile.prb
+
+            rec_1_STIMDETAILS.raw
+            rec_2_STIMDETAILS.raw
+            ...
+            rec_N_STIMDETAILS.raw
+
+            rec_1_STIMDETAILS_trials.csv
+            rec_2_STIMDETAILS_trials.csv
+            ...
+            rec_N_STIMDETAILS_trials.csv
+
+            PROTOCOL_1.py
+            PROTOCOL_2.py
+
     """
 
     # Allowed names for attributes
-    blocker_names = ('noblocker', 'washout')
+    blocker_names = ('noblocker', 'washout', 'cppcnqx')
     slice_names = ('A', 'B', 'C', 'D')
-    rec_names = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
+    rec_nrs = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
 
-    laser_calib_path = None
-    laser_calib_file = None
-    laser_calib_figure_dir = None
-
-    def __init__(self, sid=None, laser_calib_week=None, local_raw_dir=None):
+    def __init__(self, sid=None):
         """
         session ids have shape DDMMYY_retslice
         """
@@ -83,48 +91,34 @@ class FilePaths:
         if not Path(dataset_dir).is_dir():
             raise ValueError(f'Cannot find datasetdir: {dataset_dir}')
         self.dataset_dir = Path(dataset_dir)
-        self.laser_calib_week = laser_calib_week
         self.dataset_out_dir = self.dataset_dir / 'dataset'
-        self.local_raw_dir = local_raw_dir
-        if local_raw_dir is not None:
-            self.local_raw_dir = Path(local_raw_dir)
-        else:
-            self.local_raw_dir is None
 
         if sid is not None:
             self.date = extract_date(sid)
-            self.slice_nr = sid.split()[-1]
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
-            #self.raw_dir = self.dataset_dir / sid / 'sorted'
 
-            if self.local_raw_dir is not None:
-                self.blocker = detect_blocker(self.local_raw_dir)
-                recording_nrs = detect_rec_nrs(self.local_raw_dir)
-            else:
-                self.blocker = detect_blocker(self.raw_dir)
-                recording_nrs = detect_rec_nrs(self.raw_dir)
-            self.recording_nrs = recording_nrs
-            # self.rec_nr = detect_rec_nr(self.raw_dir)
+            self.recording_nrs = detect_rec_nrs(self.raw_dir)
 
-            # define raw files
-            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day:02d}_{self.slice_nr}'
-            self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
-            self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
+            # detect raw files
+            self.raw_mcds = [f for f in self.raw_dir.iterdir() if f.suffix == '.mcd']
+            self.raw_raws = [f for f in self.raw_dir.iterdir() if f.suffix == '.raw']
 
-            raw_trials_tmp = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name]
-            raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
-            raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            sort_idx = np.argsort(raw_t_nrs)
-            self.raw_trials = [raw_trials[s] for s in sort_idx]
+            raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
 
-            self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
+            # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+            # sort_idx = np.argsort(raw_t_nrs)
+            # self.raw_trials = [raw_trials[s] for s in sort_idx]
+            self.raw_trials = raw_trials
 
-            raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
-            if not raw_mea_position.exists():
-                raw_mea_position = self.raw_dir / f'{self.date.year}-{self.date.month:02.0f}-{self.date.day}_MEA_position.csv'
-            self.raw_mea_position = raw_mea_position
+            raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
+            assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
+            self.mea_position_file = raw_mea_position[0]
+
+            # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
+            # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
+            # self.laser_calibration_file = files[0]
 
             # define processed files
             self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'
@@ -163,7 +157,6 @@ class FilePaths:
             self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
             self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'
             self.proc_pp_figure_output = self.processed_dir / 'figures'
-            self.proc_pp_artefact_positions = self.processed_dir / 'artefact_positions.csv'
 
             # define trials file
             self.proc_pp_trials = self.processed_dir / 'trials.csv'
@@ -174,22 +167,11 @@ class FilePaths:
 
             self.get_recording_names_from_rawfiles()
 
-        self.set_laser_calib_files()
-
-    def set_laser_calib_files(self):
-        if self.laser_calib_week is None:
-            return
-        else:
-            self.laser_calib_path = self.dataset_dir / 'laser_calibration' / self.laser_calib_week
-            self.laser_calib_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}.csv'
-            self.laser_calib_power_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}_power.csv'
-            self.laser_calib_figure_dir = self.laser_calib_path / 'figures'
-
     def check_data(self):
         print(f'Checking if all data is available for {self.sid}:')
         assert self.processed_dir.exists()
         assert self.raw_dir.exists()
-        assert self.slice_nr in self.slice_names
+        # assert self.slice_nr in self.slice_names
 
         assert len(self.raw_trials) > 0, f'no trial files found'
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
@@ -226,14 +208,12 @@ class FilePaths:
             print('\tdoes not have sorted data...')
 
     def get_recording_names_from_rawfiles(self):
-        readdir = self.local_raw_dir if self.local_raw_dir is not None else self.raw_dir
-
-        recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if 'raw' in f.name]
+        recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if 'raw' in f.name]
 
         if len(recording_names) == 0:
             # check if there are rawfiles
-            recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if
-                                    'raw' in f.name]
+            recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if
+                               'raw' in f.name]
 
         if len(recording_names) == 0:
             raise ValueError('no recordings found')

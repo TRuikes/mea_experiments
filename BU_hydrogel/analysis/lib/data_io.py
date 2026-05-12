@@ -4,7 +4,8 @@ import pandas as pd
 import threading
 import pickle
 import numpy as np
-from typing import List, no_type_check, Any
+from typing import List, no_type_check
+
 
 class DataIO:
     sessions = []
@@ -13,7 +14,8 @@ class DataIO:
     cluster_df = pd.DataFrame()
     spiketimes: dict[str, dict[str, np.ndarray]] = {} # type: ignore
     waveforms = {}
-
+    cluster_ids = []
+    sid_short = None
 
     def __init__(self, datadir: Path):
         self.datadir = Path(datadir)
@@ -25,19 +27,21 @@ class DataIO:
         self.sessions = [f.name.split('.')[0] for f in self.datadir.iterdir() if f.suffix == ".h5"]
 
     @no_type_check
-    def load_session(self, session_id: str, load_waveforms: bool=False, load_pickle: bool=True): 
+    def load_session(self, session_id: str, load_waveforms: bool=False, load_pickle: bool=True):
         """_summary_
         Load a session from the dataset into the class
         Args:
             session_id (str): unique session id to load
             load_waveforms (bool, optional): set to true to also load waveforms. Defaults to False.
             load_pickle (bool, optional): use a pickle version of the dataset file for faster loading. Defaults to True.
-        """        
-        
+        """
         assert session_id in self.sessions, f'{session_id} not in {self.sessions}'
         self.session_id: str = session_id
         self.pickle_file = self.datadir / f'{session_id}.pickle'
 
+        date = session_id.split()[0].split('-')
+        date_short = f'{date[0][2:]}{date[1]}{date[2]}_{session_id.split()[-1]}'
+        self.sid_short = date_short
         if load_pickle and self.pickle_file.is_file():
             print(f'Loading pickled data (not from h5 file)')
             self.load_pickle()
@@ -53,15 +57,15 @@ class DataIO:
         # Determine which HDF5 file to open
         readfile = self.datadir / (f'{session_id}_waveforms.h5' if load_waveforms else f'{session_id}.h5')
 
-        with h5py.File(readfile.as_posix(), 'r') as f:  
+        with h5py.File(readfile.as_posix(), 'r') as f:
             # --- Load top-level cluster metadata ---
             if "clusters/metadata" in f:
                 cluster_meta = f["clusters/metadata"]
-                cluster_dtype = cluster_meta.dtype  
+                cluster_dtype = cluster_meta.dtype
 
                 # Extract index field first
-                index_field = cluster_dtype.names[0]  
-                idx_array = cluster_meta[index_field][()] 
+                index_field = cluster_dtype.names[0]
+                idx_array = cluster_meta[index_field][()]
                 # Decode bytes if necessary
                 idx_array = [x.decode() if isinstance(x, bytes) else x for x in idx_array]
 
@@ -109,8 +113,13 @@ class DataIO:
 
                     # Add trial info for matching train_id
                     train_id = row["train_id"]
-                    trial_row = trial_info_df.loc[train_id] 
+                    trial_row = trial_info_df.loc[train_id]
                     for k, v in trial_row.items():
+                        if isinstance(v, str) and not isinstance(v, bool):
+                            if v.lower() == 'false':
+                                v = False
+                            elif v.lower() == 'true':
+                                v = True
                         burst_df.at[new_id, k] = v
 
                 # Load per-recording clusters
@@ -130,6 +139,23 @@ class DataIO:
         self.waveforms = waveforms if load_waveforms else None
         self.recording_ids = rec_ids
 
+        train_df = pd.DataFrame()
+        train_df = train_df.astype(object)
+        for tid, tdf in burst_df.groupby("train_id"):
+            for c in tdf.columns:
+                if c in ['burst_id'] or 'burst_onset' in c or 'burst_offset' in c:
+                    continue
+                assert len(tdf[c].unique()) == 1, c
+
+                val = tdf.iloc[0][c]
+                if isinstance(val, bool):
+                    val = float(val)  # True → 1.0, False → 0.0
+
+                train_df.at[tid, c]= val
+        self.train_df = train_df
+
+        self.cluster_ids = self.cluster_df.index.values
+
     def lock_modification(self):
         self.lock.acquire()
         self.is_locked = True
@@ -144,6 +170,8 @@ class DataIO:
             cluster_df=self.cluster_df,
             burst_df=self.burst_df,
             recording_ids=self.recording_ids,
+            cluster_ids=self.cluster_ids,
+            train_df=self.train_df,
         )
         with open(self.pickle_file.as_posix(), 'wb') as f:
             pickle.dump(data_to_pickle, f)
@@ -153,3 +181,13 @@ class DataIO:
             loaded_instance = pickle.load(f)
             for k, v in loaded_instance.items():
                 self.__setattr__(k, v)
+
+if __name__ == "__main__":
+    from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
+
+    data_io = DataIO(dataset_dir)
+    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+
+    figure_dir_analysis = figure_dir_analysis / session_id
+    print(session_id)
+    data_io.load_session(session_id, load_pickle=False, load_waveforms=False)

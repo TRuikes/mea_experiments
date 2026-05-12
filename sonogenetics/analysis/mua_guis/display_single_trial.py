@@ -3,14 +3,14 @@
 # PROBE_FILE = r"E:\sono\2026-03-25 mouse c57 617 Mekano6 A\raw\2026-03-25_MEA_position.csv"
 
 
-FILENAME = r"C:\thijs\sono_data\2026-03-25 mouse test\raw\rec_4_A_20260325_dmd_full_field.raw"
-FIGURE_SAVEDIR = r'C:\thijs\sono_data\figures\2026-03-25 mouse test\MUA'
+FILENAME = r"C:\thijs\bu_hydrogel\2026-05-12 rat LE 1355 A\raw\rec_3_2026-05-12_rat_1355_A_stim_dmd_full_field.raw"
+FIGURE_SAVEDIR = r'C:\thijs\bu_hydrogel\figures_analysis\MUA'
 PROBE_FILE = r"C:\thijs\sono_data\2026-03-25 mouse c57 617 Mekano6 A\raw\2026-03-25_MEA_position.csv"
 
 TRIGGER_TYPE = 'dmd'
 T_PRE = 10
-T_POST = 300
-PLOT_CHANNEL = 100
+T_POST = 600
+HIGHLIGHT_CH = 136
 
 from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
@@ -116,8 +116,8 @@ def get_filtered_daa_and_spikes(data, channel_i, trigger_time, trigger_i):
 
     if channel_i not in [126, 127]:
         b, a = butter(3, [b0 / nyq, b1 / nyq], btype='band')
-        # filtered = filtfilt(b, a, raw_segment)
-        filtered = raw_segment - np.mean(raw_segment)
+        filtered = filtfilt(b, a, raw_segment)
+        # filtered = raw_segment - np.mean(raw_segment)
 
     else:
         filtered = raw_segment - np.mean(raw_segment)
@@ -192,6 +192,7 @@ def interactive_probe_map(
     channel_to_data = {ch['channel_i']: ch for ch in data_trigger}
 
     for ch_idx in range(len(mea_position)):
+
         if ch_idx not in channel_to_data:
             continue  # skip channels without data
 
@@ -216,7 +217,7 @@ def interactive_probe_map(
 
         # Spikes
         for t in spike_times:
-            ax.axvline(t, color='red', linewidth=0.8)
+            ax.axvline(t, color='red', linewidth=0.3)
 
         # Trigger
         ax.axvline(0, linestyle='--', color='blue', linewidth=0.5)
@@ -228,8 +229,15 @@ def interactive_probe_map(
         if ch_idx not in [126, 127]:
             ax.set_ylim(y_range)
 
-        ax.set_title(f"{ch_idx}", fontsize=6)
-
+        if ch_idx == HIGHLIGHT_CH:
+            clr = 'red'
+            sz = 10
+            print(f'pos: {xpos} {ypos}')
+        else:
+            clr = 'black'
+            sz = 6
+        ax.set_title(f"{ch_idx}", fontsize=sz, color=clr)
+        ax.set_ylim([-250, 250])
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -256,8 +264,12 @@ def interactive_probe_map(
 
                 if ch_idx not in [126, 127]:
                     ax2.set_ylim(y_range)
+                else:
+                    ax2.set_ylim([-250, 250])
+
                 ax2.set_xlabel("Time (ms)")
                 ax2.set_ylabel("Amplitude")
+
                 ax2.set_title(f"Channel {ch_idx}")
                 ax2.grid(True)
                 plt.show()
@@ -300,6 +312,8 @@ def main(filename, trigger_channel):
                 'trigger_i': trigger_i,
             })
 
+        break
+
     spike_data = utils.run_job(
         job_fn=get_filtered_daa_and_spikes,
         num_threads=20,
@@ -312,8 +326,9 @@ def main(filename, trigger_channel):
     interactive_probe_map(
         data_list=spike_data,
         mea_position=mea_position,
-        trigger_i=2,
+        trigger_i=0,
         figsize=(9, 9),
+        y_range=[-250, 250],
     )
 
 if __name__ == "__main__":

@@ -107,9 +107,10 @@ class FilePaths:
 
             raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
 
-            raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            sort_idx = np.argsort(raw_t_nrs)
-            self.raw_trials = [raw_trials[s] for s in sort_idx]
+            # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+            # sort_idx = np.argsort(raw_t_nrs)
+            # self.raw_trials = [raw_trials[s] for s in sort_idx]
+            self.raw_trials = raw_trials
 
             raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
             assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'

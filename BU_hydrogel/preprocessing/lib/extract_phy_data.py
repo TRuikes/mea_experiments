@@ -1,7 +1,7 @@
-from audrey.preprocessing.lib.filepaths import FilePaths
+from sonogenetics.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import numpy as np
-from audrey.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
+from sonogenetics.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
 from pathlib import Path
 import os
 import utils
@@ -45,11 +45,6 @@ def recording_onsets(filepaths: FilePaths):
 
     # Detect which files were clustered
     clustered_files = []
-
-    if filepaths.local_raw_dir is not None:
-        USE_LOCAL_DIR = True
-    else:
-        USE_LOCAL_DIR = False
 
     with open(filepaths.proc_sc_params, 'r') as file:
         text = file.read()

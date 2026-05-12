@@ -16,6 +16,8 @@ dataset_sessions = {
     #                  local_dir=None, skip_triggers=[]),
     # r'2025-12-17 rat P23H 3153 A': dict(laser_calib_week='week_49', fiber_connection='',
     #                                     local_dir=None, skip_triggers=[])
-    r'2026-01-22 rat LE 9999 A': dict(laser_calib_week='week_49', fiber_connection='',
-                                    local_dir=None, skip_triggers=[])
+    # r'2026-01-22 rat LE 9999 A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                                 local_dir=None, skip_triggers=[])
+    # '2026-05-12 rat LE 1355 A': dict(skip_triggers=[]),
+    '2026-05-12 rat LE 1355 A test': dict(skip_triggers=[]),
 }

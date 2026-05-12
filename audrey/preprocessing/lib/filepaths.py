@@ -95,7 +95,7 @@ class FilePaths:
         if local_raw_dir is not None:
             self.local_raw_dir = Path(local_raw_dir)
         else:
-            self.local_raw_dir is None
+            self.local_raw_dir = None
 
         if sid is not None:
             self.date = extract_date(sid)

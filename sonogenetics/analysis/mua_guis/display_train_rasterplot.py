@@ -6,14 +6,14 @@
 # FIGURE_SAVEDIR = r'C:\thijs\sono_data\figures\2026-03-25 mouse test\MUA'
 # PROBE_FILE = r"C:\thijs\sono_data\2026-03-25 mouse c57 617 Mekano6 A\raw\2026-03-25_MEA_position.csv"
 
-FILENAME = r"C:\thijs\sono_data\260325_B\rec_3_B_20260325_dmd_full_field.raw"
-FIGURE_SAVEDIR = r'C:\thijs\sono_data\figures\260325_B\MUA'
+FILENAME = r"C:\thijs\bu_hydrogel\2026-05-12 rat LE 1355 A\raw\rec_3_2026-05-12_rat_1355_A_stim_dmd_full_field.raw"
+FIGURE_SAVEDIR = r'C:\thijs\bu_hydrogel\figures_analysis\MUA'
 PROBE_FILE = r"C:\thijs\sono_data\2026-03-25 mouse c57 617 Mekano6 A\raw\2026-03-25_MEA_position.csv"
 
 TRIGGER_TYPE = 'dmd'
 T_PRE = 30
-T_POST = 300
-PLOT_CHANNEL = 100
+T_POST = 600
+CH_HIGHLIGHT = 136
 
 from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
@@ -230,11 +230,17 @@ def interactive_raster_map(
         ax.axvline(0, color='red', linewidth=0.6)
 
         # --- Title ---
-        ax.set_title(f"{ch_idx}", fontsize=6)
+        if ch_idx == CH_HIGHLIGHT:
+            clr = 'red'
+            sz = 15
+            print(f'pos: {xpos}, {ypos}, {sz}')
+        else:
+            clr = 'black'
+            sz = 6
+        ax.set_title(f"{ch_idx}", fontsize=sz, color=clr)
 
         ax.set_xlim([-T_PRE, T_POST])
         ax.set_xticks([])
-        ax.set_yticks([])
 
     fig.suptitle("Electrode raster map (click a channel to enlarge)")
 
@@ -269,7 +275,11 @@ def interactive_raster_map(
                 ax2.set_xlim([-T_PRE, T_POST])
 
                 ax2.set_ylabel("Trigger index")
-                ax2.set_title(f"Channel {ch_idx}")
+                if ch_idx == CH_HIGHLIGHT:
+                    clr = 'red'
+                else:
+                    clr = 'black'
+                ax2.set_title(f"Channel {ch_idx}", color=clr)
                 ax2.set_ylim(-y_spacing, len(channel_trials)*y_spacing)
                 ax2.grid(True)
 
@@ -311,6 +321,11 @@ def main(filename, trigger_channel):
                 'trigger_time': t_time / 1e3,
                 'trigger_i': trigger_i,
             })
+
+        if trigger_i > 15:
+            break
+
+
 
     spike_data = utils.run_job(
         job_fn=get_filtered_daa_and_spikes,

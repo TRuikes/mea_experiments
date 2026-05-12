@@ -1,6 +1,6 @@
 remarks:
 * denote blocker as: 'noblocker', 'washout', 'cppcnqx'
-
+```
 ~SESSION_id/
     processed/
         sorted/     # output from spikesorting pipeline
@@ -33,4 +33,5 @@ remarks:
         PROTOCOL_1.py
         PROTOCOL_2.py
 
+```
 

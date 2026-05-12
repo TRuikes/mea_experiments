@@ -13,7 +13,7 @@ from BU_hydrogel.preprocessing.lib.create_dataset_object import create_dataset_o
 for sid, s_specs in dataset_sessions.items():
 
     # Load the filepaths for the dataset
-    filepaths = FilePaths(sid, laser_calib_week=s_specs['laser_calib_week'], local_raw_dir=s_specs['local_dir'])
+    filepaths = FilePaths(sid)
 
     # # Verify all files are there for this session
     filepaths.check_data()
@@ -27,7 +27,7 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=False, waveform_extraction=False)
+        extract_phy_data(filepaths, update=True, waveform_extraction=False)
     else:
         print(f'NO SORTED DATA FOUND')
 
