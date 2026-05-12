@@ -1,11 +1,8 @@
-from audrey.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
+from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
                                          data_trigger_thresholds)
-from audrey.preprocessing.lib.filepaths import FilePaths
+from sonogenetics.preprocessing.lib.filepaths import FilePaths
 import utils
-from pathlib import Path
-
-
 from tqdm import tqdm
 import numpy as np
 
@@ -25,22 +22,19 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         SKIP_RECORDING = False
         if recording_numbers_to_skip is not None:
             for nr in recording_numbers_to_skip:
-                if f'_{nr:03d}_' in rec:
+                if f'_{nr:.0f}_' in rec:
                     print(f'\tskipping recording {rec}')
                     SKIP_RECORDING = True
 
         if SKIP_RECORDING:
             continue
 
-        print(f'\treading recording: {rec}')
+        print(f'\n\n\treading recording: {rec}')
 
         trigger_data[rec] = {}
 
         # Load the recording file
-        if filepaths.local_raw_dir is not None:
-            recname = filepaths.local_raw_dir / f'{rec}.raw'
-        else:
-            recname = filepaths.raw_dir / f'{rec}.raw'
+        recname = filepaths.raw_dir / f'{rec}.raw'
 
         data = np.memmap(recname, dtype=data_type)
         n_samples = int(data.size / data_nb_channels)
@@ -48,12 +42,12 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         print(f'\treading data ({rec_duration:.0f} min)')
 
-        trigger_types = []
-        if 'PA' in rec or 'pa' in rec or 'prr' in rec or '009' in rec or '012':
-            trigger_types.append('laser')
-
-        if 'DMD' in rec or 'light' in rec:
-            trigger_types.append('dmd')
+        trigger_types = ['laser', 'dmd']
+        # if 'PA' in rec or 'pa' in rec:
+        #     trigger_types.append('laser')
+        #
+        # if 'DMD' in rec or 'dmd' in rec:
+        #     trigger_types.append('dmd')
 
         assert len(trigger_types) > 0, 'no trigger types found!'
 
@@ -98,14 +92,14 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
 
                     if idx.size > 0:
-                        trigger_high = np.concatenate([trigger_high, t])
+                        trigger_high = np.concat([trigger_high, t])
 
                 elif trigger_type == 'dmd':
                     idx = np.where(chdata > data_trigger_thresholds['dmd'])[0]
                     t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
 
                     if idx.size > 0:
-                        trigger_high = np.concatenate([trigger_high, t])
+                        trigger_high = np.concat([trigger_high, t])
 
                 else:
                     raise ValueError('error!')
@@ -113,8 +107,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 if visualize_detection:
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
+                    subsample_idx = np.arange(0, x.size, 5).astype(int)
+
                     fig = utils.simple_fig(width=1, height=1, n_rows=1, n_cols=1)
-                    fig.add_scatter(x=x, y=chdata, mode='lines', line=dict(color='black', width=1),
+                    fig.add_scatter(x=x[subsample_idx], y=chdata[subsample_idx], mode='lines', line=dict(color='black', width=1),
                                     showlegend=False, row=1, col=1)
                     fig.add_scatter(x=[x[0], x[-1]], y=np.ones(2) * data_trigger_thresholds['laser'], mode='lines',
                                     line=dict(color='red', width=1),
@@ -131,45 +127,45 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     fig.update_xaxes(tickvals=xticks, title_text=f'time [s]')
                     fig.update_yaxes(tickvals=np.arange(0, 500, 4500), title_text='voltage [mV]')
                     savename = filepaths.proc_pp_figure_output / 'triggers' / rec / trigger_type / f'{i}'
-                    utils.save_fig(fig, savename, display=True, verbose=False)
+                    utils.save_fig(fig, savename, display=False, verbose=False)
+
+            if trigger_high.size == 0:
+                print(F'{rec} does not have {trigger_type}')
+                continue
+
+            # Process laser trigger times
+            dt = np.diff(trigger_high)  # time difference between triggers, in ms
+
+            trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
+            burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
+            burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
+            train_onsets = trigger_high[trial_onsets_idx]
+            burst_onsets = trigger_high[burst_onsets_idx]
+            burst_offsets = trigger_high[burst_offsets_idx]
+
+            burst_durations = burst_offsets - burst_onsets
 
             if trigger_type == 'laser':
-                # Process laser trigger times
-                dt = np.diff(trigger_high)  # time difference between triggers, in ms
+                # The new laser has a pulse high when connected to PC,
+                # this pulse is about 900 ms. Since stimulation is < 100 ms,
+                # we can use 200 ms as a filter
+                idx = burst_durations < 200
+                burst_onsets = burst_onsets[idx]
+                burst_offsets = burst_offsets[idx]
+                dt = np.diff(burst_onsets)
+                train_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 2000)[0] + 1])
+                train_onsets = burst_onsets[train_onsets_idx]
 
-                trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
-                burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
-                burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
-                train_onsets = trigger_high[trial_onsets_idx]
-                burst_onsets = trigger_high[burst_onsets_idx]
-                burst_offsets = trigger_high[burst_offsets_idx]
 
-                trigger_data[rec][trigger_type] = dict(
-                    train_onsets=train_onsets,
-                    burst_onsets=burst_onsets,
-                    burst_offsets=burst_offsets,
-                )
+            print(f'RESULTS EXTRACT TRIGGER')
+            print(f'{rec} {trigger_type}')
+            print(f'n train: {train_onsets.size}')
+            print(f'n burst: {burst_onsets.size}\n\n')
 
-            elif trigger_type == 'dmd':
-                print(f'note: DMD trigger min duration is 5 ms')
-
-                dt = np.diff(trigger_high)  # time difference between triggers, in ms
-
-                trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 4500)[0] + 1])
-                burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
-                burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
-
-                train_onsets = trigger_high[trial_onsets_idx]
-                burst_onsets = trigger_high[burst_onsets_idx]
-                burst_offsets = trigger_high[burst_offsets_idx]
-
-                trigger_data[rec][trigger_type] = dict(
-                    train_onsets=train_onsets,
-                    burst_onsets=burst_onsets,
-                    burst_offsets=burst_offsets,
-                )
-
-            else:
-                raise ValueError(f'need to implement {trigger_type}')
+            trigger_data[rec][trigger_type] = dict(
+                train_onsets=train_onsets,
+                burst_onsets=burst_onsets,
+                burst_offsets=burst_offsets,
+            )
 
     utils.store_nested_dict(filepaths.proc_pp_triggers, trigger_data)

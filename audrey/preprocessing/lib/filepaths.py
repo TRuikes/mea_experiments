@@ -1,20 +1,21 @@
-import sys
-sys.path.append('.')
 from pathlib import Path
 from datetime import datetime
-from audrey.preprocessing.params import dataset_dir
+from sonogenetics.preprocessing.params import dataset_dir
+import pandas as pd
 import numpy as np
 
 
 def extract_date(sid: str):
     # Extract day, month, and year from the string
-    sid_split = sid.split('_')[0]
-    day = sid_split[4:]
-    month = sid_split[2:4]
-    year = sid_split[:2]
-
-    # Convert the two-digit year to four digits
-    year = '20' + year if int(year) <= 99 else '19' + year
+    # sid_split = sid.split()[0].split('-')
+    # day = sid_split[2]
+    # month = sid_split[1]
+    # year = sid_split[0]
+    day = sid[4:6]
+    month = sid[2:4]
+    year = sid[:2]
+    if len(year) == 2:
+        year = '20' + year
 
     # Format the date as a datetime object
     date_str = f"{day}-{month}-{year}"
@@ -62,25 +63,33 @@ class FilePaths:
                 template_ind.npy
                 whitening_mat.npy
                 whitening_mat_inv.npy
-
+        
         raw/
             YYYY-MM-DD_MEA_position.csv
-            YYMMDD_SLICENR_RECNR_BLOCKER.mcd
-            YYMMDD_SLICENR_RECNR_BLOCKER.raw
-            YYMMDD_SLICENR_RECNR_BLOCKER_protocols.csv
-            YYMMDD_SLICENR_RECNR_BLOCKER_trials.csv
+            YYYY-MM-DD_onda_laser_calibration.json
+            probefile.prb
+
+            rec_1_STIMDETAILS.raw
+            rec_2_STIMDETAILS.raw
+            ...
+            rec_N_STIMDETAILS.raw
+
+            rec_1_STIMDETAILS_trials.csv
+            rec_2_STIMDETAILS_trials.csv
+            ...
+            rec_N_STIMDETAILS_trials.csv
+
+            PROTOCOL_1.py
+            PROTOCOL_2.py
+        
     """
 
     # Allowed names for attributes
-    blocker_names = ('noblocker', 'washout')
+    blocker_names = ('noblocker', 'washout', 'cppcnqx')
     slice_names = ('A', 'B', 'C', 'D')
-    rec_names = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
+    rec_nrs = ('1', '2', '3', '4', '5', '6', '7', '8', '9')
 
-    laser_calib_path = None
-    laser_calib_file = None
-    laser_calib_figure_dir = None
-
-    def __init__(self, sid=None, laser_calib_week=None, local_raw_dir=None):
+    def __init__(self, sid=None):
         """
         session ids have shape DDMMYY_retslice
         """
@@ -88,89 +97,73 @@ class FilePaths:
         if not Path(dataset_dir).is_dir():
             raise ValueError(f'Cannot find datasetdir: {dataset_dir}')
         self.dataset_dir = Path(dataset_dir)
-        self.laser_calib_week = laser_calib_week
-        #self.dataset_out_dir = self.dataset_dir / 'dataset'
-        self.dataset_out_dir = self.dataset_dir / sid / 'Analysis'
-        self.local_raw_dir = local_raw_dir
-        if local_raw_dir is not None:
-            self.local_raw_dir = Path(local_raw_dir)
-        else:
-            self.local_raw_dir = None
+        self.dataset_out_dir = self.dataset_dir / 'dataset'
 
         if sid is not None:
             self.date = extract_date(sid)
-            if '_' in sid:
-                self.slice_nr = sid.split('_')[1]
-            else:
-                self.slice_nr = 'A'
 
             self.processed_dir = self.dataset_dir / sid / 'processed'
-            #self.raw_dir = self.dataset_dir / sid / 'raw'
+            self.raw_dir = self.dataset_dir / sid / 'raw'
             self.csv_dir = self.dataset_dir / sid / 'csv'
-            self.raw_dir = self.dataset_dir / sid / 'sorted'
 
-            if self.local_raw_dir is not None:
-                self.blocker = detect_blocker(self.local_raw_dir)
-                recording_nrs = detect_rec_nrs(self.local_raw_dir)
-            else:
-                self.blocker = detect_blocker(self.raw_dir)
-                recording_nrs = detect_rec_nrs(self.raw_dir)
-            self.recording_nrs = recording_nrs
-            # self.rec_nr = detect_rec_nr(self.raw_dir)
+            self.recording_nrs = detect_rec_nrs(self.raw_dir)
 
-            # define raw files
-            rec_code = f'{str(self.date.year)[-2:]}{self.date.month}{self.date.day:02d}_{self.slice_nr}'
-            self.raw_mcds = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.mcd']
-            self.raw_raws = [f for f in self.raw_dir.iterdir() if rec_code in f.name and f.suffix == '.raw']
+            # detect raw files
+            self.raw_mcds = [f for f in self.raw_dir.iterdir() if f.suffix == '.mcd']
+            self.raw_raws = [f for f in self.raw_dir.iterdir() if f.suffix == '.raw']
+            #self.raw_csvs = [f for f in self.csv_dir.iterdir() if f.suffix == '.csv']
 
-            raw_trials_tmp = [f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name]
-            raw_trials = [f for f in raw_trials_tmp if '~lock' not in f.name]
-            #raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            #sort_idx = np.argsort(raw_t_nrs)
-            self.raw_trials = [raw_trials[s] for s in sort_idx]
+            # raw_trials = [f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
 
-            self.raw_protocols = self.raw_dir / (rec_code + '_protocols.csv')
+            csv_trials_file = next(f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name)
+            csv_trials = pd.read_csv(csv_trials_file)            
 
-            # raw_mea_position = self.csv_dir / f'{self.date.year}-{self.date.month}-{self.date.day}_MEA_position.csv'
-            # if not raw_mea_position.exists():
-            self.raw_mea_position = self.csv_dir / f'{self.date.year}-{self.date.month:02.0f}-{self.date.day}_MEA_position.csv'
-            #  = raw_mea_position
+            csv_t_nrs = csv_trials['Recording Number'].unique().astype(int).tolist()
+            # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+            sort_idx = np.argsort(csv_t_nrs)
+            # self.raw_trials = [raw_trials[s] for s in sort_idx]
+            self.csv_trials = csv_trials_file
+
+            # raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
+            # json_mea_position = [f for f in self.csv_dir.iterdir() if 'dmd_position' in f.name and f.suffix == '.json']
+            # assert len(json_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
+            # self.mea_position_file = json_mea_position[0]
+            csv_mea_position = next(f for f in self.csv_dir.iterdir() if 'dmd_position' in f.name and f.suffix == '.csv')
+            assert csv_mea_position.exists(), 'No dmd_position_calibration file'
+            self.mea_position_file = csv_mea_position
+            
+
+            # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
+            # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
+            # self.laser_calibration_file = files[0]
 
             # define processed files
-            self.sorted_dir = self.dataset_dir / sid / 'sorted'
-
-            self.gui_dir = None
-            # Detect path with manual sorting output
-            for path in self.sorted_dir.iterdir():
-                if path.is_dir():
-                    for path_2 in path.iterdir():
-                        if '.GUI' in path_2.name:
-                            self.gui_dir = path_2
-
-            assert self.gui_dir is not None
-
+            # self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'
+            # self.gui_dir = self.sorted_dir / f'{sid}_001_noblocker_checkerboard_30sq20px' / f'{sid}_001_noblocker_checkerboard_30sq20px.GUI'
+            self.sorted_dir = self.dataset_dir / sid / 'sorted'/ f'{sid}_001_noblocker_light_SWN_acclim' / f'{sid}_001_noblocker_light_SWN_acclim.GUI'
+            test = self.sorted_dir.exists()
 
             if self.sorted_dir.exists():
                 self.has_sorted_data = True
-                self.proc_sc_amplitudes = self.gui_dir / 'amplitudes.npy'
-                self.proc_sc_channel_map = self.gui_dir / 'channel_map.npy'
-                self.proc_sc_channel_positions = self.gui_dir / 'channel_positions.npy'
-                self.proc_sc_similar_templates = self.gui_dir / 'similar_templates.npy'
-                self.proc_sc_spike_times = self.gui_dir / 'spike_times.npy'
-                self.proc_sc_template_ind = self.gui_dir / 'template_ind.npy'
-                self.proc_sc_templates = self.gui_dir / 'templates.npy'
-                self.proc_sc_whitening_mat = self.gui_dir / 'whitening_mat.npy'
-                self.proc_sc_whitening_mat_inv = self.gui_dir / 'whitening_mat_inv.npy'
-                self.proc_sc_params = self.gui_dir / 'params.py'
+                self.proc_sc_amplitudes = self.sorted_dir / 'amplitudes.npy'
+                self.proc_sc_channel_map = self.sorted_dir / 'channel_map.npy'
+                self.proc_sc_channel_positions = self.sorted_dir / 'channel_positions.npy'
+                self.proc_sc_similar_templates = self.sorted_dir / 'similar_templates.npy'
+                self.proc_sc_spike_times = self.sorted_dir / 'spike_times.npy'
+                self.proc_sc_template_ind = self.sorted_dir / 'template_ind.npy'
+                self.proc_sc_templates = self.sorted_dir / 'templates.npy'
+                self.proc_sc_whitening_mat = self.sorted_dir / 'whitening_mat.npy'
+                self.proc_sc_whitening_mat_inv = self.sorted_dir / 'whitening_mat_inv.npy'
+                self.proc_sc_params = self.sorted_dir / 'params.py'
 
-                self.proc_phy_cluster_group = self.gui_dir / 'cluster_group.tsv'
+                self.proc_phy_cluster_group = self.sorted_dir / 'cluster_group.tsv'
 
                 if self.proc_phy_cluster_group.exists():
                     self.has_manual_sorted_data = True
 
-                    self.proc_phy_cluster_info = self.gui_dir / 'cluster_info.tsv'
-                    self.proc_phy_spike_clusters = self.gui_dir / 'spike_clusters.npy'
-                    self.proc_phy_cluster_purity = self.gui_dir / 'cluster_purity.tsv'
+                    self.proc_phy_cluster_info = self.sorted_dir / 'cluster_info.tsv'
+                    self.proc_phy_spike_clusters = self.sorted_dir / 'spike_clusters.npy'
+                    self.proc_phy_cluster_purity = self.sorted_dir / 'cluster_purity.tsv'
 
                 else:
                     self.has_manual_sorted_data = False
@@ -184,7 +177,6 @@ class FilePaths:
             self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
             self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'
             self.proc_pp_figure_output = self.processed_dir / 'figures'
-            self.proc_pp_artefact_positions = self.processed_dir / 'artefact_positions.csv'
 
             # define trials file
             self.proc_pp_trials = self.processed_dir / 'trials.csv'
@@ -195,29 +187,16 @@ class FilePaths:
 
             self.get_recording_names_from_rawfiles()
 
-        self.set_laser_calib_files()
-
-    def set_laser_calib_files(self):
-        if self.laser_calib_week is None:
-            return
-        else:
-            self.laser_calib_path = self.dataset_dir / 'laser_calibration' / self.laser_calib_week
-            self.laser_calib_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}.csv'
-            self.laser_calib_power_file = self.laser_calib_path / f'laser_calibration_{self.laser_calib_week}_power.csv'
-            self.laser_calib_figure_dir = self.laser_calib_path / 'figures'
 
     def check_data(self):
         print(f'Checking if all data is available for {self.sid}:')
         if not self.processed_dir.exists():
             self.processed_dir.mkdir(parents=True)
+        assert self.processed_dir.exists()
+        assert self.raw_dir.exists()
+        # assert self.slice_nr in self.slice_names
 
-        assert self.raw_dir.exists(), f'{self.raw_dir} does not exist'
-        assert self.blocker in self.blocker_names, f'{self.blocker}'
-        assert self.slice_nr in self.slice_names
-
-        assert self.raw_mea_position.exists(), f'did not find: {self.raw_mea_position}'
-
-        assert len(self.raw_trials) > 0, f'no trial files found'
+        assert self.csv_trials.exists(), f'no trial files found'
         # assert self.raw_mcd.exists(), f'{self.raw_mcd} does not exist'
         for f in self.raw_raws:
             assert f.exists()
@@ -251,15 +230,12 @@ class FilePaths:
         else:
             print('\tdoes not have sorted data...')
 
-
     def get_recording_names_from_rawfiles(self):
-        readdir = self.local_raw_dir if self.local_raw_dir is not None else self.raw_dir
-
-        recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if 'raw' in f.name]
+        recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if 'raw' in f.name]
 
         if len(recording_names) == 0:
             # check if there are rawfiles
-            recording_names = [f.name.split('.')[0] for f in readdir.iterdir() if
+            recording_names = [f.name.split('.')[0] for f in self.raw_dir.iterdir() if
                                     'raw' in f.name]
 
         if len(recording_names) == 0:
@@ -270,6 +246,6 @@ class FilePaths:
 
 
 if __name__ == '__main__':
-    sid = '250904_A'
-    f = FilePaths(sid, local_raw_dir=None)
+    sid = '260424_A'
+    f = FilePaths(sid)
     f.check_data()

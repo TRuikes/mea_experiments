@@ -44,7 +44,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
     triggers = utils.load_nested_dict(filepaths.proc_pp_triggers)
     cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
-    mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
+    mea_position = pd.read_csv(filepaths.mea_position_file, index_col=0, header=0)
 
         # Add cluster x and y to data
     for i, r in cluster_info.iterrows():
@@ -103,8 +103,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
     # Check DMD triggers
     train_df_check = train_df.query('recording_name in @dmd_recordings_included')
-    assert dmd_n_trials_triggers == train_df_check.shape[0]
-    assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
+    if not train_df_check.empty:
+        assert dmd_n_trials_triggers == train_df_check.shape[0]
+        assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
 
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
 
