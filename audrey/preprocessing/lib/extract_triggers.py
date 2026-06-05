@@ -1,7 +1,7 @@
-from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
+from audrey.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
                                          data_trigger_thresholds)
-from sonogenetics.preprocessing.lib.filepaths import FilePaths
+from audrey.preprocessing.lib.filepaths import FilePaths
 import utils
 from tqdm import tqdm
 import numpy as np

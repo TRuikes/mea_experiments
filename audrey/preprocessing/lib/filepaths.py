@@ -1,6 +1,6 @@
 from pathlib import Path
 from datetime import datetime
-from sonogenetics.preprocessing.params import dataset_dir
+from audrey.preprocessing.params import dataset_dir
 import pandas as pd
 import numpy as np
 
@@ -111,28 +111,18 @@ class FilePaths:
             # detect raw files
             self.raw_mcds = [f for f in self.raw_dir.iterdir() if f.suffix == '.mcd']
             self.raw_raws = [f for f in self.raw_dir.iterdir() if f.suffix == '.raw']
-            #self.raw_csvs = [f for f in self.csv_dir.iterdir() if f.suffix == '.csv']
-
-            # raw_trials = [f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
 
             csv_trials_file = next(f for f in self.csv_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name)
             csv_trials = pd.read_csv(csv_trials_file)            
 
-            csv_t_nrs = csv_trials['Recording Number'].unique().astype(int).tolist()
-            # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            sort_idx = np.argsort(csv_t_nrs)
-            # self.raw_trials = [raw_trials[s] for s in sort_idx]
+            # csv_t_nrs = csv_trials['Recording Number'].unique().astype(int).tolist()
+            # sort_idx = np.argsort(csv_t_nrs)
             self.csv_trials = csv_trials_file
 
-            # raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
-            # json_mea_position = [f for f in self.csv_dir.iterdir() if 'dmd_position' in f.name and f.suffix == '.json']
-            # assert len(json_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
-            # self.mea_position_file = json_mea_position[0]
             csv_mea_position = next(f for f in self.csv_dir.iterdir() if 'dmd_position' in f.name and f.suffix == '.csv')
-            assert csv_mea_position.exists(), 'No dmd_position_calibration file'
+            assert csv_mea_position.exists(), 'No dmd_position_calibration file found'
             self.mea_position_file = csv_mea_position
             
-
             # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
             # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
             # self.laser_calibration_file = files[0]
@@ -141,7 +131,6 @@ class FilePaths:
             # self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'
             # self.gui_dir = self.sorted_dir / f'{sid}_001_noblocker_checkerboard_30sq20px' / f'{sid}_001_noblocker_checkerboard_30sq20px.GUI'
             self.sorted_dir = self.dataset_dir / sid / 'sorted'/ f'{sid}_001_noblocker_light_SWN_acclim' / f'{sid}_001_noblocker_light_SWN_acclim.GUI'
-            test = self.sorted_dir.exists()
 
             if self.sorted_dir.exists():
                 self.has_sorted_data = True

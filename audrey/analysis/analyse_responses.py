@@ -24,9 +24,9 @@ def main():
     """
     Main handles
     """
-    session_id = '250904_A'
+    session_id = '260520_A'
 
-    data_dir = dataset_dir / Path(f'{session_id}/Analysis')
+    data_dir = dataset_dir / Path('dataset')
     data_io = DataIO(data_dir)
 
     print(f'Loading data')

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 from scipy.ndimage import gaussian_filter1d
 from matplotlib.colors import to_rgb
 import seaborn as sns
@@ -321,7 +322,7 @@ def detect_latency(rate_smooth, mu, sd, spike_counts_all, spike_counts_baseline)
     """
     
 
-    inhib_thresh = max(MIN_INHIB_THRESHOLD, mu - K_SD_INHIB * sd),
+    inhib_thresh = max(MIN_INHIB_THRESHOLD, mu - K_SD_INHIB * sd)
     excit_thresh = mu + K_SD_EXCIT * sd
 
     min_bins_inhib = max(1, int(np.round(MIN_DURATION_INHIB_MS / BIN_SIZE_MS)))
@@ -337,24 +338,38 @@ def detect_latency(rate_smooth, mu, sd, spike_counts_all, spike_counts_baseline)
     inh_lat = None
     exc_lat = None
     
-    # Inhibitory
+    # Inhibitory — requires (a) mu above MIN_MU, (b) sustained sub-threshold window,
+    # AND (c) rate drops to at most INHIB_MAX_FRACTION * mu (relative criterion that
+    # prevents noise-floor detections on low-firing cells).
     if mu >= MIN_MU:
         for i in idxs:
             if i + min_bins_inhib > len(below):
                 break
             if below[i] and np.all(below[i:i+min_bins_inhib]):
-                inh_lat = t_centers[i]
-                break
-    
-    # Excitatory
+                window_min = np.min(rate_smooth[i:i + min_bins_inhib])
+                if window_min <= INHIB_MAX_FRACTION * mu:   # meaningful fractional drop
+                    inh_lat = t_centers[i]
+                    break
+
+    # Excitatory — sustained point-threshold crossing
     for i in idxs:
         if i + min_bins_excit > len(above):
             break
         if above[i] and np.all(above[i:i+min_bins_excit]):
             exc_lat = t_centers[i]
             break
-    
-    # Determine initial response type
+
+    # Excitatory fallback — mean-window criterion for broad responses where
+    # baseline σ is large and the point threshold is hard to reach.
+    if exc_lat is None:
+        win_mask = (t_centers >= MEAN_WINDOW_MS[0]) & (t_centers <= MEAN_WINDOW_MS[1])
+        if win_mask.any() and rate_smooth[win_mask].mean() > mu + K_MEAN_EXCIT * sd:
+            for i in idxs:
+                if rate_smooth[i] > mu:
+                    exc_lat = t_centers[i]
+                    break
+
+    # Determine response type
     if inh_lat is None and exc_lat is None:
         return {
             'resp_type': 'none',
@@ -369,13 +384,35 @@ def detect_latency(rate_smooth, mu, sd, spike_counts_all, spike_counts_baseline)
     elif inh_lat is None:
         resp_type = 'excitatory'
         latency = exc_lat
-    elif inh_lat < exc_lat:
-        resp_type = 'inhibitory'
-        latency = inh_lat
     else:
-        resp_type = 'excitatory'
-        latency = exc_lat
-    
+        # Both thresholds crossed — pick the one with the larger effect size
+        # (peak z-score above baseline for excitation, trough for inhibition)
+        # to avoid "earliest latency wins" mis-classifications.
+        window_ms = 50.0   # look 50 ms ahead of each detected latency
+        w_bins    = max(1, int(np.round(window_ms / BIN_SIZE_MS)))
+
+        exc_i = np.argmin(np.abs(t_centers - exc_lat))
+        inh_i = np.argmin(np.abs(t_centers - inh_lat))
+
+        exc_effect = (np.max(rate_smooth[exc_i: exc_i + w_bins]) - mu) / sd if sd > 0 else 0.0
+        inh_effect = (mu - np.min(rate_smooth[inh_i: inh_i + w_bins])) / sd if sd > 0 else 0.0
+
+        if exc_effect >= inh_effect:
+            resp_type = 'excitatory'
+            latency   = exc_lat
+        else:
+            resp_type = 'inhibitory'
+            latency   = inh_lat
+
+    if latency > MAX_RESP_LATENCY_MS:
+            return {
+                'resp_type': 'none',
+                'latency_ms': np.nan,
+                'p_value': 1.0,
+                'test_results': {},
+                'significant': False
+            }
+
     # Statistical testing
     if ENABLE_STATISTICAL_TESTS:
         # Get response window spike counts
@@ -409,6 +446,95 @@ def detect_latency(rate_smooth, mu, sd, spike_counts_all, spike_counts_baseline)
             'test_results': {},
             'significant': True
         }
+
+
+def detect_latency_mad(rate_smooth):
+    """
+    MAD-based variant of detect_latency for comparing scale estimates.
+
+    Uses the baseline **median** as the location estimate and the median
+    absolute deviation (scaled by 1.4826) as the dispersion estimate, so
+    both are robust to outlier spikes.  Statistical tests are not re-run;
+    only threshold-based detection is performed.
+
+    Parameters
+    ----------
+    rate_smooth : array
+        Smoothed firing rate (same array passed to detect_latency)
+
+    Returns
+    -------
+    dict
+        resp_type, latency_ms, mu_mad (baseline median), sd_mad
+    """
+    baseline_mask = (t_centers >= -BASELINE_PRE_MS) & (t_centers < 0)
+    baseline_vals = rate_smooth[baseline_mask]
+    mu_mad = float(np.median(baseline_vals))
+    sd_mad = 1.4826 * np.median(np.abs(baseline_vals - mu_mad))
+
+    inhib_thresh = max(MIN_INHIB_THRESHOLD, mu_mad - K_SD_INHIB * sd_mad)
+    excit_thresh = mu_mad + K_SD_EXCIT * sd_mad
+
+    min_bins_inhib = max(1, int(np.round(MIN_DURATION_INHIB_MS / BIN_SIZE_MS)))
+    min_bins_excit = max(1, int(np.round(MIN_DURATION_EXCIT_MS / BIN_SIZE_MS)))
+
+    search_mask = (t_centers >= MIN_LATENCY_MS) & (t_centers <= POST_TIME_MS)
+    idxs = np.where(search_mask)[0]
+
+    below = rate_smooth < inhib_thresh
+    above = rate_smooth > excit_thresh
+
+    inh_lat = None
+    exc_lat = None
+
+    if mu_mad >= MIN_MU:
+        for i in idxs:
+            if i + min_bins_inhib > len(below):
+                break
+            if below[i] and np.all(below[i:i + min_bins_inhib]):
+                window_min = np.min(rate_smooth[i:i + min_bins_inhib])
+                if window_min <= INHIB_MAX_FRACTION * mu_mad:
+                    inh_lat = t_centers[i]
+                    break
+
+    for i in idxs:
+        if i + min_bins_excit > len(above):
+            break
+        if above[i] and np.all(above[i:i + min_bins_excit]):
+            exc_lat = t_centers[i]
+            break
+
+    if exc_lat is None:
+        win_mask = (t_centers >= MEAN_WINDOW_MS[0]) & (t_centers <= MEAN_WINDOW_MS[1])
+        if win_mask.any() and rate_smooth[win_mask].mean() > mu_mad + K_MEAN_EXCIT * sd_mad:
+            for i in idxs:
+                if rate_smooth[i] > mu_mad:
+                    exc_lat = t_centers[i]
+                    break
+
+    _no_resp = {'resp_type': 'none', 'latency_ms': np.nan, 'mu_mad': mu_mad, 'sd_mad': sd_mad}
+    if inh_lat is None and exc_lat is None:
+        return _no_resp
+    elif exc_lat is None:
+        resp_type, latency = 'inhibitory', inh_lat
+    elif inh_lat is None:
+        resp_type, latency = 'excitatory', exc_lat
+    else:
+        window_ms = 50.0
+        w_bins = max(1, int(np.round(window_ms / BIN_SIZE_MS)))
+        exc_i = np.argmin(np.abs(t_centers - exc_lat))
+        inh_i = np.argmin(np.abs(t_centers - inh_lat))
+        exc_effect = (np.max(rate_smooth[exc_i:exc_i + w_bins]) - mu_mad) / sd_mad if sd_mad > 0 else 0.0
+        inh_effect = (mu_mad - np.min(rate_smooth[inh_i:inh_i + w_bins])) / sd_mad if sd_mad > 0 else 0.0
+        if exc_effect >= inh_effect:
+            resp_type, latency = 'excitatory', exc_lat
+        else:
+            resp_type, latency = 'inhibitory', inh_lat
+
+    if latency > MAX_RESP_LATENCY_MS:
+        return _no_resp
+
+    return {'resp_type': resp_type, 'latency_ms': latency, 'mu_mad': mu_mad, 'sd_mad': sd_mad}
 
 
 ### For testing
@@ -482,6 +608,89 @@ def detect_latency(rate_smooth, mu, sd, spike_counts_all, spike_counts_baseline)
 # ============================================================
 # ADAPTIVE SMOOTHING: Higher smoothing for lower baseline rates
 # ============================================================
+def plot_psth(t_centers, rate, rate_smooth, mu, sd, results, cluster_id, stim, dc, tid,
+              figure_dir, fmt='png', dpi=150):
+    """
+    Plot and save a single PSTH figure.
+
+    Parameters
+    ----------
+    t_centers : array   Time axis in ms
+    rate       : array  Raw (unsmoothed) firing rate in Hz
+    rate_smooth: array  Smoothed firing rate in Hz
+    mu, sd     : float  Baseline mean and std of smoothed rate
+    results    : dict   Output of detect_latency (resp_type, latency_ms, p_value, significant)
+    cluster_id, stim, dc, tid : identifiers for title and filename
+    figure_dir : str or Path  Root figures directory
+    fmt, dpi   : output format and resolution
+    """
+    resp_type  = results['resp_type']
+    latency_ms = results['latency_ms']
+    p_value    = results.get('p_value', None)
+
+    excit_thresh = mu + K_SD_EXCIT * sd
+    inhib_thresh = max(MIN_INHIB_THRESHOLD, mu - K_SD_INHIB * sd)
+
+    RESP_COLOR = {'excitatory': '#E63946', 'inhibitory': '#457B9D', 'none': 'gray'}
+    color = RESP_COLOR.get(resp_type, 'gray')
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+
+    # Raw rate as light bars
+    ax.bar(t_centers, rate, width=(t_centers[1] - t_centers[0]),
+           color='lightgray', alpha=0.6, label='Raw rate')
+
+    # Smoothed rate
+    ax.plot(t_centers, rate_smooth, color='k', linewidth=1.8, label='Smoothed rate', zorder=3)
+
+    # Baseline window shading
+    ax.axvspan(-PRE_TIME_MS, 0, color='lightyellow', alpha=0.5, zorder=0)
+
+    # Threshold lines
+    ax.axhline(mu, color='gray', linestyle='--', linewidth=1.2, alpha=0.8, label=f'Baseline ({mu:.1f} Hz)')
+    ax.axhline(excit_thresh, color='#E63946', linestyle=':', linewidth=1.2,
+               alpha=0.7, label=f'+{K_SD_EXCIT}σ ({excit_thresh:.1f} Hz)')
+    ax.axhline(inhib_thresh, color='#457B9D', linestyle=':', linewidth=1.2,
+               alpha=0.7, label=f'−{K_SD_INHIB}σ ({inhib_thresh:.1f} Hz)')
+
+    # Stimulus onset
+    ax.axvline(0, color='k', linestyle='--', linewidth=1.5, alpha=0.6, label='Stim onset')
+
+    # Latency marker
+    if not np.isnan(latency_ms):
+        ax.axvline(latency_ms, color=color, linestyle='-', linewidth=1.8,
+                   alpha=0.9, label=f'Latency {latency_ms:.1f} ms')
+
+    ax.set_xlabel('Time (ms)', fontsize=11)
+    ax.set_ylabel('Firing Rate (Hz)', fontsize=11)
+    ax.grid(alpha=0.25)
+    ax.spines[['top', 'right']].set_visible(False)
+
+    sig_str = ''
+    if p_value is not None:
+        sig_str = f'  p={p_value:.4f}'
+        if p_value < 0.001:
+            sig_str += ' (***)'
+        elif p_value < 0.01:
+            sig_str += ' (**)'
+        elif p_value < 0.05:
+            sig_str += ' (*)'
+
+    ax.set_title(
+        f'Cluster {cluster_id}  |  {stim}  DC={dc}  Train {tid}\n'
+        f'Response: {resp_type}{sig_str}',
+        fontsize=11, fontweight='bold', color=color
+    )
+    ax.legend(fontsize=8, loc='upper right', framealpha=0.7)
+
+    out_dir = Path(figure_dir) / 'psth' / str(cluster_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fname = out_dir / f'{cluster_id}_{stim.replace("+", "_")}_{dc}Hz_train{tid}.{fmt}'
+    fig.tight_layout()
+    fig.savefig(fname, dpi=dpi, bbox_inches='tight')
+    plt.close(fig)
+
+
 def get_adaptive_smooth_sd(baseline_rate):
     """
     Calculate appropriate smoothing based on baseline firing rate.
@@ -502,7 +711,7 @@ def get_adaptive_smooth_sd(baseline_rate):
     elif baseline_rate < 10.0:
         return 3.0  # ~1.5 ms smoothing
     else:
-        return 2.0  # ~1.0 ms smoothing
+        return 10 #2.0  # ~1.0 ms smoothing
 
 
 # ============================================================
@@ -605,17 +814,17 @@ def build_wide(source_df, exclude_dc=37):
     """
     data = source_df.copy()
     if exclude_dc is not None:
-        data = data[data["dc"] != exclude_dc]
+        data = data[data["laser_prr"] != exclude_dc]
 
     # Separate the two conditions
     pa = (data[data["stim"] == "PA"]
           .drop(columns="stim")
-          .set_index(["cluster_id", "dc"])
+          .set_index(["cluster_id", "laser_prr"])
           .add_suffix("_pa"))
 
     pl = (data[data["stim"] == "PA+light"]
           .drop(columns="stim")
-          .set_index(["cluster_id", "dc"])
+          .set_index(["cluster_id", "laser_prr"])
           .add_suffix("_pl"))
 
     wide = pd.concat([pa, pl], axis=1, join="outer")

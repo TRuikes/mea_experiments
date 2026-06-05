@@ -9,8 +9,18 @@ skip_triggers: list of recording numbers to skip. recording numbers are recognis
 
 
 dataset_sessions = {
-    '260424_A': dict(laser_calib_week='week_49', fiber_connection='',
-                    local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 10]), # Skip triggers are recording numbers to skip
+    '260520_A': dict(laser_calib_week='week_49', fiber_connection='',
+                    local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 9]),
+    # '260519_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 10]),
+    # '260415_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 10]),
+    # '260417_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 7, 9, 11]),
+    # '260423_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 7, 9, 10]),
+    # '260424_A': dict(laser_calib_week='week_49', fiber_connection='',
+    #                 local_dir=None, skip_triggers=[1, 2, 3, 4, 6, 8, 10]), # Skip triggers are recording numbers to skip
     # '250904_A': dict(laser_calib_week='week_49', fiber_connection='',
     #                 local_dir=None, skip_triggers=[1, 2, 3, 4,7,8, 10]), # Skip triggers are recording numbers to skip
     # '251014_A': dict(laser_calib_week='week_49', fiber_connection='',

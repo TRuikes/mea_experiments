@@ -58,6 +58,24 @@ def extract_trial_data(filepaths: FilePaths):
 
     # Add x,y position of laser to data
     mea_position = pd.read_csv(filepaths.mea_position_file, index_col=0, header=0)
+    for i, r in df.iterrows():
+        if pd.isna(r.electrode):
+            if 'dmd' or 'light' in r.protocol:
+                continue
+            else:
+                raise ValueError('error??')
+        p = mea_position.loc[r.electrode]
+        df.at[i, 'laser_x'] = p.x
+        df.at[i, 'laser_y'] = p.y
+
+    # try:
+    try:
+        laser_specs = pd.read_csv(filepaths.laser_calib_file, index_col=0, header=0)
+        laser_found = True
+    except:
+        laser_found = False
+        laser_specs = None
+
 
     for i, r in df.iterrows():
         if 'protocol_name' in r.keys():
