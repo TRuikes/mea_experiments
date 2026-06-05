@@ -2,20 +2,21 @@ import numpy as np
 from pathlib import Path
 import pickle
 
-import pandas as pd
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 from plotly.io import write_image
 import os
-import multiprocessing as mp
 import plotly
-import sys
 import h5py
 from pptx import Presentation
 from pptx.util import Inches
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
+import __main__
+__main__.BootstrapOutput = BootstrapOutput
 
-FIG_SCALE = 5
+FIG_SCALE = 4
 
 def save_obj(obj, savename: Path):
     """
@@ -126,10 +127,15 @@ def simple_fig(n_cols=1, n_rows=1, width=1, x_offset=None, height=0.5, equal_wid
 
     return fig
 
-def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
+def make_figure(width=1, height=1, x_domains=None, y_domains=None, **kwargs) -> go.Figure:
     for i, k in kwargs.items():
         assert i in ['subplot_titles', 'specs', 'equal_width_height', 'equal_width_height_axes', 'bg_color',
                      'xticks', 'yticks'], f'{i}'
+
+    if x_domains is None:
+        x_domains = {1: [[0.1, 0.9]]}
+    if y_domains is None:
+        y_domains = {1: [[0.1, 0.9]]}
 
     # Check dimensions of x_domains and y_domains
     for row in x_domains.keys():
@@ -269,6 +275,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
                 linewidth=0.5,
                 linecolor=font_color,
                 showline=True,
+                showgrid=False,
 
                 # Title properties
                 title=dict(
@@ -304,6 +311,7 @@ def make_figure(width, height, x_domains, y_domains, **kwargs) -> go.Figure:
                 linewidth=0.5,
                 linecolor=font_color,
                 showline=True,
+                showgrid=False,
 
                 # Title properties
                 title=dict(
@@ -420,6 +428,43 @@ def make_panel(width, height, **kwargs):
     return fig
 
 
+def update_subplot_titles(
+        fig,
+        x_domains=None,
+        y_domains=None,
+        subplot_titles=None,
+):
+    fig.layout.annotations = []
+
+    if x_domains is None:
+        x_domains = {1: [[0.1, 0.9]]}
+    if y_domains is None:
+        y_domains = {1: [[0.1, 0.9]]}
+
+    # Detect the nr of cols
+    n_cols = 0
+    for row, specs in x_domains.items():
+        n_cols = np.max([n_cols, len(specs)])
+
+    for (row, col), title in subplot_titles.items():
+        x = x_domains[row][col-1][0]
+        y = y_domains[row][col-1][1] + 0.01
+
+        fig.add_annotation(
+            x=x,
+            y=y,
+            text=title,
+            font=dict(size=12, family='arial', color='black', ),
+            showarrow=False,
+            xanchor='left', yanchor='bottom',
+            xref='paper', yref='paper',
+        )
+
+    return fig
+
+
+
+
 
 def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=True,
              display=True):
@@ -456,34 +501,30 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
             file = savename.parent / (savename.name + f'.png')
         elif 'html' in formats:
             file = savename.parent / (savename.name + f'.html')
-        os.system(f'start {file}')
+        # os.system(f'start {file}')
+        os.startfile(file)
 
 
-def run_job(job_fn, n_proceses, joblist):
-    """
-    Run a function in parallel
 
-    :param job_fn: function to run the job on
-    :param n_proceses: nr of parallel processes
-    :param joblist: list of lists with input values for the function
-    :return:
-    """
-    gettrace = getattr(sys, 'gettrace', None)
 
-    if not gettrace():
-        pool = mp.Pool(processes=n_proceses)
-        for job in joblist:
-            pool.apply_async(job_fn, args=job)
+def run_job(job_fn, num_threads, tasks, debug):
 
-        # Call pool.close() and pool.join(), otherwise the main script will not wait for apply_async to
-        # finish and kill all workers
-        pool.close()
-        pool.join()
+    results = []
+
+    if not debug:
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(job_fn, **task) for task in tasks]
+
+            for f in tqdm(as_completed(futures), total=len(futures)):
+                result = f.result()  # collect return value
+                results.append(result)
+
     else:
-        print('DEBUGGING')
-        for job in joblist:
-            job_fn(*job)
+        for task in tqdm(tasks):
+            result = job_fn(**task)
+            results.append(result)
 
+    return results
 
 def interp_color(nsteps, step_nr, scalename, alpha, inverted=False):
     cols = getattr(getattr(plotly.colors, scalename[0]), scalename[1])
