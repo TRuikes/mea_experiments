@@ -1,7 +1,7 @@
-from audrey.preprocessing.lib.filepaths import FilePaths
+from pv_chip_aarhus.preprocessing.lib.filepaths import FilePaths
 import pandas as pd
 import numpy as np
-from audrey.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
+from pv_chip_aarhus.preprocessing.params import nb_bytes_by_datapoint, data_nb_channels, data_sample_rate, dataset_dir, data_voltage_resolution, data_type
 from pathlib import Path
 import os
 import utils
@@ -9,9 +9,10 @@ from tqdm import tqdm
 import re
 
 
-def extract_phy_data(filepaths: FilePaths, update=False):
+def extract_phy_data(filepaths: FilePaths, update=False, waveform_extraction=False):
     get_spikedata(filepaths, update=update)
-    # _extract_waveforms(filepaths, update=update)
+    if waveform_extraction:
+        _extract_waveforms(filepaths, update=update)
 
 
 def get_spikedata(filepaths: FilePaths, update):
@@ -45,17 +46,12 @@ def recording_onsets(filepaths: FilePaths):
     # Detect which files were clustered
     clustered_files = []
 
-    if filepaths.local_raw_dir is not None:
-        USE_LOCAL_DIR = True
-    else:
-        USE_LOCAL_DIR = False
-
     with open(filepaths.proc_sc_params, 'r') as file:
         text = file.read()
 
     match = re.search(r'\[.*?\]', text, re.DOTALL)
     list_content = match.group(0)[1:-1]  # remove brackets
-    clustered_files = [item.strip().replace('r"', '').replace('"', '') for item in list_content.split(',') if len(item) > 3]
+    clustered_files = [item.strip().replace('r"', '').replace('"', '').replace("'", "").replace('"', "") for item in list_content.split(',') if len(item) > 3]
     clustered_files = [Path(f) for f in clustered_files]
 
     # for line in text.split('\n'):
@@ -84,17 +80,7 @@ def recording_onsets(filepaths: FilePaths):
         else:
             local_name = filepaths.raw_dir / rec.name
         '''
-        local_name = filepaths.sorted_dir / rec.name
-
-        # Patch session 2501015_A
-        if '2501015_A' in rec.name:
-            patch_name = '25' + rec.name.split('250')[1]
-            local_name = filepaths.sorted_dir / patch_name
-
-        # Patch session 2401014_A and 2401014_B
-        if '2501014_A' in rec.name or '2501014_B' in rec.name:
-            patch_name = '25' + rec.name.split('250')[1]
-            local_name = filepaths.sorted_dir / patch_name
+        local_name = filepaths.raw_dir / rec.name
 
 
         assert local_name.exists(), f'{local_name}'
@@ -134,7 +120,7 @@ def _extract_spiketimes(filepaths: FilePaths):
     cluster_overview = cluster_overview.query('group != "noise"')
 
     for cluster_i, cluster_id in enumerate(cluster_overview.index.tolist()):
-        new_id = f'uid_{filepaths.sid}_{cluster_i:03d}'
+        new_id = f'uid_{filepaths.sid.split("_")[0]}_{cluster_i:03d}'
         cluster_overview.at[cluster_id, 'new_id'] = new_id
         cluster_overview.at[cluster_id, 'phy_cluster_id'] = cluster_id
 
@@ -158,8 +144,10 @@ def _extract_spiketimes(filepaths: FilePaths):
 
             # Find all spike indices for this cluster, in this recording
             idx = np.where((sp_idx >= rec_info.i0) & (sp_idx < rec_info.i1))[0]
+
             # Normalize spiketimes to onset of this recording, and convert to ms
             rec_spikes = ((sp_idx[idx] - rec_info.i0) / data_sample_rate) * 1000
+
             # Write the spiketimes to output dit
             spiketimes_per_recording[rec][cluster_info.new_id] = rec_spikes
 
