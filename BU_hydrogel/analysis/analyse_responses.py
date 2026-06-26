@@ -60,7 +60,7 @@ def main():
     Main handles
     """
     data_io = DataIO(dataset_dir)
-    session_id = '2026-05-12 rat LE 1355 A test'
+    session_id = '2026-05-12 rat LE 1355 A kilosort'
 
     # session_id = data_io.sessions[0]
     print(f'Loading data: {session_id}')
@@ -70,7 +70,7 @@ def main():
     data_io.lock_modification()
 
     # Analyse the cell responses following the triggers
-    analyse_responses(data_io, dataset_dir / 'bootstrapped')
+    analyse_responses(data_io, dataset_dir / 'bootstrapped', overwrite=True)
 
     data_io.unlock_modification()
 
@@ -138,7 +138,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
     print(f'Saved: {savename}')
 
 
-def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
+def analyse_responses(data_io: "DataIO", output_dir: Path, overwrite=False) -> None:
     """
     Handles calls to bootstrap function for single cells.
     """
@@ -152,7 +152,7 @@ def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile: Path = output_dir / f'bootstrap_{cluster_id}.pkl'
-        if savefile.exists():
+        if savefile.exists() and not overwrite:
             continue
         tasks.append({
             "data_io": data_io,
@@ -191,7 +191,7 @@ def bootstrap_data(
     binwidth: int = 20
     bin_centres: np.ndarray = np.arange(-t_pre, t_after, stepsize)
     baseline: List[int] = [-100, -0]
-    response_window: List[int] = [0, 200]
+    response_window: List[int] = [0, 300]
 
     min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
     min_excitation_duration = 15  # minimum duration of excitation in [ms]

@@ -8,15 +8,15 @@ class ProjectColors:
         return
 
     @staticmethod
-    def laser_level(laser_level, alpha=1):
+    def laser_prr(laser_level, alpha=1):
 
-        min_laser_level = 50
-        max_laser_level = 100
+        min_laser_level = 3000
+        max_laser_level = 8000
 
-        laser_level = int((laser_level - min_laser_level) / (max_laser_level - min_laser_level) * 100)
+        laser_level_rel = int((laser_level - min_laser_level) / (max_laser_level - min_laser_level) * 100)
 
         # cmaps.cet_l_bmy.discrete(100).colors
-        r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[laser_level, :]
+        r, g, b = cmaps.cet_l_bmy.cut(0.1, 'left').cut(0.1, 'right').discrete(100).colors[laser_level_rel, :]
         return f'rgba({r}, {g}, {b}, {alpha})'
 
     @staticmethod
@@ -63,10 +63,46 @@ class ProjectColors:
         )
         return f'rgba({r}, {g}, {b}, {alpha})'
 
+    @staticmethod
+    def burst_duration(bd, *, alpha=None, bd_min=10, bd_max=50):
+        if bd_min is not None:
+            bd = int((bd - bd_min) / (bd_max - bd_min) * 100)
+
+        # default opacity if not specified
+        if alpha is None:
+            alpha = 1.0
+
+        r, g, b = (
+            cmaps.torch
+            .cut(0.2, 'left')
+            .cut(0.2, 'right')
+            .discrete(100)
+            .colors[int(bd), :]
+        )
+        return f'rgba({r}, {g}, {b}, {alpha})'
+
     # def duty_cycle(duty_cycle):
     #     # cmaps.cet_l_bmy.discrete(100).colors
     #     r, g, b = cmaps.torch.cut(0.2, 'left').cut(0.2, 'right').discrete(100).colors[int(duty_cycle), :]
     #     return f'rgba({r}, {g}, {b}, 1)'
+
+    @staticmethod
+    def dmd_intensity(intensity, *, alpha=None):
+        if intensity is not None:
+            bd = int((intensity - 0) / (255 - 0) * 100)
+
+        # default opacity if not specified
+        if alpha is None:
+            alpha = 1.0
+
+        r, g, b = (
+            cmaps.ice
+            .cut(0.2, 'left')
+            .cut(0.2, 'right')
+            .discrete(100)
+            .colors[int(bd), :]
+        )
+        return f'rgba({r}, {g}, {b}, {alpha})'
 
     @staticmethod
     def padmd_stim(duty_cycle, *, alpha=None):
@@ -82,7 +118,7 @@ class ProjectColors:
             .colors[int(duty_cycle), :]
         )
         return f'rgba({r}, {g}, {b}, {alpha})'
-    
+
     @staticmethod
     def repetition_frequency(prf, alpha=1):
         rel_i = int((prf - 1000) / (8000 - 1000) * 100)
@@ -100,7 +136,6 @@ class ProjectColors:
             idx = -idx
         clrraw = self._animal_map[idx, :]
         return f'rgba({clrraw[0]}, {clrraw[1]}, {clrraw[2]}, {alpha})'
-
 
     @staticmethod
     def blocker_color(blocker, alpha):

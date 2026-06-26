@@ -1,6 +1,6 @@
 from BU_hydrogel.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis, data_list
 from BU_hydrogel.analysis.lib.data_io import DataIO
-from BU_hydrogel.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session, firing_rate_per_protocol_master
+from BU_hydrogel.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session, firing_rate_per_protocol_master, firing_rate_per_param
 
 def main():
     # Setup session ID + create figure output directory
@@ -29,9 +29,11 @@ def main():
                 data_io.burst_df.at[i, 'protocol_name'] = r['recording_name']
 
 
-        generate_raster_plots_session(data_io=data_io)
+        generate_raster_plots_session(data_io=data_io, sig_only=True)
         # generate_heatmaps_session(data_io=data_io, sig_only=True)
-        # firing_rate_per_protocol_master(data_io=data_io)
+        # firing_rate_per_protocol_master(data_io=data_io)  # doesn't work for BU
+
+        firing_rate_per_param(data_io, data_io.cluster_ids[5], 99, 99)
 
         print(f'Finished {session_id}\n\n')
 

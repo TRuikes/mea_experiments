@@ -19,5 +19,5 @@ dataset_sessions = {
     # r'2026-01-22 rat LE 9999 A': dict(laser_calib_week='week_49', fiber_connection='',
     #                                 local_dir=None, skip_triggers=[])
     # '2026-05-12 rat LE 1355 A': dict(skip_triggers=[]),
-    '2026-05-12 rat LE 1355 A test': dict(skip_triggers=[]),
+    '2026-05-12 rat LE 1355 A kilosort': dict(skip_triggers=[]),
 }
