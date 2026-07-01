@@ -14,6 +14,7 @@ from pathlib import Path
 
 import utils
 from sonogenetics.analysis.lib.analysis_params import dataset_dir
+from sonogenetics.analysis.data_list import data_list
 from sonogenetics.analysis.lib.data_io import DataIO
 
 
@@ -57,25 +58,25 @@ def main():
     """
     Main handles
     """
-    data_io = DataIO(dataset_dir)
-    session_id = '2026-05-12 rat LE 1355 A dmd only'
+    for session_id in data_list:
+        data_io = DataIO(dataset_dir)
 
-    # session_id = data_io.sessions[0]
-    print(f'Loading data: {session_id}')
-    data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
-    data_io.dump_as_pickle()
+        # session_id = data_io.sessions[0]
+        print(f'Loading data: {session_id}')
+        data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
+        data_io.dump_as_pickle()
 
-    data_io.lock_modification()
+        data_io.lock_modification()
 
-    # Analyse the cell responses following the triggers
-    analyse_responses(data_io, dataset_dir / 'bootstrapped')
+        # Analyse the cell responses following the triggers
+        analyse_responses(data_io, dataset_dir / 'bootstrapped', overwrite=True)
 
-    data_io.unlock_modification()
+        data_io.unlock_modification()
 
-    # Gather all the response statistics into a single table
-    gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
+        # Gather all the response statistics into a single table
+        gather_cluster_responses(data_io, dataset_dir / 'bootstrapped', dataset_dir / f'{data_io.session_id}_cells.csv')
 
-    print('Done')
+        print('Done')
 
 
 def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Path):
@@ -137,7 +138,7 @@ def gather_cluster_responses(data_io: DataIO, bootstrap_dir: Path, savename: Pat
     print(f'Saved: {savename}')
 
 
-def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
+def analyse_responses(data_io: "DataIO", output_dir: Path, overwrite=False) -> None:
     """
     Handles calls to bootstrap function for single cells.
     """
@@ -151,7 +152,8 @@ def analyse_responses(data_io: "DataIO", output_dir: Path) -> None:
 
     for cluster_id in data_io.cluster_df.index.values:
         savefile: Path = output_dir / f'bootstrap_{cluster_id}.pkl'
-        if savefile.exists():
+        if savefile.exists() and not overwrite:
+            print('skipping')
             continue
         tasks.append({
             "data_io": data_io,

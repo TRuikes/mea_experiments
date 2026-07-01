@@ -52,6 +52,7 @@ def recording_onsets(filepaths: FilePaths):
     match = re.search(r'\[.*?\]', text, re.DOTALL)
     list_content = match.group(0)[1:-1]  # remove brackets
     clustered_files = [item.strip().replace('r"', '').replace('"', '') for item in list_content.split(',') if len(item) > 3]
+    clustered_files = [f.replace("'", "").replace('"', '') for f in clustered_files]
     clustered_files = [Path(f) for f in clustered_files]
 
     # for line in text.split('\n'):

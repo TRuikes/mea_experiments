@@ -29,6 +29,7 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
 
         if 'PA' in rec_id or 'buSTIM1' in rec_id or 'pilot_021126' in rec_id or 'pilot021626' in rec_id or 'pa' in rec_id:
 
+            print(rec_id)
             pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
             print(f'{rec_id} - len train onsets: {len(pa_train_onsets)}')
             pa_n_train_recording = len(pa_train_onsets)
