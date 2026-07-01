@@ -24,14 +24,19 @@ def get_recording_table(trigger_dir, stim_dir):
         recnr_sf, stimtype_sf, lasermode_sf, stimsource_sf, date_sf, channel_sf, _, _, _ = stim_file.split('_')
 
         # Do some sanity checks
+        # if this breaks, it means the filenames between trigger and recording are not 100% exactly the same
         assert recnr_tf == recnr_sf
         assert lasermode_tf == lasermode_sf
         assert stimsource_tf == stimsource_sf
+
+        stimtype_tf = stimtype_sf.split('-')[0]
+        assert stimtype_sf == stimtype_tf
 
         recording_table.at[rec_nr, 'stim_file'] = stim_file
         recording_table.at[rec_nr, 'lasermode'] = lasermode_sf
         recording_table.at[rec_nr, 'stimsource'] = stimsource_sf
         recording_table.at[rec_nr,  'laser_ch'] = channel_sf
+        recording_table.at[rec_nr, 'varied_param'] = stimtype_sf
 
     return recording_table
 
@@ -124,6 +129,10 @@ class FilePaths:
 
             # define trials file
             self.proc_pp_trials = self.misc_dir / 'trials.csv'
+
+            # define spiketimes file
+            self.proc_pp_spiketimes = self.misc_dir / 'spiketimes.h5'
+            self.proc_pp_clusterinfo = self.misc_dir / 'cluster_info.csv'
 
             # Define the final dataset file
             self.dataset_file = self.dataset_out_dir / f'{self.sid}.h5'

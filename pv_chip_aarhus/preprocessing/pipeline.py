@@ -8,7 +8,6 @@ from pv_chip_aarhus.preprocessing.lib.extract_phy_data import extract_phy_data
 from pv_chip_aarhus.preprocessing.lib.extract_trial_data import extract_trial_data
 from pv_chip_aarhus.preprocessing.dataset_sessions import dataset_sessions
 from pv_chip_aarhus.preprocessing.lib.create_dataset_object import create_dataset_object
-from pv_chip_aarhus.preprocessing.lib.check_recording_and_dataframe_match import check_recording_and_dataframe_match
 
 for sid, s_specs in dataset_sessions.items():
 
@@ -17,16 +16,6 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract trial data
     extract_trial_data(filepaths)
-
-    # Extract manually sorted data
-    if filepaths.has_manual_sorted_data:
-        extract_phy_data(filepaths, update=True, waveform_extraction=False)
-    else:
-        print(f'NO SORTED DATA FOUND')
-
-    check_recording_and_dataframe_match(filepaths, s_specs['skip_triggers'])
-
-
-    create_dataset_object(filepaths, include_waveforms=False, 
-                          recording_numbers_to_skip=s_specs['skip_triggers'])
+    # extract_phy_data(filepaths, update=True, waveform_extraction=False, raw_data_dir=s_specs['raw_data_dir'])
+    create_dataset_object(filepaths, include_waveforms=False)
 
