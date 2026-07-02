@@ -1,169 +1,272 @@
 import pandas as pd
-from audrey.preprocessing.lib.filepaths import FilePaths
-from audrey.preprocessing.dataset_sessions import dataset_sessions
+from pv_chip_aarhus.preprocessing.lib.filepaths import FilePaths
 import numpy as np
+
+# Polychrome power stimulations are always conducted in this exact order.
+POLYCHROME_POWERS = [12, 25, 50, 100]
+
+
+def get_stim_per_mcd_channel(stim_file):
+    channel_tables = {}
+    current_channel = None
+    with open(stim_file, "r") as file:
+        for line in file:
+            clean_line = line.strip()
+
+            # 1. Skip empty lines or global file headers
+            if not clean_line or clean_line.startswith(
+                    ("Multi Channel", "ASCII", "channels:", "output mode:", "format:")
+            ):
+                continue
+
+            # 2. Detect a new channel block
+            if clean_line.startswith("channel:"):
+                # Save the previous channel's data before moving to the new one
+                if current_channel and current_rows:
+                    channel_tables[current_channel] = pd.DataFrame(
+                        current_rows, columns=headers
+                    )
+
+                # Reset variables for the new channel
+                current_channel = clean_line.split(":")[1].strip()
+                current_rows = []
+                headers = None
+                continue
+
+            # 3. Capture the column headers for the current table
+            if clean_line.startswith("value"):
+                headers = clean_line.split("\t")
+                continue
+
+            # 4. Collect data rows (split by tab characters)
+            if current_channel:
+                row_data = clean_line.split("\t")
+                # Convert string numbers to actual integers/floats
+                row_data = [
+                    float(val) if "." in val else int(val) for val in row_data
+                ]
+                current_rows.append(row_data)
+
+        # Don't forget to save the very last channel block after the loop finishes
+        if current_channel and current_rows:
+            channel_tables[current_channel] = pd.DataFrame(
+                current_rows, columns=headers
+            )
+
+    return channel_tables
+
+
 
 
 def extract_trial_data(filepaths: FilePaths):
+    df = pd.DataFrame()
 
-    if len(filepaths.raw_trials) == 1:
-        df = pd.read_csv(filepaths.raw_trials[0], index_col=0, header=0)
-    else:
-        dataframes = []
-        for f in filepaths.raw_trials:
-            df_read = pd.read_csv(f, index_col=0, header=0)
-            if df_read.shape[1] == 0:
-                df_read = pd.read_csv(f, index_col=0, header=0, delimiter=';')
-            df_read = df_read.loc[pd.notna(df_read.index)]
-            df_read['rec_file'] = f
-            dataframes.append(df_read)
-        df = pd.concat(dataframes, ignore_index=True)
+    trial_i = 0
 
-    if df.shape[1] == 0:  # use another delimiter
-        df = pd.read_csv(
-            filepaths.raw_trials, index_col=0, header=0,
-            delimiter=';'
-        )
+    for rec_nr, rec_info in filepaths.recording_table.iterrows():
 
-    train_i = 0
-    df = df.reset_index(drop = True)
+        if rec_info['varied_param'] == 'flick':
+            print(f'SKIPPING THE FLICK RECORDING')
+            continue
+
+        trial_offset = trial_i
+
+        # the polychrome and laser are controlled by mcd, which also sends out trigger signals to mc rack
+        # the laser trigger channel can vary between recordings, and is annotated in rec_info (Based on recording
+        # names)
+        # the polychrome channel is always ch9
+
+        # Here we read out the MC stimulation file, so that we can align it with the recorded trigger file later
+        # on.
+
+        # Extract trigger signal per stimulation channel
+        stim_per_mcd_channel = get_stim_per_mcd_channel(filepaths.stim_dir / rec_info['stim_file'])
+        laser_channel = rec_info['laser_ch'].split('ch')[1]
+
+        # Check if there is laser and/or polychrome stimulation
+        has_laser = rec_info['stimsource'] in ['L', 'B']
+        has_pchrome = rec_info['stimsource'] in ['P', 'B']
+
+
+        if has_laser and has_pchrome:
+            # Make sure each row of the table has the same time duration, so that we can simply align them
+            laser_stim_table = stim_per_mcd_channel[laser_channel]
+            pchr_stim_table = stim_per_mcd_channel['9']
+
+            n_rows_laser = laser_stim_table.shape[0]
+            n_rows_pchrome = pchr_stim_table.shape[0]
+            assert n_rows_laser == n_rows_pchrome
+
+            for row_i in range(n_rows_laser):
+                time_laser = laser_stim_table.iloc[row_i]['time'].sum() * laser_stim_table.iloc[row_i]['repeat']
+                time_pchrome = pchr_stim_table.iloc[row_i]['time'].sum() * pchr_stim_table.iloc[row_i]['repeat']
+                assert time_laser == time_pchrome
+
+
+        if has_laser:
+            laser_stim_table = stim_per_mcd_channel[laser_channel]
+
+            for i, r in laser_stim_table.iterrows():
+                if i == 0:
+                    assert r['repeat'] == 1
+                    continue
+
+                # In some stimfiles, the 1st and 2nd time columns are used, in others the 2nd and 3rd
+                # here detect which columns are used
+                idx = np.where(r['time'].values > 0)[0]
+
+                if r['repeat'] == 1:
+                    # For the inter trial intervals, there should be only a single time value
+                    assert len(idx) == 1
+                    iti = r['time'].iloc[idx[0]] / 1e3
+                    df.at[trial_i, 'iti'] = iti
+                    trial_i += 1
+
+
+                if r['repeat'] > 1:
+                    # The laser pulse is designed using 3 pairs of time and value. Those will describe the
+                    # laser delay
+                    # laser on
+                    # laser off
+                    # e.g.:
+                    #   delay       on         off
+                    #           ---------
+                    #         |         |
+                    # ---------         --------------------------------
+                    #
+                    # however not every stimulation row/type as all of those, in some cases the delay and off are missing
+
+                    # In any case, there should be only 1 on value
+                    idx = np.where(r['value'].values > 0)[0]
+                    assert len(idx) == 1
+
+                    # Now loop over the columns, to see if there is a delay before the first on
+                    had_on = False
+                    has_delay = False
+                    laser_delay, laser_on_duration, laser_off_duration = None, None, None
+                    laser_power = None
+
+                    for col_i in range(3):
+                        t = r['time'].values[col_i]
+                        v = r['value'].values[col_i]
+
+                        if t == 0:  # if time = 0 there is no data in that column
+                            continue
+
+                        t = t / 1e3  # convert to [ms]
+
+                        if v == 0:
+                            if not had_on:  # if there is a v=0 column before a stimulation, there is an
+                                    # onset delay
+                                laser_delay = t
+                                has_delay = True
+                            elif had_on:  # if there is a v=0 column after a stimulation, there is an off
+                                # off duration
+                                laser_off_duration = t
+
+                        elif v > 0:
+                            assert had_on == False  # redundant, but a value for v can be occuring once in each row
+                            laser_on_duration = t
+                            laser_power = v
+                            had_on = True
+
+                            if not has_delay:
+                                laser_delay = 0
+
+                    assert had_on
+
+                    df.at[trial_i, 'stimsource'] = rec_info['stimsource']
+                    df.at[trial_i, 'laser_delay'] = laser_delay
+                    df.at[trial_i, 'laser_on_duration'] = laser_on_duration
+                    df.at[trial_i, 'laser_off_duration'] = laser_off_duration
+                    df.at[trial_i, 'laser_repeats'] = r['repeat']
+                    df.at[trial_i, 'varied_param'] = rec_info['varied_param']
+
+                    if rec_info['varied_param'] == 'pow':
+                        df.at[trial_i, 'laser_power'] = 999
+                    else:
+                        df.at[trial_i, 'laser_power'] = laser_power
+                    df.at[trial_i, 'rec_nr'] = rec_nr
+
+
+        if has_pchrome:
+            pchr_stim_table = stim_per_mcd_channel['9']
+            pchr_tick = 0
+            trial_i = trial_offset
+
+            for i, r in pchr_stim_table.iterrows():
+                if i == 0:
+                    assert r['repeat'] == 1
+                    continue
+
+                idx = np.where(r['time'].values > 0)[0]
+
+                if r['repeat'] == 1:
+                    assert len(idx) == 1
+                    iti = r['time'].iloc[idx[0]] / 1e3
+                    df.at[trial_i, 'iti'] = iti
+                    trial_i += 1
+
+
+                if r['repeat'] > 1:
+                    # Same logic as with the laser stim params
+                    idx = np.where(r['value'].values > 0)[0]
+                    assert len(idx) == 1
+
+                    # Now loop over the columns, to see if there is a delay before the first on
+                    had_on = False
+                    has_delay = False
+                    pchr_delay, pchr_on_duration, pchr_off_duration = None, None, None
+
+                    for col_i in range(3):
+                        t = r['time'].values[col_i]
+                        v = r['value'].values[col_i]
+
+                        if t == 0:  # if time = 0 there is no data in that column
+                            continue
+
+                        t = t / 1e3  # convert to [ms]
+
+                        if v == 0:
+                            if not had_on:  # if there is a v=0 column before a stimulation, there is an
+                                # onset delay
+                                pchr_delay = t
+                                has_delay = True
+                            elif had_on:  # if there is a v=0 column after a stimulation, there is an off
+                                # off duration
+                                pchr_off_duration = t
+
+                        elif v > 0:
+                            assert had_on == False  # redundant, but a value for v can be occuring once in each row
+                            pchr_on_duration = t
+                            had_on = True
+
+                            if not has_delay:
+                                pchr_delay = 0
+
+                    assert had_on
+
+
+                    df.at[trial_i, 'stimsource'] = rec_info['stimsource']
+                    df.at[trial_i, 'rec_nr'] = rec_nr
+                    df.at[trial_i, 'pchr_delay'] = pchr_delay
+                    df.at[trial_i, 'pchr_on_duration'] = pchr_on_duration
+                    df.at[trial_i, 'pchr_off_duration'] = pchr_off_duration
+                    df.at[trial_i, 'pchr_repeats'] = r['repeat']
+
+                    df.at[trial_i, 'varied_param'] = rec_info['varied_param']
+
+                    if rec_info['varied_param'] == 'pow':
+                        df.at[trial_i, 'pchr_power'] = POLYCHROME_POWERS[pchr_tick]
+                    else:
+                        df.at[trial_i, 'pchr_power'] = 50
+
+                    pchr_tick += 1
 
     for i, r in df.iterrows():
+        df.at[i, 'train_id'] = f'tid_{i:03d}_{r.rec_nr}'
 
-        tid = f'tid_{filepaths.sid}_{train_i:03d}'
-        df.at[i, 'train_id_index'] = tid
-        df.at[i, 'train_id'] = tid
-        train_i += 1
-
-        rec_nr = r['Recording Number']
-        print(rec_nr)
-        recording_name = None
-
-        for rr in filepaths.recording_names:
-            if f'_{rec_nr:03.0f}_' in rr:
-                recording_name = rr
-        assert recording_name is not None
-
-        df.at[i, 'recording_name'] = recording_name
-
-    df.set_index('train_id_index', inplace=True)
-
-    for rec_name, df_rec in df.groupby('recording_name'):
-        ri = 0
-        for i, r in df_rec.iterrows():
-            df.at[i, 'rec_train_i'] = ri
-            ri += 1
-
-    # Add x,y position of laser to data
-    mea_position = pd.read_csv(filepaths.raw_mea_position, index_col=0, header=0)
-    for i, r in df.iterrows():
-        if pd.isna(r.electrode):
-            if 'dmd' or 'light' in r.protocol:
-                continue
-            else:
-                raise ValueError('error??')
-        p = mea_position.loc[r.electrode]
-        df.at[i, 'laser_x'] = p.x
-        df.at[i, 'laser_y'] = p.y
-
-    # try:
-    try:
-        laser_specs = pd.read_csv(filepaths.laser_calib_file, index_col=0, header=0)
-        laser_found = True
-    except:
-        laser_found = False
-        laser_specs = None
-
-    for i, r in df.iterrows():
-
-        if r.protocol in [
-            'pa_prr_series', 'pa_light_prr_series',
-        ]:
-            
-            cb = r['Connected Fibers']
-            
-            att = r['Attenuators']
-
-            if att == 1.4 or att == '1.4':
-                fiber_connection = f'CB1_14_{cb}'
-            elif att == 'CA':
-                fiber_connection = f'CB1_CA_{cb}_{r.n_turns:.0f}'
-            elif att == 0.4 or att == '0.4':
-                    fiber_connection = f'CB1_04_{cb}'
-            elif att == 0.3 or att == '0.3':
-                    fiber_connection = f'CB1_04_{cb}'
-            else:
-                raise ValueError('implement this')
-
-            laser_level = r['Laser level']
-            duty_cycle = r.duty_cycle
-            if pd.isna(duty_cycle):
-                duty_cycle = r.laser_duty_cycle
-
-            if laser_found:
-                if 'slope_slope' in laser_specs.loc[fiber_connection].keys():
-                    slope_slope = laser_specs.loc[fiber_connection]['slope_slope']
-                    slope_intercept = laser_specs.loc[fiber_connection]['slope_intercept']
-                    inter_slope = laser_specs.loc[fiber_connection]['inter_slope']
-                    inter_intercept = laser_specs.loc[fiber_connection]['inter_intercept']
-                    fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
-                    fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
-                    fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
-                    fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
-
-                    power_slope = slope_intercept + slope_slope * laser_level
-                    power_inter = inter_intercept + inter_slope * laser_level
-
-                else:
-
-                    power_slope = laser_specs.loc[fiber_connection]['power_slope']
-                    power_inter = laser_specs.loc[fiber_connection]['power_intercept']
-                    fr_slope_slope = laser_specs.loc[fiber_connection]['fr_slope_slope']
-                    fr_slope_intercept = laser_specs.loc[fiber_connection]['fr_slope_intercept']
-                    fr_inter_slope = laser_specs.loc[fiber_connection]['fr_inter_slope']
-                    fr_inter_intercept = laser_specs.loc[fiber_connection]['fr_inter_intercept']
-
-                power = power_inter + power_slope * duty_cycle  # mW
-
-                frep_slope = fr_slope_intercept + fr_slope_slope * laser_level  # Hz
-                frep_inter = fr_inter_intercept + fr_inter_slope * laser_level
-
-                frep = frep_inter + frep_slope * duty_cycle
-
-                df.at[i, 'laser_power'] = power
-                df.at[i, 'repetition_frequency'] = frep
-                df.at[i, 'e_pulse'] = ((power / 1000) / frep) * 1e6
-
-                if '_C6' in fiber_connection or '_C7':
-                    diameter = 50 / 1e3  # mm
-                    large_diameter = 100 / 1e3  # mm
-                elif '_C8' in fiber_connection:
-                    diameter = 25  / 1e3  # mm
-                    large_diameter = 50 / 1e3  # mm
-                else:
-                    raise ValueError(f'implement this: {fiber_connection}')
-
-
-                area = np.pi * (diameter / 2) ** 2
-                large_area = np.pi * (large_diameter / 2) ** 2
-                power = power / 1000  # W
-                irradiance = power / area  # W / mm2
-
-                df.at[i, 'fiber_diameter'] = diameter
-                df.at[i, 'irradiance'] = irradiance
-                df.at[i, 'irradiance_exact_fiber_diameter'] = irradiance  # irradiane at exact fiber diameter
-                df.at[i, 'irradiance_large_fiber_diameter'] = power / large_area  # W / mm2
-
-    # Patch old column names
-    names_to_patch = (
-        'burst_period', 'burst_count', 'burst_duration',
-        'duty_cycle'
-    )
-    for i, r in df.iterrows():
-        for n in names_to_patch:
-            if pd.notna(r[n]):
-                df.at[i, f'laser_{n}'] = r[n]
-
-    df.drop(columns=names_to_patch, inplace=True, errors='ignore')
+    if not filepaths.proc_pp_trials.parent.exists():
+        filepaths.proc_pp_trials.parent.mkdir(parents=True, exist_ok=True)
 
     df.to_csv(filepaths.proc_pp_trials)

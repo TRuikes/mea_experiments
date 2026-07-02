@@ -51,7 +51,7 @@ def recording_onsets(filepaths: FilePaths):
 
     match = re.search(r'\[.*?\]', text, re.DOTALL)
     list_content = match.group(0)[1:-1]  # remove brackets
-    clustered_files = [item.strip().replace('r"', '').replace('"', '') for item in list_content.split(',') if len(item) > 3]
+    clustered_files = [item.strip().replace('r"', '').replace('"', '').replace("'", "").replace('"', "") for item in list_content.split(',') if len(item) > 3]
     clustered_files = [Path(f) for f in clustered_files]
 
     # for line in text.split('\n'):
@@ -144,8 +144,10 @@ def _extract_spiketimes(filepaths: FilePaths):
 
             # Find all spike indices for this cluster, in this recording
             idx = np.where((sp_idx >= rec_info.i0) & (sp_idx < rec_info.i1))[0]
+
             # Normalize spiketimes to onset of this recording, and convert to ms
             rec_spikes = ((sp_idx[idx] - rec_info.i0) / data_sample_rate) * 1000
+
             # Write the spiketimes to output dit
             spiketimes_per_recording[rec][cluster_info.new_id] = rec_spikes
 

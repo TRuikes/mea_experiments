@@ -292,19 +292,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             clusters_grp = rec_grp.require_group("clusters")
             for cluster_id, cinfo in cluster_info.iterrows():
                 cluster_rec_grp = clusters_grp.require_group(str(cluster_id))
-
-                # Access the correct key for spiketimes (patch for 250904_A)
-                rec_nr = rec_id.split('_')[2]
-                spiketimes_key = None
-                for k in spiketimes.keys():
-                    if rec_nr in k:
-                        spiketimes_key = k
-                        break
-
-                assert spiketimes_key is not None
- 
-                cluster_rec_grp.create_dataset('spiketimes', data=spiketimes[spiketimes_key][cluster_id])
+                cluster_rec_grp.create_dataset('spiketimes', data=spiketimes[rec_id][cluster_id])
                 if include_waveforms:
-                    cluster_rec_grp.create_dataset('waveforms', data=waveforms[spiketimes_key][cluster_id])
+                    cluster_rec_grp.create_dataset('waveforms', data=waveforms[rec_id][cluster_id])
+
 
     print(f'\nSaved dataset to {write_file.as_posix()}\n\n')

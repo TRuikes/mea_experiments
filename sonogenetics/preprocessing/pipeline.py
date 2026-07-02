@@ -20,9 +20,21 @@ for sid, s_specs in dataset_sessions.items():
     filepaths.check_data()
 
     # # Extract stimulation triggers
+    if 'laser_trigger_channel' in s_specs.keys():
+        laser_trigger_channel = s_specs['laser_trigger_channel']
+    else:
+        laser_trigger_channel = None
+
+    if 'dmd_trigger_channel' in s_specs.keys():
+        dmd_trigger_channel = s_specs['dmd_trigger_channel']
+    else:
+        dmd_trigger_channel = None
+
     extract_triggers(filepaths, update=False,
                      visualize_detection=False,
-                     recording_numbers_to_skip=s_specs['skip_triggers'])
+                     recording_numbers_to_skip=s_specs['skip_triggers'],
+                     laser_trigger_channel=laser_trigger_channel,
+                     dmd_trigger_channel=dmd_trigger_channel)
 
     # Extract trial data
     extract_trial_data(filepaths)

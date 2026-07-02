@@ -8,7 +8,7 @@ import numpy as np
 
 
 def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=False,
-                     recording_numbers_to_skip=None):
+                     recording_numbers_to_skip=None, laser_trigger_channel=None, dmd_trigger_channel=None):
     print('\nProcessing trigger data')
 
     if filepaths.proc_pp_triggers.exists() and not update:
@@ -53,7 +53,19 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         for trigger_type in trigger_types:
 
-            trigger_channel = data_trigger_channels[trigger_type]
+            if trigger_type == 'laser':
+                if laser_trigger_channel is not None:
+                    trigger_channel = laser_trigger_channel
+                else:
+                    trigger_channel = data_trigger_channels[trigger_type]
+
+            elif trigger_type == 'dmd':
+                if dmd_trigger_channel is not None:
+                    trigger_channel = dmd_trigger_channel
+                else:
+                    trigger_channel = data_trigger_channels[trigger_type]
+            else:
+                raise ValueError('error!')
 
             print(f'\t\treading {trigger_type}')
 

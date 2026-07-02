@@ -1,4 +1,4 @@
-dataset_dir = r'C:\thijs\bu_hydrogel'
+dataset_dir = r'E:\bu_hudrogel'
 
 data_trigger_channels = dict(
     dmd=127,

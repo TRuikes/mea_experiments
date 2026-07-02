@@ -186,17 +186,17 @@ class FilePaths:
             assert self.proc_sc_channel_positions.exists()
             assert self.proc_sc_similar_templates.exists()
             assert self.proc_sc_spike_times.exists()
-            assert self.proc_sc_template_ind.exists()
-            assert self.proc_sc_templates.exists()
-            assert self.proc_sc_whitening_mat.exists()
-            assert self.proc_sc_whitening_mat_inv.exists()
+            # assert self.proc_sc_template_ind.exists()
+            # assert self.proc_sc_templates.exists()
+            # assert self.proc_sc_whitening_mat.exists()
+            # assert self.proc_sc_whitening_mat_inv.exists()
 
             print(f'\thas sorted data!')
 
             if self.has_manual_sorted_data:
                 assert self.proc_phy_cluster_info.exists()
                 assert self.proc_phy_spike_clusters.exists()
-                assert self.proc_phy_cluster_purity.exists()
+                # assert self.proc_phy_cluster_purity.exists()
                 assert self.proc_phy_cluster_group.exists()
 
                 print(f'\thas manual clustered data!')

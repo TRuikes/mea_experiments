@@ -1,4 +1,5 @@
-from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis, data_list
+from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
+from sonogenetics.analysis.data_list import data_list
 from sonogenetics.analysis.lib.data_io import DataIO
 from sonogenetics.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session, firing_rate_per_protocol_master
 
