@@ -186,7 +186,7 @@ if __name__ == "__main__":
     from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
-    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 B'
 
     figure_dir_analysis = figure_dir_analysis / session_id
     print(session_id)

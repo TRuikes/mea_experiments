@@ -299,8 +299,10 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     # -----------------------------
     # Parameters
     # -----------------------------
-    t_pre = 100
-    t_after = 200
+    #t_pre = 100
+    #t_after = 200
+    t_pre = 30
+    t_after = 60                          #to focus on 0-50 ms
     stepsize = 5
     binwidth = 30
 
@@ -738,7 +740,7 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
 
 if __name__ == '__main__':
     dd = DataIO(dataset_dir)
-    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+    session_id = ('2026-03-25 mouse c57 617 Mekano6 B')
     dd.load_session(session_id, load_pickle=True, load_waveforms=False)
     # dd.dump_as_pickle()
 

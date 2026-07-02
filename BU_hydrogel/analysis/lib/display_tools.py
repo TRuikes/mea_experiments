@@ -741,7 +741,7 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
 
 if __name__ == '__main__':
     dd = DataIO(dataset_dir)
-    session_id = '2026-02-19 mouse c57 5713 Mekano6 A'
+    session_id = '2026-03-25 mouse c57 617 Mekano6 A'
     dd.load_session(session_id, load_pickle=True, load_waveforms=False)
     # dd.dump_as_pickle()
 

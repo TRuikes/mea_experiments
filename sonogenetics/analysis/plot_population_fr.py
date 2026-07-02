@@ -111,7 +111,6 @@ def get_stats(data_io: DataIO):
 
     return cell_cat_df
 
-
 def plot_frac_responding_per_power(cell_cat_df):
 
     for rec_id in cell_cat_df.rec_id.unique():
