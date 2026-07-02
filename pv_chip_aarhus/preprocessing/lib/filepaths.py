@@ -95,9 +95,9 @@ class FilePaths:
 
             self.recording_table = get_recording_table(trigger_dir=self.trigger_dir, stim_dir=self.stim_dir)
 
-            # raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
-            # assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
-            # self.mea_position_file = raw_mea_position[0]
+            raw_mea_position = [f for f in self.misc_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
+            assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.misc_dir}'
+            self.mea_position_file = raw_mea_position[0]
 
             if self.sorting_dir.exists():
                 self.has_sorted_data = True

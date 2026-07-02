@@ -19,7 +19,7 @@ def recording_onsets(filepaths: FilePaths, raw_data_dir):
 
     Input :
         - recording_names (list) : Ordered list of raw files names to open and read length
-        - path (str) : path to the directory containing the files
+        - path (str) : path to the directory containing  the files
         - nb_bytes_by_datapoint (int) : size in byte of each time points
         - nb_channels (int) : number of channels of the mea
     Output :
@@ -36,7 +36,7 @@ def recording_onsets(filepaths: FilePaths, raw_data_dir):
     match = re.search(r'\[.*?\]', text, re.DOTALL)
     list_content = match.group(0)[1:-1]  # remove brackets
     clustered_files = [item.strip().replace('r"', '').replace('"', '').replace("'", "").replace('"', "") for item in list_content.split(',') if len(item) > 3]
-    clustered_files = [Path(f) for f in clustered_files]
+    clustered_files = [Path(f).name for f in clustered_files]
 
     # The onset of the first recording is set to 0
     cursor = 0

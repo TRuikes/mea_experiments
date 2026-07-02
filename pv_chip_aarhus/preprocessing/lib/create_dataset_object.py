@@ -84,20 +84,16 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
     print('\nCreating dataset object')
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
 
-    # spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)012
-    #
-    # if include_waveforms:
-    #     waveforms = utils.load_nested_dict(filepaths.proc_pp_waveforms)
-    #
-    # triggers = utils.load_nested_dict(filepaths.proc_pp_triggers)
-    # cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
-    # mea_position = pd.read_csv(filepaths.mea_position_file, index_col=0, header=0)
-    #
-    # # Add cluster x and y to data
-    # for i, r in cluster_info.iterrows():
-    #     cluster_info.at[i, 'cluster_x'] = mea_position.loc[r.ch + 1].x
-    #     cluster_info.at[i, 'cluster_y'] = mea_position.loc[r.ch + 1].y
-    #
+    spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
+
+    cluster_info = pd.read_csv(filepaths.proc_pp_clusterinfo, index_col=0, header=0)
+    mea_position = pd.read_csv(filepaths.mea_position_file, index_col=0, header=0)
+
+    # Add cluster x and y to data
+    for i, r in cluster_info.iterrows():
+        cluster_info.at[i, 'cluster_x'] = mea_position.loc[r.ch + 1].x
+        cluster_info.at[i, 'cluster_y'] = mea_position.loc[r.ch + 1].y
+
     write_file = filepaths.dataset_file_waveforms if include_waveforms else filepaths.dataset_file
 
     if not write_file.parent.exists():
@@ -110,6 +106,14 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         write_array = df_to_hdf5_structured_array(train_df)
         f_write.create_dataset("trial_df", data=write_array,
                          compression="gzip", chunks=True)
+
+        write_array = df_to_hdf5_structured_array(cluster_info)
+        f_write.create_dataset("cluster_df", data=write_array,
+                               compression='gzip', chunks=True)
+
+        write_array = df_to_hdf5_structured_array(filepaths.recording_table)
+        f_write.create_dataset("recording_df", data=write_array,
+                               compression='gzip', chunks=True)
 
 
         # -----------------------------
@@ -226,5 +230,22 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             # 6. Write to HDF5
             rec_grp.create_dataset("triggers_df", data=write_array,
                                    compression="gzip", chunks=True)
+
+
+            # -----------------------------
+            # 1c) Per-recording cluster data (spiketimes)
+            # -----------------------------
+            clusters_grp = rec_grp.require_group("clusters")
+            rec_nr = rec_id.split('_')[0]
+            prefix = f'rec_{rec_nr}_'
+            cluster_recid = None
+            for k in spiketimes.keys():
+                if prefix in k:
+                    cluster_recid = k
+            assert cluster_recid is not None
+
+            for cluster_id, cinfo in cluster_info.iterrows():
+                cluster_rec_grp = clusters_grp.require_group(str(cluster_id))
+                cluster_rec_grp.create_dataset('spiketimes', data=spiketimes[cluster_recid][cluster_id])
 
     print(f'\nSaved dataset to {write_file.as_posix()}\n\n')

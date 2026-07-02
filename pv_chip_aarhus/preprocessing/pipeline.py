@@ -16,6 +16,6 @@ for sid, s_specs in dataset_sessions.items():
 
     # Extract trial data
     extract_trial_data(filepaths)
-    # extract_phy_data(filepaths, update=True, waveform_extraction=False, raw_data_dir=s_specs['raw_data_dir'])
+    extract_phy_data(filepaths, update=True, waveform_extraction=False, raw_data_dir=s_specs['raw_data_dir'])
     create_dataset_object(filepaths, include_waveforms=False)
 

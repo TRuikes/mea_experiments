@@ -1,4 +1,5 @@
-dataset_dir = r'E:\Denmark_idv'
+# dataset_dir = r'E:\Denmark_idv'  # PC thijs
+dataset_dir = r'C:\thijs\asbjorn'  # PC IDV
 
 data_sample_rate = 2e4
 data_type = 'uint16'
