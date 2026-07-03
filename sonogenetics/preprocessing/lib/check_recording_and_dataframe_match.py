@@ -29,9 +29,7 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
 
         if 'PA' in rec_id or 'buSTIM1' in rec_id or 'pilot_021126' in rec_id or 'pilot021626' in rec_id or 'pa' in rec_id:
 
-            print(rec_id)
             pa_train_onsets = triggers[rec_id]['laser']['train_onsets']
-            print(f'{rec_id} - len train onsets: {len(pa_train_onsets)}')
             pa_n_train_recording = len(pa_train_onsets)
 
             pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
@@ -52,9 +50,11 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
             has_triggers = True
 
             pa_n_train_dataframe = train_df_check.has_laser.sum()
+            print(rec_nr, pa_n_train_dataframe, pa_n_train_recording)
             assert pa_n_train_recording == pa_n_train_dataframe, f'{filepaths.sid}'
 
             pa_n_bursts_train_df = train_df_check.laser_burst_count.sum()
+            print(pa_n_bursts_train_df, pa_n_bursts_triggers)
             assert pa_n_bursts_triggers == pa_n_bursts_train_df, f'{filepaths.sid}, {pa_n_bursts_triggers}, {pa_n_train_dataframe}'
 
         if 'DMD' in rec_id or 'chirp' in rec_id or 'dmd' in rec_id:

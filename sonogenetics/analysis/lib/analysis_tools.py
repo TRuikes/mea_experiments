@@ -43,6 +43,12 @@ def get_params_protocol(protocol_name):
     elif 'dmd_fullfield' in protocol_name:
         return params_per_protocol['dmd_fullfield']
 
+    elif 'pa_long_burst' in protocol_name:
+        return params_per_protocol['pilot_stimparams']
+
+    elif 'dmd_full_field_intensities' in protocol_name:
+        return params_per_protocol['dmd_fullfield']
+
     else:
         raise ValueError(f'{protocol_name}')
 

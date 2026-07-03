@@ -65,7 +65,7 @@ def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
     plot_data = run_job(
         job_fn=plot_raster_single_cluster,
         tasks=tasks,
-        num_threads=20,
+        num_threads=40,
         debug=DEBUG,
     )
 

@@ -147,7 +147,7 @@ def analyse_responses(data_io: "DataIO", output_dir: Path, overwrite=False) -> N
         output_dir.mkdir(parents=True, exist_ok=True)
 
     # Detect per trial, which cell respond significantly
-    num_threads: int = 10
+    num_threads: int = 24
     tasks: List[Dict[str, Any]] = []
 
     for cluster_id in data_io.cluster_df.index.values:
@@ -187,15 +187,15 @@ def bootstrap_data(
     """
     print(f'Starting bootstrapping cluster: {cluster_id}')
     t_pre: int = 100
-    t_after: int = 300
+    t_after: int = 200
     stepsize: int = 5
-    binwidth: int = 20
+    binwidth: int = 10
     bin_centres: np.ndarray = np.arange(-t_pre, t_after, stepsize)
-    baseline: List[int] = [-100, -0]
+    baseline: List[int] = [-100, -50]
     response_window: List[int] = [0, 200]
 
-    min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
-    min_excitation_duration = 15  # minimum duration of excitation in [ms]
+    min_inhibition_duration = 5  # minimum duration of inhibition in [ms]
+    min_excitation_duration = 5  # minimum duration of excitation in [ms]
 
     output_data: Dict[str, BootstrapOutput] = {}
 
