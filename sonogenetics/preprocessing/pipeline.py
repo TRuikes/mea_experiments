@@ -30,7 +30,7 @@ for sid, s_specs in dataset_sessions.items():
     else:
         dmd_trigger_channel = None
 
-    extract_triggers(filepaths, update=True,
+    extract_triggers(filepaths, update=False,
                      visualize_detection=False,
                      recording_numbers_to_skip=s_specs['skip_triggers'],
                      laser_trigger_channel=laser_trigger_channel,

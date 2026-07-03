@@ -19,7 +19,7 @@ def main():
 
         for i, r in data_io.train_df.iterrows():
             if 'sequence_name' in r.keys():
-                data_io.train_df.at[i, 'protocol_name'] = r['sequence_name']
+                data_io.train_df.at[i, 'potocol_name'] = r['sequence_name']
             else:
                 data_io.train_df.at[i, 'protocol_name'] = r['recording_name']
 

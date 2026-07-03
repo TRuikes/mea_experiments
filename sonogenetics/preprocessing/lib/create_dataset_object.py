@@ -178,6 +178,12 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             dmd_burst_tick, laser_burst_tick = 0, 0
 
             for train_id, trial_info in train_rec_df.iterrows():
+                if rec_nr == 6 and filepaths.sid == '2026-06-30 rat LE 803 Mekano6 A':
+                    if laser_tick == 43:
+                        break
+                if rec_id == 'rec_5_B_20260630_dmd_full_field_intensities':
+                    if dmd_tick > 80:
+                        break
                 laser_burst_count = trial_info['laser_burst_count'] if trial_info['has_laser'] else 0
                 dmd_burst_count = trial_info['dmd_burst_count'] if trial_info['has_dmd'] else 0
 

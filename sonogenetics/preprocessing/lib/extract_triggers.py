@@ -60,6 +60,9 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     trigger_channel = data_trigger_channels[trigger_type]
 
             elif trigger_type == 'dmd':
+                if 'checkerboard' in rec:
+                    continue
+
                 if dmd_trigger_channel is not None:
                     trigger_channel = dmd_trigger_channel
                 else:
@@ -139,7 +142,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     fig.update_xaxes(tickvals=xticks, title_text=f'time [s]')
                     fig.update_yaxes(tickvals=np.arange(0, 500, 4500), title_text='voltage [mV]')
                     savename = filepaths.proc_pp_figure_output / 'triggers' / rec / trigger_type / f'{i}'
-                    utils.save_fig(fig, savename, display=False, verbose=False)
+                    utils.save_fig(fig, savename, display=False, verbose=False, backend='image')
 
             if trigger_high.size == 0:
                 print(F'{rec} does not have {trigger_type}')

@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 import __main__
 __main__.BootstrapOutput = BootstrapOutput
+from html2image import Html2Image
 
 FIG_SCALE = 4
 
@@ -467,7 +468,7 @@ def update_subplot_titles(
 
 
 def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=True,
-             display=True):
+             display=True, backend=None):
     if scale is None:
         scale = FIG_SCALE
     if formats is None:
@@ -475,6 +476,18 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
 
     if not savename.parent.is_dir():
         savename.parent.mkdir(parents=True)
+
+    if backend is not None:
+        import plotly.io as pio
+
+        html_content = pio.to_html(fig, include_plotlyjs='cdn', full_html=True)
+        hti = Html2Image(output_path=str(savename.parent))
+        hti.screenshot(
+            html_str=html_content,
+            save_as=savename.name + '.png' ,
+            size=(700, 500)  # Multiplied by 5 to match your scale=5 requirement
+        )
+        return
 
     for f in formats:
         file = savename.parent / (savename.name + f'.{f}')

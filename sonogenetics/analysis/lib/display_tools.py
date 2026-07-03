@@ -31,6 +31,7 @@ def write_figure(json_file_path):
 
 def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
 
+
     print(f'saving data in: {figure_dir_analysis / data_io.session_id / "raster plots"}')
 
     loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
