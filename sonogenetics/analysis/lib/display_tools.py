@@ -13,7 +13,7 @@ import plotly.io as pio
 from tqdm import tqdm
 from multiprocessing import Pool
 
-DEBUG = True
+DEBUG = False
 
 def write_figure(json_file_path):
     if json_file_path is None:
@@ -43,6 +43,9 @@ def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFra
 
     for (rec_id, protocol, ec), df in data_io.train_df.groupby(
             ['rec_id', 'protocol_name', 'electrode']):
+
+        if 'KCL' in protocol:
+            continue
 
         for cluster_id in data_io.cluster_ids:
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
