@@ -1005,3 +1005,118 @@ def plot_grouped_bars(axes_row, counts_pa, counts_pl, pct_pa, pct_pl, title_suff
         ax.grid(axis="y", alpha=0.3, linestyle="--")
         ax.set_axisbelow(True)
         ax.spines[["top", "right"]].set_visible(False)
+
+
+# ==========================================================
+#     Functions for analysis_summary_prr_series
+# ==========================================================
+def _get_full_type(cell_type_value):
+    """Return the full Baden type name (e.g. 'OFF alpha')."""
+    if cell_type_value is None:
+        return None
+    if isinstance(cell_type_value, dict):
+        return cell_type_value.get('name', None)
+    if isinstance(cell_type_value, str):
+        try:
+            d = eval(cell_type_value)
+            if isinstance(d, dict):
+                return d.get('name', cell_type_value)
+        except Exception:
+            pass
+        return cell_type_value
+    return None
+
+def _count_table_multi(sub):
+        ct = (
+            sub.groupby(['cell_type', 'resp_label'])
+            .size()
+            .unstack(fill_value=0)
+            .reindex(index=CT_PRESENT, columns=RESP_LABELS_PLOT, fill_value=0)
+        )
+        ct  = ct.loc[ct.sum(axis=1) > 0]
+        pct = ct.div(ct.sum(axis=1), axis=0) * 100
+        return ct, pct
+
+def _plot_ct_panel(ax, counts, pct, title, show_ylabel=False):
+    x       = np.arange(len(counts.index))
+    n_resp  = len(RESP_LABELS_PLOT)
+    width   = 0.22
+    offsets = np.linspace(-(n_resp - 1) / 2, (n_resp - 1) / 2, n_resp) * width
+    for resp, offset in zip(RESP_LABELS_PLOT, offsets):
+        heights = [int(counts.loc[ct, resp]) if ct in counts.index else 0
+                    for ct in counts.index]
+        pcts    = [pct.loc[ct, resp]          if ct in pct.index    else 0.0
+                    for ct in counts.index]
+        bars = ax.bar(x + offset, heights, width,
+                        color=RESP_COLORS_PLOT[resp], edgecolor='k',
+                        linewidth=0.5, alpha=0.88, label=resp)
+        for bar, h, p in zip(bars, heights, pcts):
+            if h > 0:
+                ax.text(bar.get_x() + bar.get_width() / 2, h + 0.05,
+                        f'{h}\n({p:.0f}%)',
+                        ha='center', va='bottom', fontsize=5.5,
+                        fontweight='bold', color='#222')
+    ax.set_xticks(x)
+    ax.set_xticklabels(list(counts.index), fontsize=8)
+    ax.set_xlabel('Cell type', fontsize=8)
+    if show_ylabel:
+        ax.set_ylabel('N cells', fontsize=8)
+    ax.set_title(title, fontsize=8, fontweight='bold')
+    ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax.grid(axis='y', alpha=0.3, linestyle='--')
+    ax.set_axisbelow(True)
+    ax.spines[['top', 'right']].set_visible(False)
+
+def _stat_label(p):
+    if p >= 0.01:  return '*'
+    if p >= 0.001: return '**'
+    return '***'
+
+def _pwr_label(pwr):
+    kpa = PWR_TO_KPA.get(int(pwr))
+    return f'{kpa} kPa' if kpa is not None else f'{int(pwr)} µW'
+
+def _sig_label(p):
+        if p < 0.001: return '***'
+        if p < 0.01:  return '**'
+        if p < 0.05:  return '*'
+        return None
+
+def _slide(rate_raw_arr):
+    """Apply sliding window average; returns (sw_t, sw_rate)."""
+    n = len(rate_raw_arr)
+    starts = range(0, n - _sw_win_bins + 1, _sw_step_bins)
+    sw_rate = np.array([rate_raw_arr[i:i + _sw_win_bins].mean() for i in starts])
+    sw_t    = np.array([t_centers[i + _sw_win_bins // 2]        for i in starts])
+    return sw_t, sw_rate
+
+def _slide_ls(rate_raw_arr):
+    starts  = range(0, len(rate_raw_arr) - _ls_win_bins + 1, _ls_step_bins)
+    sw_rate = np.array([rate_raw_arr[i:i + _ls_win_bins].mean() for i in starts])
+    sw_t    = np.array([t_centers[i + _ls_win_bins // 2]        for i in starts])
+    return sw_t, sw_rate
+
+def _slide_lo(rate_raw_arr):
+    starts  = range(0, len(rate_raw_arr) - _lo_win_bins + 1, _lo_step_bins)
+    sw_rate = np.array([rate_raw_arr[i:i + _lo_win_bins].mean() for i in starts])
+    sw_t    = np.array([t_centers[i + _lo_win_bins // 2]        for i in starts])
+    return sw_t, sw_rate
+
+def _uid_slide(arr):
+    starts = range(0, len(arr) - _SW_WIN_B + 1, _SW_STEP_B)
+    t = np.array([t_centers[s + _SW_WIN_B // 2] for s in starts])
+    r = np.array([arr[s:s + _SW_WIN_B].mean()   for s in starts])
+    return t, r
+
+def _uid_boot(rate_raw):
+    lam  = np.maximum(rate_raw * _BIN_S_UID * N_TRIALS_UID, 0)
+    n_sw = len(range(0, len(rate_raw) - _SW_WIN_B + 1, _SW_STEP_B))
+    boot = np.empty((N_BOOT_UID, n_sw))
+    rng  = np.random.default_rng(42)
+    for i in range(N_BOOT_UID):
+        counts  = rng.poisson(lam)
+        r_boot  = counts / (_BIN_S_UID * N_TRIALS_UID)
+        _, sw   = _uid_slide(r_boot)
+        boot[i] = sw
+    return (np.percentile(boot, CI_BOUNDS_UID[0], axis=0),
+            np.percentile(boot, CI_BOUNDS_UID[1], axis=0))

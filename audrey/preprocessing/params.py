@@ -2,7 +2,8 @@
 # dataset_dir = r'/media/aleong/Audrey-experiments/dataset'
 
 # For the analyse_responses.py
-dataset_dir = r'/media/aleong/Audrey-experiments1/Experiments'
+# dataset_dir = r'/media/aleong/Audrey-experiments1/Experiments'
+dataset_dir = r'/media/aleong/Audrey'
 
 # dataset_dir = r'/media/aleong/Elements/'
 

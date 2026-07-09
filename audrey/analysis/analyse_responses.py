@@ -24,7 +24,7 @@ def main():
     """
     Main handles
     """
-    session_id = '260520_A'
+    session_id = '260625_B'
 
     data_dir = dataset_dir / Path('dataset')
     data_io = DataIO(data_dir)
