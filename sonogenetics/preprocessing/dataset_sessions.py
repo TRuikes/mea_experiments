@@ -14,11 +14,13 @@ dataset_sessions = {
     # '2026-06-12 mouse c57 649 Mekano6 D': dict(skip_triggers=[1], laser_trigger_channel=255, dmd_trigger_channel=128),
     # '2026-06-16 mouse c57 645 Mekano6 B': dict(skip_triggers=[1]),  # TODO (data at pc home)
     # '2026-06-16 mouse c57 645 Mekano6 C': dict(skip_triggers=[1]), laser_trigger_channel=255, dmd_trigger_channel=128),
-    '2026-06-30 rat LE 803 Mekano6 A': dict(skip_triggers=[1]),
-    '2026-06-30 rat LE 803 Mekano6 B': dict(skip_triggers=[1, 5]),
-    '2026-06-30 rat LE 803 Mekano6 C': dict(skip_triggers=[1]),
-    '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
-    '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
+    # '2026-06-30 rat LE 803 Mekano6 A': dict(skip_triggers=[1]),
+    # '2026-06-30 rat LE 803 Mekano6 B': dict(skip_triggers=[1, 5]),
+    # '2026-06-30 rat LE 803 Mekano6 C': dict(skip_triggers=[1]),
+    # '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
+    # '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
+    # '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[1, 7]),
+    '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
 
 
 

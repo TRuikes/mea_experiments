@@ -119,7 +119,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 else:
                     raise ValueError('error!')
 
-                if visualize_detection:
+                if visualize_detection and trigger_type == 'dmd':
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
                     subsample_idx = np.arange(0, x.size, 5).astype(int)

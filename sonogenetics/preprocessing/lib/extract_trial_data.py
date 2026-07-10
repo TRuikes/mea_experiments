@@ -42,6 +42,11 @@ def extract_trial_data(filepaths: FilePaths):
         for rr in filepaths.recording_names:
             if f'_{rec_nr:01.0f}_' in rr:
                 recording_name = rr
+
+        if recording_name is None:
+            break
+
+
         assert recording_name is not None
 
         df.at[i, 'recording_name'] = recording_name

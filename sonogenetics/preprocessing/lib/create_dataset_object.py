@@ -15,6 +15,52 @@ names_as_int = (
     'ch', 'depth', 'sh', 'n_spikes'
 )
 
+def df_to_hdf5_structured_array(df: pd.DataFrame) -> np.ndarray:
+    """
+    Converts a pandas DataFrame with mixed float/text/NaN columns into a
+    NumPy structured array compatible with HDF5 datasets.
+
+    - Float NaNs are filled with -99.0
+    - Text NaNs are filled with empty strings
+    """
+    # 1. Identify text and float columns
+    text_cols = [col for col in df.columns if df[col].dtype == "object" or isinstance(df[col].iloc[0], str)]
+    float_cols = [col for col in df.columns if col not in text_cols]
+
+    # 2. Handle NaNs cleanly without modifying the original DataFrame
+    df_filled = df.copy()
+    df_filled[float_cols] = df_filled[float_cols].fillna(-99.0)
+    df_filled[text_cols] = df_filled[text_cols].fillna("")
+
+    # 3. Dynamically determine maximum string byte-lengths for text columns
+    max_lens = {}
+    for col in text_cols:
+        # Calculate max byte length after encoding to utf-8 (fallback to 1 if empty)
+        max_bytes = df_filled[col].astype(str).str.encode("utf-8").str.len().max()
+        max_lens[col] = max(max_bytes, 1)
+
+    # 4. Dynamically build the structured dtype list
+    dtype_list = []
+    for col in df.columns:
+        if col in text_cols:
+            dtype_list.append((str(col), f"S{max_lens[col]}"))
+        else:
+            dtype_list.append((str(col), "f4"))
+
+    dtype = np.dtype(dtype_list)
+
+    # 5. Create and populate the structured array using fast column-vectorization
+    structured_array = np.zeros(len(df_filled), dtype=dtype)
+
+    for col in df.columns:
+        if col in text_cols:
+            structured_array[str(col)] = df_filled[col].astype(str).str.encode("utf-8")
+        else:
+            structured_array[str(col)] = df_filled[col].values
+
+    return structured_array
+
+
 
 class Dataset:
 
@@ -62,48 +108,50 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # -----------------------------
         # 0) Top-level cluster info table
         # -----------------------------
-        # Determine max length of index if it's string/object
-        if cluster_info.index.dtype.kind in "O" or cluster_info.index.dtype.kind in "U" or cluster_info.index.dtype.kind in "S":
-            maxlen_index = cluster_info.index.astype(str).map(len).max()
-            index_dtype = f"S{maxlen_index}"
-        else:  # numeric index
-            index_dtype = "i8"
+        # # Determine max length of index if it's string/object
+        # if cluster_info.index.dtype.kind in "O" or cluster_info.index.dtype.kind in "U" or cluster_info.index.dtype.kind in "S":
+        #     maxlen_index = cluster_info.index.astype(str).map(len).max()
+        #     index_dtype = f"S{maxlen_index}"
+        # else:  # numeric index
+        #     index_dtype = "i8"
+        #
+        # # Add index as first field
+        # cluster_dtype_fields = [("index", index_dtype)]
+        # for col in cluster_info.columns:
+        #     if col == 'group':
+        #         continue
+        #
+        #     if cluster_info[col].dtype.kind in "i":
+        #         cluster_dtype_fields.append((col, "i4"))
+        #     elif cluster_info[col].dtype.kind in "f":
+        #         cluster_dtype_fields.append((col, "f4"))
+        #     else:
+        #         maxlen_col = cluster_info[col].astype(str).map(len).max()
+        #         cluster_dtype_fields.append((col, f"S{maxlen_col}"))
+        #
+        # # Create structured array
+        # cluster_table = np.zeros(len(cluster_info), dtype=np.dtype(cluster_dtype_fields))
+        #
+        # for i, (idx, row) in enumerate(cluster_info.iterrows()):
+        #     # Store original index
+        #     if isinstance(idx, str):
+        #         cluster_table[i]["index"] = idx.encode("utf-8")
+        #     else:
+        #         cluster_table[i]["index"] = idx
+        #
+        #     for col in cluster_info.columns:
+        #         if col == 'group':
+        #             continue
+        #
+        #         val = row[col]
+        #         if isinstance(val, str):
+        #             cluster_table[i][col] = val.encode("utf-8")
+        #         elif pd.isna(val):
+        #             cluster_table[i][col] = np.nan if cluster_info[col].dtype.kind in "f" else -1
+        #         else:
+        #             cluster_table[i][col] = val
 
-        # Add index as first field
-        cluster_dtype_fields = [("index", index_dtype)]
-        for col in cluster_info.columns:
-            if col == 'group':
-                continue
-
-            if cluster_info[col].dtype.kind in "i":
-                cluster_dtype_fields.append((col, "i4"))
-            elif cluster_info[col].dtype.kind in "f":
-                cluster_dtype_fields.append((col, "f4"))
-            else:
-                maxlen_col = cluster_info[col].astype(str).map(len).max()
-                cluster_dtype_fields.append((col, f"S{maxlen_col}"))
-
-        # Create structured array
-        cluster_table = np.zeros(len(cluster_info), dtype=np.dtype(cluster_dtype_fields))
-
-        for i, (idx, row) in enumerate(cluster_info.iterrows()):
-            # Store original index
-            if isinstance(idx, str):
-                cluster_table[i]["index"] = idx.encode("utf-8")
-            else:
-                cluster_table[i]["index"] = idx
-
-            for col in cluster_info.columns:
-                if col == 'group':
-                    continue
-
-                val = row[col]
-                if isinstance(val, str):
-                    cluster_table[i][col] = val.encode("utf-8")
-                elif pd.isna(val):
-                    cluster_table[i][col] = np.nan if cluster_info[col].dtype.kind in "f" else -1
-                else:
-                    cluster_table[i][col] = val
+        cluster_table = df_to_hdf5_structured_array(cluster_info)
 
         # Save dataset
         f.create_dataset("clusters/metadata", data=cluster_table,
@@ -178,15 +226,20 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             dmd_burst_tick, laser_burst_tick = 0, 0
 
             for train_id, trial_info in train_rec_df.iterrows():
+
+                # Patching corrupted data
                 if rec_nr == 6 and filepaths.sid == '2026-06-30 rat LE 803 Mekano6 A':
                     if laser_tick == 43:
                         break
                 if rec_id == 'rec_5_B_20260630_dmd_full_field_intensities':
                     if dmd_tick > 80:
                         break
+
+                # Checking if there are laser and dmd
                 laser_burst_count = trial_info['laser_burst_count'] if trial_info['has_laser'] else 0
                 dmd_burst_count = trial_info['dmd_burst_count'] if trial_info['has_dmd'] else 0
 
+                # Detect the number of bursts for this trial
                 if trial_info['has_laser'] and trial_info['has_dmd']:
                     assert laser_burst_count == dmd_burst_count
                     burst_count = laser_burst_count
@@ -197,9 +250,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 else:
                     raise ValueError('i should not have ended up here?')
 
-                if trial_info['has_dmd'] and trial_info['has_laser']:
-                    dt = dmd_train_onsets[dmd_tick] - laser_train_onsets[laser_tick]
-                    # print(dt, trial_info['laser_onset_delay'])
+
 
                 for burst_i in range(int(burst_count)):
 
@@ -247,47 +298,55 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             # 1b) Trial info
             # -----------------------------
 
-            valid_columns = [
-                col for col in train_rec_df.columns
-                if not pd.isna(train_rec_df[col]).all()
-            ]
+            # valid_columns = [
+            #     col for col in train_rec_df.columns
+            #     if not pd.isna(train_rec_df[col]).all()
+            # ]
+            #
+            # dtype_fields = []
+            # for col in valid_columns:
+            #     col_data = train_rec_df[col]
+            #
+            #     if col_data.dtype.kind in "i":
+            #         dtype_fields.append((col, "i4"))
+            #     elif col_data.dtype.kind in "f":
+            #         dtype_fields.append((col, "f4"))
+            #     elif col_data.dtype.kind == 0:
+            #         # Handle the new data.kind type = '0'
+            #         # Option A: If you want it treated as a string/object:
+            #         maxlen_col = col_data.astype(str).map(len).max()
+            #         dtype_fields.append((col, f"S{maxlen_col}"))
+            #     else:
+            #         # handle object/string columns
+            #         print(col_data.dtype.kind)
+            #         maxlen_col = col_data.astype(str).map(len).max()
+            #         dtype_fields.append((col, f"S{maxlen_col}"))
+            #
+            # table_array = np.zeros(len(train_rec_df), dtype=np.dtype(dtype_fields))
+            #
+            # # -------------------------------
+            # # Fill array
+            # # -------------------------------
+            # for i, (_, row) in enumerate(train_rec_df.iterrows()):
+            #     for col in valid_columns:
+            #         val = row[col]
+            #         col_dtype = train_rec_df[col].dtype.kind
+            #
+            #         if isinstance(val, str):
+            #             table_array[i][col] = val.encode("utf-8")
+            #
+            #         elif pd.isna(val):
+            #             if col_dtype in "f":
+            #                 table_array[i][col] = np.nan
+            #             elif col_dtype in "i":
+            #                 table_array[i][col] = -1
+            #             else:
+            #                 table_array[i][col] = b""  # empty string for object
+            #
+            #         else:
+            #             table_array[i][col] = val
 
-            dtype_fields = []
-            for col in valid_columns:
-                col_data = train_rec_df[col]
-
-                if col_data.dtype.kind in "i":
-                    dtype_fields.append((col, "i4"))
-                elif col_data.dtype.kind in "f":
-                    dtype_fields.append((col, "f4"))
-                else:
-                    # handle object/string columns
-                    maxlen_col = col_data.astype(str).map(len).max()
-                    dtype_fields.append((col, f"S{maxlen_col}"))
-
-            table_array = np.zeros(len(train_rec_df), dtype=np.dtype(dtype_fields))
-
-            # -------------------------------
-            # Fill array
-            # -------------------------------
-            for i, (_, row) in enumerate(train_rec_df.iterrows()):
-                for col in valid_columns:
-                    val = row[col]
-                    col_dtype = train_rec_df[col].dtype.kind
-
-                    if isinstance(val, str):
-                        table_array[i][col] = val.encode("utf-8")
-
-                    elif pd.isna(val):
-                        if col_dtype in "f":
-                            table_array[i][col] = np.nan
-                        elif col_dtype in "i":
-                            table_array[i][col] = -1
-                        else:
-                            table_array[i][col] = b""  # empty string for object
-
-                    else:
-                        table_array[i][col] = val
+            table_array = df_to_hdf5_structured_array(train_rec_df)
 
             rec_grp.create_dataset("trial_info", data=table_array,
                                 compression="gzip", chunks=True)

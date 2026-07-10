@@ -76,7 +76,9 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
 
             if rec_id == 'rec_5_B_20260630_dmd_full_field_intensities':
                 continue
-            assert dmd_n_trials_triggers == train_df_check.shape[0]
+
+
+            assert dmd_n_trials_triggers == train_df_check.has_dmd.sum()
             assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
 
         assert has_triggers
