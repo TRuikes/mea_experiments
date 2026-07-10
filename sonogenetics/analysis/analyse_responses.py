@@ -212,14 +212,15 @@ def bootstrap_data(
         baseline_idx: np.ndarray = np.where((bin_centres >= baseline[0]) & (bin_centres <= baseline[1]))[0]
 
         # Detect burst onsets for this train
-        if data_io.train_df.loc[train_id, 'has_laser']:
+        has_dmd = data_io.train_df.loc[train_id, 'has_dmd']
+
+        # If there is DMD stimulation; use dmd onset as 0, else use laser onset as 0
+        if not has_dmd:
             burst_onsets: np.ndarray = data_io.burst_df.query(
                 'train_id == @train_id').laser_burst_onset.values  # type: ignore
-        elif data_io.train_df.loc[train_id, 'has_dmd']:
-            burst_onsets = data_io.burst_df.query('train_id == @train_id'
-                                                  ).dmd_burst_onset.values  # type: ignore
         else:
-            raise ValueError('something is wrong here')
+            burst_onsets: np.ndarray = data_io.burst_df.query('train_id == @train_id'
+                                                  ).dmd_burst_onset.values  # type: ignore
 
         n_trains: int = len(burst_onsets)
 
