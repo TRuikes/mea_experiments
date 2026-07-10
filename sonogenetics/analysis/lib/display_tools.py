@@ -13,7 +13,7 @@ import plotly.io as pio
 from tqdm import tqdm
 from multiprocessing import Pool
 
-DEBUG = True
+DEBUG = False
 
 def write_figure(json_file_path):
     if json_file_path is None:
@@ -29,7 +29,7 @@ def write_figure(json_file_path):
     Path(json_file_path).unlink()  # clean up
     return str(png_file)
 
-def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
+def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFrame:
 
 
     print(f'saving data in: {figure_dir_analysis / data_io.session_id / "raster plots"}')
@@ -44,10 +44,15 @@ def generate_raster_plots_session(data_io: DataIO) -> pd.DataFrame:
     for (rec_id, protocol, ec), df in data_io.train_df.groupby(
             ['rec_id', 'protocol_name', 'electrode']):
 
+        if 'KCL' in protocol:
+            continue
+
         for cluster_id in data_io.cluster_ids:
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
                 subgroup = 'significant'
             else:
+                if sig_only:
+                    continue
                 subgroup = 'not_selected'
 
             plot_name = f'{cluster_id}_{ec}'

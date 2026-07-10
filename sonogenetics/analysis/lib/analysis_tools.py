@@ -76,17 +76,13 @@ def detect_preferred_electrode(data_io: DataIO, cells_df: pd.DataFrame) -> Dict[
 
             pref_ec = None
             n_sig_pref_ec = None
-            # print(cluster_id)
+
             for ec, edf in rdf.groupby('electrode'):
                 n_sig = 0
 
-
                 for tid in edf.index.values:
-                    # print(cells_df.loc[cluster_id, (tid, 'is_excited')])
                     if cells_df.loc[cluster_id, (tid, 'is_excited')] == True or cells_df.loc[cluster_id, (tid, 'is_inhibited')] == True:
                         n_sig += 1
-
-                # print(f'{ec} {n_sig}')
 
                 if n_sig > 0:
                     if pref_ec is None or n_sig > n_sig_pref_ec:

@@ -152,6 +152,18 @@ class DataIO:
                     val = float(val)  # True → 1.0, False → 0.0
 
                 train_df.at[tid, c]= val
+
+        for i, r in train_df.iterrows():
+            if 'sequence_name' in r.keys():
+                train_df.at[i, 'protocol_name'] = r['sequence_name']
+            elif 'protocol_name' in r.keys():
+                continue
+            else:
+                train_df.at[i, 'protocol_name'] = r['recording_name']
+
+            if 'dac_voltage' in r.keys():
+                train_df.at[i, 'laser_power'] = r['dac_voltage']
+
         self.train_df = train_df
 
         self.cluster_ids = self.cluster_df.index.values
@@ -186,8 +198,11 @@ if __name__ == "__main__":
     from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
-    session_id = '2026-03-25 mouse c57 617 Mekano6 B'
+    session_id = '2026-05-13 mouse c57 615 Mekano6 A'
+
 
     figure_dir_analysis = figure_dir_analysis / session_id
     print(session_id)
     data_io.load_session(session_id, load_pickle=False, load_waveforms=False)
+    for r in data_io.recording_ids:
+        print(r)

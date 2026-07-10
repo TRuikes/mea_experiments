@@ -194,8 +194,8 @@ def bootstrap_data(
     baseline: List[int] = [-100, -50]
     response_window: List[int] = [0, 200]
 
-    min_inhibition_duration = 5  # minimum duration of inhibition in [ms]
-    min_excitation_duration = 5  # minimum duration of excitation in [ms]
+    min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
+    min_excitation_duration = 15  # minimum duration of excitation in [ms]
 
     output_data: Dict[str, BootstrapOutput] = {}
 
