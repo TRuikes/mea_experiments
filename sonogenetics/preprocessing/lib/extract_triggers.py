@@ -119,7 +119,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 else:
                     raise ValueError('error!')
 
-                if visualize_detection and trigger_type == 'dmd':
+                if visualize_detection:
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
                     subsample_idx = np.arange(0, x.size, 5).astype(int)
@@ -150,15 +150,16 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
             # Process laser trigger times
             dt = np.diff(trigger_high)  # time difference between triggers, in ms
+            max_noise_dropout = 15
 
-            trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
-            burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 5)[0] + 1])
-            burst_offsets_idx = np.concatenate([np.where(dt > 5)[0], np.array([-1])])
-            train_onsets = trigger_high[trial_onsets_idx]
+            burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > max_noise_dropout)[0] + 1])
+            burst_offsets_idx = np.concatenate([np.where(dt > max_noise_dropout)[0], np.array([-1])])
             burst_onsets = trigger_high[burst_onsets_idx]
             burst_offsets = trigger_high[burst_offsets_idx]
 
             burst_durations = burst_offsets - burst_onsets
+
+            bd = np.round(burst_durations, 0)
 
             if trigger_type == 'laser':
                 # The new laser has a pulse high when connected to PC,
@@ -167,10 +168,45 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 idx = burst_durations < 200
                 burst_onsets = burst_onsets[idx]
                 burst_offsets = burst_offsets[idx]
-                dt = np.diff(burst_onsets)
-                train_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 2000)[0] + 1])
+                dt_bo = np.diff(burst_onsets)
+                train_onsets_idx = np.concatenate([np.array([0]), np.where(dt_bo > 2000)[0] + 1])
                 train_onsets = burst_onsets[train_onsets_idx]
 
+
+                # Pathc recording
+                if rec == 'rec_2_B_20260708_pa_dmd_timing_full_field':
+                    # Only include trains with 30 repeats
+                    valid_train_onsets = []
+                    valid_train_offsets = []
+                    for ti in range(train_onsets.size):
+                        if ti == train_onsets.size -1:
+                            t1 = burst_offsets[-1] + 1
+                        else:
+                            t1 = train_onsets[ti+1]
+
+                        idx = np.where((burst_onsets >= train_onsets[ti]) & (burst_onsets < t1))[0]
+
+                        if idx.size == 30:
+                            valid_train_onsets.append(train_onsets[ti])
+                            valid_train_offsets.append(t1)
+
+                    valid_burst_onsets, valid_burst_offsets = [], []
+                    for t0, t1 in zip(valid_train_onsets, valid_train_offsets):
+                        idx = np.where((burst_onsets >= t0) & (burst_onsets < t1))[0]
+                        assert len(idx) == 30
+                        valid_burst_onsets.append(burst_onsets[idx])
+                        valid_burst_offsets.append(burst_offsets[idx])
+
+                    valid_burst_onsets = np.hstack(valid_burst_onsets)
+                    valid_burst_offsets = np.hstack(valid_burst_offsets)
+
+                    train_onsets = np.hstack(valid_train_onsets)
+                    burst_onsets = valid_burst_onsets
+                    burst_offsets = valid_burst_offsets
+
+            else:
+                trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
+                train_onsets = trigger_high[trial_onsets_idx]
 
             print(f'RESULTS EXTRACT TRIGGER')
             print(f'{rec} {trigger_type}')

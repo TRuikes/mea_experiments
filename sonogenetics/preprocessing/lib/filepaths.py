@@ -153,6 +153,7 @@ class FilePaths:
 
             # define pipeline extracted files
             self.proc_pp_triggers = self.processed_dir / 'triggers.h5'
+            self.prop_pp_aligned_trials = self.processed_dir / 'aligned_trials.csv'
             self.proc_pp_spiketimes = self.processed_dir / 'spiketimes.h5'
             self.proc_pp_clusterinfo = self.processed_dir / 'cluster_info.csv'
             self.proc_pp_waveforms = self.processed_dir / 'waveforms.h5'

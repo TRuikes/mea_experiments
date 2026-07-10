@@ -21,6 +21,7 @@ params_per_protocol = {
     'pa_dmd_timing': ['laser_onset_delay', 'dmd_onset_delay'],
 
     'dmd_fullfield': ['dmd_intensity'],
+    'pa_dmd_timing_full_field': ['laser_power', 'laser_burst_duration', 'laser_onset_delay', 'dmd_intensity', ],
 
 }
 
@@ -37,6 +38,9 @@ def get_params_protocol(protocol_name):
     elif 'pa_dmd_pilot' in protocol_name:
         return params_per_protocol['pa_dmd_pilot1']
 
+    elif 'pa_dmd_timing_full_field' in protocol_name:
+        return params_per_protocol['pa_dmd_timing_full_field']
+
     elif 'pa_dmd_timing' in protocol_name:
         return params_per_protocol['pa_dmd_timing']
 
@@ -48,6 +52,8 @@ def get_params_protocol(protocol_name):
 
     elif 'dmd_full_field_intensities' in protocol_name:
         return params_per_protocol['dmd_fullfield']
+
+
 
     else:
         raise ValueError(f'{protocol_name}')

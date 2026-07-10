@@ -7,6 +7,38 @@ import numpy as np
 from typing import List, no_type_check
 
 
+def hdf5_structured_array_to_df(arr: np.ndarray) -> pd.DataFrame:
+    """Reverse engineers a NumPy structured array back into a pandas DataFrame.
+
+    Handles DTypePromotionError by safely converting string columns to object arrays
+    before inserting np.nan values.
+    """
+    data = {}
+
+    for name in arr.dtype.names:
+        col_data = arr[name]
+        kind = col_data.dtype.kind
+
+        if kind in ("S", "V"):  # Byte strings / structured void
+            # 1. Decode bytes to utf-8 strings
+            decoded_strings = np.char.decode(col_data, "utf-8")
+
+            # 2. Convert to an 'object' array so it can cleanly hold both strings and np.nan
+            obj_strings = decoded_strings.astype(object)
+
+            # 3. Replace empty strings with np.nan safely
+            data[name] = np.where(obj_strings == "", np.nan, obj_strings)
+
+        elif kind == "f":  # Floats
+            float_data = col_data.astype(np.float64)
+            data[name] = np.where(float_data == -99.0, np.nan, float_data)
+
+        else:  # Catch-all for integers, booleans, etc.
+            data[name] = col_data
+
+    return pd.DataFrame(data)
+
+
 class DataIO:
     sessions = []
     recording_ids: List[str] = []
@@ -57,59 +89,44 @@ class DataIO:
         # Determine which HDF5 file to open
         readfile = self.datadir / (f'{session_id}_waveforms.h5' if load_waveforms else f'{session_id}.h5')
 
-        with h5py.File(readfile.as_posix(), 'r') as f:  
+        with h5py.File(readfile.as_posix(), 'r') as f:
+            burst_rows = []
+
+
             # --- Load top-level cluster metadata ---
             if "clusters/metadata" in f:
-                cluster_meta = f["clusters/metadata"]
-                cluster_dtype = cluster_meta.dtype  
-
-                # Extract index field first
-                index_field = cluster_dtype.names[0]  
-                idx_array = cluster_meta[index_field][()] 
-                # Decode bytes if necessary
-                idx_array = [x.decode() if isinstance(x, bytes) else x for x in idx_array]
-
-                # Extract remaining columns
-                data_dict = {}
-                for name in cluster_dtype.names[1:]:
-                    col_data = cluster_meta[name][()]
-                    if cluster_dtype[name].kind == 'S':  # bytes -> str
-                        col_data = [x.decode() if isinstance(x, bytes) else x for x in col_data]
-                    data_dict[name] = col_data
-
-                # Reconstruct DataFrame with original index
-                cluster_df = pd.DataFrame(data_dict, index=idx_array)
+                cluster_df = hdf5_structured_array_to_df(f["clusters/metadata"])
+                cluster_df.set_index('new_id', inplace=True)
 
             # --- Load recordings ---
             for rec_id in f["recordings"].keys():
                 rec_ids.append(rec_id)
                 rec_grp = f[f"recordings/{rec_id}"]
 
-                # Load triggers → burst_df
-                triggers_ds = rec_grp["triggers"]
-                triggers_df = pd.DataFrame({name: triggers_ds[name][()] for name in triggers_ds.dtype.names})
+                triggers_df = hdf5_structured_array_to_df(rec_grp["triggers"])
 
-                # Convert train_id from bytes to string
-                if "train_id" in triggers_df.columns:
-                    triggers_df["train_id"] = triggers_df["train_id"].apply(lambda x: x.decode() if isinstance(x, bytes) else str(x))
-
-                # Merge with trial info for burst_df
-                trial_info_ds = rec_grp["trial_info"]
-                trial_info_df = pd.DataFrame({name: trial_info_ds[name][()] for name in trial_info_ds.dtype.names})
-                trial_info_df["train_id"] = trial_info_df["train_id"].apply(lambda x: x.decode("utf-8") if isinstance(x, bytes) else x)
+                trial_info_df = hdf5_structured_array_to_df(rec_grp["trial_info"])
                 trial_info_df.set_index('train_id', inplace=True)
 
                 # Convert object columns to strings
                 for col in trial_info_df.select_dtypes([np.object_]):
                     trial_info_df[col] = trial_info_df[col].apply(lambda x: x.decode() if isinstance(x, bytes) else str(x))
 
-                # Build burst_df: one row per train_id / burst
+
+                # Build burst data using a list of dictionaries
                 for i, row in triggers_df.iterrows():
                     new_id = f"{rec_id}-{i}"
-                    burst_df.at[new_id, 'rec_id'] = rec_id
-                    burst_df.at[new_id, 'burst_id'] = i
+
+                    # Start a dictionary for this row
+                    row_dict = {
+                        'row_id': new_id,  # Keep track of your index
+                        'rec_id': rec_id,
+                        'burst_id': i
+                    }
+
+                    # Add trigger_df keys
                     for k in row.index:
-                        burst_df.at[new_id, k] = row[k]
+                        row_dict[k] = row[k]
 
                     # Add trial info for matching train_id
                     train_id = row["train_id"]
@@ -120,7 +137,11 @@ class DataIO:
                                 v = False
                             elif v.lower() == 'true':
                                 v = True
-                        burst_df.at[new_id, k] = v
+                            elif v.lower() in ['nan', 'none', '']:
+                                v = np.nan
+                        row_dict[k] = v
+
+                    burst_rows.append(row_dict)
 
                 # Load per-recording clusters
                 spiketimes[rec_id] = {}
@@ -132,6 +153,12 @@ class DataIO:
                         if load_waveforms and "waveforms" in cluster_rec_grp:
                             waveforms[rec_id][cluster_id] = cluster_rec_grp["waveforms"][()]
 
+
+        # Create the final DataFrame all at once
+        burst_df = pd.DataFrame(burst_rows)
+        burst_df.set_index('row_id', inplace=True)
+
+
         # Store to instance
         self.burst_df = burst_df
         self.cluster_df = cluster_df
@@ -139,19 +166,32 @@ class DataIO:
         self.waveforms = waveforms if load_waveforms else None
         self.recording_ids = rec_ids
 
-        train_df = pd.DataFrame()
-        train_df = train_df.astype(object)
+        train_rows = []
+
         for tid, tdf in burst_df.groupby("train_id"):
+            # Start a dictionary for this specific train_id row
+            row_dict = {"train_id": tid}
+
             for c in tdf.columns:
                 if c in ['burst_id'] or 'burst_onset' in c or 'burst_offset' in c:
                     continue
-                assert len(tdf[c].unique()) == 1, c
+                assert len(tdf[c].unique()) == 1, f"Column '{c}' has non-unique values for train_id {tid}"
 
                 val = tdf.iloc[0][c]
                 if isinstance(val, bool):
                     val = float(val)  # True → 1.0, False → 0.0
 
-                train_df.at[tid, c]= val
+                # Save to the row dictionary instead of the DataFrame
+                row_dict[c] = val
+
+            train_rows.append(row_dict)
+
+        # Build the DataFrame all at once at the very end
+        train_df = pd.DataFrame(train_rows)
+        if not train_df.empty:
+            train_df.set_index("train_id", inplace=True)
+
+
 
         for i, r in train_df.iterrows():
             if 'sequence_name' in r.keys():
@@ -198,8 +238,7 @@ if __name__ == "__main__":
     from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
-    session_id = '2026-05-13 mouse c57 615 Mekano6 A'
-
+    session_id = '2026-07-08 rat LE 3322 Mekano6 A'
 
     figure_dir_analysis = figure_dir_analysis / session_id
     print(session_id)

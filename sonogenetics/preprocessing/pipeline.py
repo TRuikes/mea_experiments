@@ -10,6 +10,7 @@ from sonogenetics.preprocessing.lib.extract_trial_data import extract_trial_data
 from sonogenetics.preprocessing.dataset_sessions import dataset_sessions
 from sonogenetics.preprocessing.lib.create_dataset_object import create_dataset_object
 from sonogenetics.preprocessing.lib.check_recording_and_dataframe_match import check_recording_and_dataframe_match
+from sonogenetics.preprocessing.lib.align_trials_and_triggers import align_trials_and_triggers
 
 for sid, s_specs in dataset_sessions.items():
 
@@ -39,14 +40,25 @@ for sid, s_specs in dataset_sessions.items():
     # Extract trial data
     extract_trial_data(filepaths)
 
+    if 'align_trials' in s_specs.keys() and s_specs['align_trials']:
+        align_trials_and_triggers(filepaths,
+                                  update=True,
+                                  recording_numbers_to_skip=s_specs['skip_triggers'])
+        align_trials = True
+
+    else:
+        check_recording_and_dataframe_match(filepaths, s_specs['skip_triggers'])
+        align_trials = False
+
     # Extract manually sorted data
     if filepaths.has_manual_sorted_data:
         extract_phy_data(filepaths, update=False, waveform_extraction=False)
     else:
         print(f'NO SORTED DATA FOUND')
 
-    check_recording_and_dataframe_match(filepaths, s_specs['skip_triggers'])
 
     create_dataset_object(filepaths, include_waveforms=False, 
-                          recording_numbers_to_skip=s_specs['skip_triggers'])
+                          recording_numbers_to_skip=s_specs['skip_triggers'],
+                          align_trials=align_trials,
+                          )
 

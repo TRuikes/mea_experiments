@@ -39,6 +39,8 @@ def hdf5_structured_array_to_df(arr: np.ndarray) -> pd.DataFrame:
             data[name] = col_data
 
     return pd.DataFrame(data)
+
+
 class DataIO:
     sessions = []
     recording_ids: List[str] = []

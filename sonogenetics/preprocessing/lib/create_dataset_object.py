@@ -15,51 +15,62 @@ names_as_int = (
     'ch', 'depth', 'sh', 'n_spikes'
 )
 
+
 def df_to_hdf5_structured_array(df: pd.DataFrame) -> np.ndarray:
     """
-    Converts a pandas DataFrame with mixed float/text/NaN columns into a
-    NumPy structured array compatible with HDF5 datasets.
+    Converts a pandas DataFrame with mixed float/text/NaN columns,
+    including its index, into a NumPy structured array compatible with HDF5 datasets.
 
     - Float NaNs are filled with -99.0
     - Text NaNs are filled with empty strings
     """
-    # 1. Identify text and float columns
-    text_cols = [col for col in df.columns if df[col].dtype == "object" or isinstance(df[col].iloc[0], str)]
-    float_cols = [col for col in df.columns if col not in text_cols]
-
-    # 2. Handle NaNs cleanly without modifying the original DataFrame
+    # 1. Bring the index into the DataFrame as a regular column to process it uniformly
     df_filled = df.copy()
+    index_name = df.index.name if df.index.name is not None else "index"
+
+    # Insert index at the front of our working dataframe copy
+    df_filled.insert(0, index_name, df.index)
+
+    # 2. Identify text and float columns (now including the index column)
+    text_cols = [col for col in df_filled.columns if
+                 df_filled[col].dtype == "object" or (len(df_filled) > 0 and isinstance(df_filled[col].iloc[0], str))]
+    float_cols = [col for col in df_filled.columns if col not in text_cols]
+
+    # 3. Handle NaNs cleanly without modifying the original DataFrame
     df_filled[float_cols] = df_filled[float_cols].fillna(-99.0)
     df_filled[text_cols] = df_filled[text_cols].fillna("")
 
-    # 3. Dynamically determine maximum string byte-lengths for text columns
+    # 4. Dynamically determine maximum string byte-lengths for text columns
     max_lens = {}
     for col in text_cols:
         # Calculate max byte length after encoding to utf-8 (fallback to 1 if empty)
         max_bytes = df_filled[col].astype(str).str.encode("utf-8").str.len().max()
-        max_lens[col] = max(max_bytes, 1)
+        max_lens[col] = max(max_bytes, 1) if pd.notna(max_bytes) else 1
 
-    # 4. Dynamically build the structured dtype list
+    # 5. Dynamically build the structured dtype list
     dtype_list = []
-    for col in df.columns:
+    for col in df_filled.columns:
         if col in text_cols:
             dtype_list.append((str(col), f"S{max_lens[col]}"))
+        # If the index or column is strictly an integer, we can preserve it as i4/i8,
+        # otherwise we fallback to your default f4 type.
+        elif np.issubdtype(df_filled[col].dtype, np.integer):
+            dtype_list.append((str(col), "i8"))
         else:
             dtype_list.append((str(col), "f4"))
 
     dtype = np.dtype(dtype_list)
 
-    # 5. Create and populate the structured array using fast column-vectorization
+    # 6. Create and populate the structured array using fast column-vectorization
     structured_array = np.zeros(len(df_filled), dtype=dtype)
 
-    for col in df.columns:
+    for col in df_filled.columns:
         if col in text_cols:
             structured_array[str(col)] = df_filled[col].astype(str).str.encode("utf-8")
         else:
             structured_array[str(col)] = df_filled[col].values
 
     return structured_array
-
 
 
 class Dataset:
@@ -80,10 +91,12 @@ class Dataset:
 
 
 def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
-                          recording_numbers_to_skip=None):
+                          recording_numbers_to_skip=None, align_trials=False):
     print('\nCreating dataset object')
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
-        
+    if align_trials:
+        aligned_trials = pd.read_csv(filepaths.prop_pp_aligned_trials, index_col=0, header=0)
+
     spiketimes = utils.load_nested_dict(filepaths.proc_pp_spiketimes)
 
     if include_waveforms:
@@ -225,6 +238,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             dmd_tick, laser_tick = 0, 0
             dmd_burst_tick, laser_burst_tick = 0, 0
 
+            excluded_train_ids = []
             for train_id, trial_info in train_rec_df.iterrows():
 
                 # Patching corrupted data
@@ -250,30 +264,69 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                 else:
                     raise ValueError('i should not have ended up here?')
 
+                if not align_trials:
 
+                    for burst_i in range(int(burst_count)):
 
-                for burst_i in range(int(burst_count)):
+                        bursts_list.append([
+                            dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else -1,
+                            dmd_burst_onsets[dmd_burst_tick]  if trial_info['has_dmd'] else -1,
+                            dmd_burst_offsets[dmd_burst_tick] if trial_info['has_dmd'] else -1,
+                            laser_train_onsets[laser_tick] if trial_info['has_laser'] else -1,
+                            laser_burst_onsets[laser_burst_tick] if trial_info['has_laser'] else -1,
+                            laser_burst_offsets[laser_burst_tick] if trial_info['has_laser'] else -1,
+                            str(train_id)
+                        ])
 
-                    bursts_list.append([
-                        dmd_train_onsets[dmd_tick] if trial_info['has_dmd'] else -1,
-                        dmd_burst_onsets[dmd_burst_tick]  if trial_info['has_dmd'] else -1,
-                        dmd_burst_offsets[dmd_burst_tick] if trial_info['has_dmd'] else -1,
-                        laser_train_onsets[laser_tick] if trial_info['has_laser'] else -1,
-                        laser_burst_onsets[laser_burst_tick] if trial_info['has_laser'] else -1,
-                        laser_burst_offsets[laser_burst_tick] if trial_info['has_laser'] else -1,
-                        str(train_id)
-                    ])
+                        if trial_info['has_dmd']:
+                            dmd_burst_tick += 1
+                        if trial_info['has_laser']:
+                            laser_burst_tick += 1
+
+                    burst_offset += burst_count
+                    if trial_info['has_dmd']:
+                        dmd_tick += 1
+                    if trial_info['has_laser']:
+                        laser_tick += 1
+
+                else:
+
+                    if trial_info['has_laser'] and aligned_trials.loc[train_id, 'aligned_laser'] is True:
+                        laser_train_onset = aligned_trials.loc[train_id, 'a_laser_train_onset']
+                        laser_train_offset = laser_train_onset + 31 * 1e3
+                        laser_burst_idx = np.where(
+                            (laser_burst_onsets >= laser_train_onset-1) &
+                            (laser_burst_onsets < laser_train_offset)
+                        )[0]
+                        assert len(laser_burst_idx) == 30
+
+                    elif trial_info['has_laser'] and not aligned_trials.loc[train_id, 'aligned_laser']:
+                        excluded_train_ids.append(train_id)
+                        continue
 
                     if trial_info['has_dmd']:
-                        dmd_burst_tick += 1
-                    if trial_info['has_laser']:
-                        laser_burst_tick += 1
+                        dmd_train_onset = aligned_trials.loc[train_id, 'a_dmd_train_onset']
+                        dmd_train_offset = dmd_train_onset + 32 * 1e3
+                        dmd_bursts_idx = np.where(
+                            (dmd_burst_onsets >= dmd_train_onset - 1) &
+                            (dmd_burst_onsets < dmd_train_offset)
+                        )[0]
+                        if len(dmd_bursts_idx) != 30:
+                            excluded_train_ids.append(train_id)
+                            continue
 
-                burst_offset += burst_count
-                if trial_info['has_dmd']:
-                    dmd_tick += 1
-                if trial_info['has_laser']:
-                    laser_tick += 1
+                    for burst_i in range(int(burst_count)):
+
+                        bursts_list.append([
+                            dmd_train_onset if trial_info['has_dmd'] else -1,
+                            dmd_burst_onsets[dmd_bursts_idx[burst_i]]  if trial_info['has_dmd'] else -1,
+                            dmd_burst_offsets[dmd_bursts_idx[burst_i]] if trial_info['has_dmd'] else -1,
+                            laser_train_onset if trial_info['has_laser'] else -1,
+                            laser_burst_onsets[laser_burst_idx[burst_i]] if trial_info['has_laser'] else -1,
+                            laser_burst_offsets[laser_burst_idx[burst_i]] if trial_info['has_laser'] else -1,
+                            str(train_id)
+                        ])
+
 
             # dtype & structured array
             maxlen = max(len(b[6]) for b in bursts_list)
@@ -345,6 +398,8 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
             #
             #         else:
             #             table_array[i][col] = val
+            if len(excluded_train_ids) > 0:
+                train_rec_df = train_rec_df[~train_rec_df['train_id'].isin(excluded_train_ids)]
 
             table_array = df_to_hdf5_structured_array(train_rec_df)
 

@@ -20,8 +20,9 @@ dataset_sessions = {
     # '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
     # '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
     # '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[1, 7]),
-    '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
-
+    # '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
+    '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[1, 3],
+                                             align_trials=True),
 
 
     # Sessions without usefull data
