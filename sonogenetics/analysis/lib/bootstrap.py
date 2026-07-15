@@ -5,6 +5,7 @@ class BootstrapOutput:
     bins=None  # type: np.ndarray
     bin_size=None  # type: int
     binned_sp=None  # type: np.ndarray
+    bin_alignment=None  #type: str
     spike_times=None
 
     firing_rate=None  # type: np.ndarray

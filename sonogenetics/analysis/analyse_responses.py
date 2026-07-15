@@ -17,41 +17,11 @@ from sonogenetics.analysis.lib.analysis_params import dataset_dir
 from sonogenetics.analysis.data_list import data_list
 from sonogenetics.analysis.lib.data_io import DataIO
 
+from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 
-class BootstrapOutput:
-    bins=None  # type: np.ndarray
-    bin_size=None  # type: int
-    binned_sp=None  # type: np.ndarray
-    spike_times=None
 
-    firing_rate=None  # type: np.ndarray
-    firing_rate_ci_low=None  # type: np.ndarray
-    firing_rate_ci_high=None  # type: np.ndarray
 
-    baseline_firing_rate=None
-
-    is_excited=None
-    excitation_bins=None
-    excitation_max_fr=None
-    excitation_start=None
-    excitation_duration=None
-    excitation_end=None
-
-    is_inhibited=None
-    inhibition_bins=None
-    inhibition_min_fr=None
-    inhibition_start=None
-    inhibition_duration=None
-    inhibition_end=None
-
-    has_data=False
-    reason='none'
-
-    def get(self, name):
-        assert hasattr(self, name), f'{name} not in attributes'
-        return getattr(self, name)
-
-DEBUG = True
+DEBUG = False
 
 
 def main():
@@ -147,7 +117,7 @@ def analyse_responses(data_io: "DataIO", output_dir: Path, overwrite=False) -> N
         output_dir.mkdir(parents=True, exist_ok=True)
 
     # Detect per trial, which cell respond significantly
-    num_threads: int = 24
+    num_threads: int = 15
     tasks: List[Dict[str, Any]] = []
 
     for cluster_id in data_io.cluster_df.index.values:
@@ -186,12 +156,13 @@ def bootstrap_data(
         savefile: Path to save the bootstrap results.
     """
     print(f'Starting bootstrapping cluster: {cluster_id}')
-    t_pre: int = 100
-    t_after: int = 200
-    stepsize: int = 5
+    t_pre: int = 50
+    t_after: int = 150
+    stepsize: int = 1
     binwidth: int = 10
     bin_centres: np.ndarray = np.arange(-t_pre, t_after, stepsize)
-    baseline: List[int] = [-100, -50]
+    bin_alignment = 'left'
+    baseline: List[int] = [-49, -35]
     response_window: List[int] = [0, 200]
 
     min_inhibition_duration = 15  # minimum duration of inhibition in [ms]
@@ -229,26 +200,35 @@ def bootstrap_data(
 
         # Create placeholder for data
         binned_sp: np.ndarray = np.zeros((n_trains, n_bins), dtype=int)
-        spike_times: List[np.ndarray] = []
+        # spike_times: List[np.ndarray] = []
 
         for burst_i, burst_onset in enumerate(burst_onsets):
-            t0: float = burst_onset + bin_centres[0] - binwidth / 2
-            t1: float = burst_onset + bin_centres[-1] + binwidth / 2
-            idx: np.ndarray = np.where((spiketrain >= t0) & (spiketrain < t1))[0]
+            # if bin_alignment == 'left':
+            #     t0: float = burst_onset + bin_centres[0] - binwidth / 2
+            #     t1: float = burst_onset + bin_centres[-1] + binwidth / 2
+            # else:
+            #     raise ValueError(' implement this')
+            # idx: np.ndarray = np.where((spiketrain >= t0) & (spiketrain < t1))[0]
 
             # Append the spiketimes, relative to burst onset
-            spike_times.append(spiketrain[idx] - burst_onset)
+            # spike_times.append(spiketrain[idx] - burst_onset)
 
             for bin_i, bin_centre in enumerate(bin_centres):
-                t0 = burst_onset + bin_centre - binwidth / 2
-                t1 = burst_onset + bin_centre + binwidth / 2
+                if bin_alignment == 'left':
+                    t0 = burst_onset + bin_centre
+                    t1 = burst_onset + bin_centre + binwidth
+                elif bin_alignment == 'centre':
+                    t0 = burst_onset + bin_centre - binwidth / 2
+                    t1 = burst_onset + bin_centre + binwidth / 2
+                else:
+                    raise ValueError('S')
                 idx = np.where((spiketrain >= t0) & (spiketrain < t1))[0]
                 binned_sp[burst_i, bin_i] = idx.size
 
         results.bins = bin_centres
         results.bin_size = binwidth
         results.binned_sp = binned_sp
-        results.spike_times = spike_times
+        # results.spike_times = spike_times
 
         if np.sum(binned_sp) < 1 * 3:  # if there are less than 10 spikes don't bother
             results.reason = 'not enough spikes'

@@ -18,5 +18,6 @@ data_list = [
     # '2026-07-08 rat LE 3322 Mekano6 A',
     # '2026-07-08 rat LE 3322 Mekano6 B',
     '2026-07-09 rat LE 0353 Mekano6 A',
-    '2026-07-09 rat LE 0353 Mekano6 B',
+    # '2026-07-09 rat LE 0353 Mekano6 B',
+
 ]

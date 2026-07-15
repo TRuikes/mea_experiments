@@ -26,21 +26,32 @@ zmax = 12
 
 
 data_list = (
-    ('2026-05-19 mouse c57 Audrey A', "260519_A_005_noblocker_pa_prr_series"),
-    ('2026-05-20 mouse c57 Audrey A', '260520_A_005_noblocker_pa_prr_series'),
-    ('2026-02-11 mouse c57 565 eMSCL A', 'rec_2_pilot_021126'),
-    ('2026-02-16 mouse c57 566 eMSCL A', 'rec_1_26-02-16_A_pilot021626_noblocker'),
-    ('2026-02-19 mouse c57 5713 Mekano6 A', 'rec_2_pa_dose_sequence_1'),
-    ('2026-03-25 mouse c57 617 Mekano6 B', 'rec_1_B_20260325_pa_intensity_test'),
-    ('2026-05-13 mouse c57 615 Mekano6 A', 'rec_2_2026-05-13_mouse_615_A_pa_intensity_test'),
-    ('2026-05-13 mouse c57 615 Mekano6 A', 'rec_2_2026-05-13_mouse_615_A_pa_intensity_test'),
-    ('2026-06-12 mouse c57 649 Mekano6 C', 'rec_2_C_20260612_pa_intensity_test'),
-    ('2026-06-12 mouse c57 649 Mekano6 D', 'rec_2_D_20260612_pa_intensity_test'),
-    ('2026-06-16 mouse c57 645 Mekano6 B', 'rec_2_B_20260616_pa_intensity_test'),
-    ('2026-06-30 rat LE 803 Mekano6 B', 'rec_2_B_20260630_pa_intensity_test'),
-    ('2026-07-01 mouse c57 653 NoVirus C', 'rec_2_C_20260701_pa_intensity_test'),
-    ('2026-07-02 mouse c57 650 Mekano6 A', 'rec_2_A_20260702_pa_intensity_test'),
-    ('2026-07-02 mouse c57 650 Mekano6 B', 'rec_2_B_20260702_pa_intensity_test'),  # TODO
+    # ('2026-05-19 mouse c57 Audrey A', '260519_A_005_noblocker_pa_prr_series'),
+    # ('2026-05-19 mouse c57 Audrey A', '260519_A_009_acet_lap4_pa_prr_series'),
+    # ('2026-05-20 mouse c57 Audrey A', '260520_A_005_noblocker_pa_prr_series'),
+    # ('2026-05-20 mouse c57 Audrey A', '260520_A_010_acet_lap4_pa_prr_series'),
+
+    # ('2026-02-11 mouse c57 565 eMSCL A', 'rec_2_pilot_021126'),
+    # ('2026-02-16 mouse c57 566 eMSCL A', 'rec_1_26-02-16_A_pilot021626_noblocker'),
+    # ('2026-02-19 mouse c57 5713 Mekano6 A', 'rec_2_pa_dose_sequence_1'),
+    # ('2026-03-25 mouse c57 617 Mekano6 B', 'rec_1_B_20260325_pa_intensity_test'),
+    # ('2026-05-13 mouse c57 615 Mekano6 A', 'rec_2_2026-05-13_mouse_615_A_pa_intensity_test'),
+    # ('2026-06-12 mouse c57 649 Mekano6 C', 'rec_2_C_20260612_pa_intensity_test'),
+    # ('2026-06-12 mouse c57 649 Mekano6 D', 'rec_2_D_20260612_pa_intensity_test'),
+    # ('2026-06-16 mouse c57 645 Mekano6 B', 'rec_2_B_20260616_pa_intensity_test'),
+    # ('2026-06-30 rat LE 803 Mekano6 B', 'rec_2_B_20260630_pa_intensity_test'),
+    # ('2026-07-01 mouse c57 653 NoVirus C', 'rec_2_C_20260701_pa_intensity_test'),
+    # ('2026-07-02 mouse c57 650 Mekano6 A', 'rec_2_A_20260702_pa_intensity_test'),
+    # ('2026-07-02 mouse c57 650 Mekano6 B', 'rec_2_B_20260702_pa_intensity_test'),  # TODO
+    # ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_2_A_20260708_pa_dmd_timing_full_field'),
+    # ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_3_A_20260708_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-08 rat LE 3322 Mekano6 B', 'rec_2_B_20260708_pa_dmd_timing_full_field'),
+    ('2026-07-08 rat LE 3322 Mekano6 B', "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"),
+    # ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_2_A_20260709_pa_dmd_timing_full_field'),
+    # ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+
 )
 
 
@@ -49,7 +60,7 @@ def main():
     data_io = DataIO(dataset_dir)
 
     for session_id, rec_id in data_list:
-        data_io.load_session(session_id, load_pickle=True, load_waveforms=False)
+        data_io.load_session(session_id, load_pickle=False, load_waveforms=False)
         data_io.dump_as_pickle()
 
         loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
@@ -73,7 +84,8 @@ def main():
             f'rec_id ==  "{rec_id}" and '
             f'laser_burst_duration == {LASER_BURST_DURATION} and '
             f'laser_pulse_repetition_rate == {laser_ppr_to_use} and '
-            f'laser_power == {laser_power_to_use}'
+            f'laser_power == {laser_power_to_use} and '
+            f'has_dmd == False'
         )
 
         frates = []
@@ -238,7 +250,7 @@ def main():
             ticktext=[0, cell_fr.shape[0]]
         )
 
-        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}'
+        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}'
 
         save_fig(fig=fig, savename=savename, display=False)
 
@@ -255,7 +267,7 @@ def main():
             ticktext=[0, cell_fr.shape[0]]
         )
 
-        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_zoomed'
+        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}_zoomed'
 
         save_fig(fig=fig, savename=savename, display=False)
 
