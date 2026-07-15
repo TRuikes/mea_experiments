@@ -30,7 +30,7 @@ def main():
                 data_io.burst_df.at[i, 'protocol_name'] = r['recording_name']
 
 
-        generate_raster_plots_session(data_io=data_io, sig_only=False)
+        generate_raster_plots_session(data_io=data_io, sig_only=True)
         # generate_heatmaps_session(data_io=data_io, sig_only=True)
         #firing_rate_per_protocol_master(data_io=data_io)
 

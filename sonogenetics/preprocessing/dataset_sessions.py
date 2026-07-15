@@ -21,9 +21,10 @@ dataset_sessions = {
     # '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
     # '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[1, 7]),
     # '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
-    '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[1, 3],
-                                             align_trials=True),
-
+    # '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[1, 3],
+    #                                          align_trials=True),  # TODO the CNPQX recording is not added
+    # '2026-07-09 rat LE 0353 Mekano6 A': dict(skip_triggers=[1, 3]),
+    '2026-07-09 rat LE 0353 Mekano6 B': dict(skip_triggers=[1]),
 
     # Sessions without usefull data
     # '2026-03-17 mouse c57 613 eMSCL A': dict(skip_triggers=[1]),  # bad

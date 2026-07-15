@@ -69,7 +69,7 @@ def main():
         data_io.lock_modification()
 
         # Analyse the cell responses following the triggers
-        analyse_responses(data_io, dataset_dir / 'bootstrapped', overwrite=True)
+        analyse_responses(data_io, dataset_dir / 'bootstrapped', overwrite=False)
 
         data_io.unlock_modification()
 

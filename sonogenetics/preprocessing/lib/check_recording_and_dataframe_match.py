@@ -35,19 +35,19 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
             pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
             pa_n_bursts_triggers = len(pa_burst_onsets)
 
-            import numpy as np
-            pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
-            pa_burst_offsets = triggers[rec_id]['laser']['burst_offsets']
-            for i in range(pa_burst_onsets.shape[0]):
-                if i % 30 == 0:
-                    t0 = pa_burst_onsets[i]
-                    t1 = pa_burst_offsets[i]
-                    print(f'{t1-t0:.0f}')
-                    # idx = np.where((pa_burst_onsets >= t0) & (pa_burst_onsets < t1))[0]
-                # print(idx.size)
-
-                dt = triggers[rec_id]['laser']['burst_offsets'][idx] - pa_burst_onsets[idx]
-                print(f'{np.mean(dt):.1f}')
+            # import numpy as np
+            # pa_burst_onsets = triggers[rec_id]['laser']['burst_onsets']
+            # pa_burst_offsets = triggers[rec_id]['laser']['burst_offsets']
+            # for i in range(pa_burst_onsets.shape[0]):
+            #     if i % 30 == 0:
+            #         t0 = pa_burst_onsets[i]
+            #         t1 = pa_burst_offsets[i]
+            #         print(f'{t1-t0:.0f}')
+            #         # idx = np.where((pa_burst_onsets >= t0) & (pa_burst_onsets < t1))[0]
+            #     # print(idx.size)
+            #
+            #     dt = triggers[rec_id]['laser']['burst_offsets'][idx] - pa_burst_onsets[idx]
+            #     print(f'{np.mean(dt):.1f}')
 
 
             print(f'\tAdding PA triggers')

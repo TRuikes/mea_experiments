@@ -15,5 +15,8 @@ data_list = [
     # '2026-07-01 mouse c57 653 NoVirus C',
     # '2026-07-02 mouse c57 650 Mekano6 A',
 
-    '2026-07-08 rat LE 3322 Mekano6 A',
+    # '2026-07-08 rat LE 3322 Mekano6 A',
+    # '2026-07-08 rat LE 3322 Mekano6 B',
+    '2026-07-09 rat LE 0353 Mekano6 A',
+    '2026-07-09 rat LE 0353 Mekano6 B',
 ]
