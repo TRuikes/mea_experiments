@@ -3,27 +3,27 @@ define the sessions for preprocessing here
 """
 
 dataset_sessions = {
-    # '2026-02-11 mouse c57 565 eMSCL A': dict(skip_triggers=[1]),  # good
-    # '2026-02-16 mouse c57 566 eMSCL A': dict(skip_triggers=[]),  # good
-    # '2026-02-19 mouse c57 5713 Mekano6 A': dict(skip_triggers=[1]),  # good
-    # '2026-03-25 mouse c57 617 Mekano6 B': dict(skip_triggers=[]),  #
-    # '2026-05-06 mouse c57 611 MscL A': dict(skip_triggers=[1]),  #
-    # '2026-05-06 mouse c57 611 MscL C': dict(skip_triggers=[1, 5, 6]),  #
-    # '2026-05-13 mouse c57 615 Mekano6 A': dict(skip_triggers=[1]),
-    # '2026-06-12 mouse c57 649 Mekano6 C': dict(skip_triggers=[1], laser_trigger_channel=255, dmd_trigger_channel=128),  # good
-    # '2026-06-12 mouse c57 649 Mekano6 D': dict(skip_triggers=[1], laser_trigger_channel=255, dmd_trigger_channel=128),
-    # '2026-06-16 mouse c57 645 Mekano6 B': dict(skip_triggers=[1]),  # TODO (data at pc home)
-    # '2026-06-16 mouse c57 645 Mekano6 C': dict(skip_triggers=[1]), laser_trigger_channel=255, dmd_trigger_channel=128),
-    # '2026-06-30 rat LE 803 Mekano6 A': dict(skip_triggers=[1]),
-    # '2026-06-30 rat LE 803 Mekano6 B': dict(skip_triggers=[1, 5]),
-    # '2026-06-30 rat LE 803 Mekano6 C': dict(skip_triggers=[1]),
-    # '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
-    # '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
-    # '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[1, 7]),
-    # '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
-    # '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[1, 3],
-    #                                          align_trials=True),  # TODO the CNPQX recording is not added
-    # '2026-07-09 rat LE 0353 Mekano6 A': dict(skip_triggers=[1, 3]),
+    '2026-02-11 mouse c57 565 eMSCL A': dict(skip_triggers=[1]),  # good
+    '2026-02-16 mouse c57 566 eMSCL A': dict(skip_triggers=[]),  # good
+    '2026-02-19 mouse c57 5713 Mekano6 A': dict(skip_triggers=[1]),  # good
+    '2026-03-25 mouse c57 617 Mekano6 B': dict(skip_triggers=[]),  #
+    '2026-05-06 mouse c57 611 MscL A': dict(skip_triggers=[1]),  #
+    '2026-05-06 mouse c57 611 MscL C': dict(skip_triggers=[1, 5, 6]),  #
+    '2026-05-13 mouse c57 615 Mekano6 A': dict(skip_triggers=[1]),
+    # '2026-06-12 mouse c57 649 Mekano6 C': dict(skip_triggers=[1], laser_trigger_channel=255, dmd_trigger_channel=128),  #  PC home
+    # '2026-06-12 mouse c57 649 Mekano6 D': dict(skip_triggers=[1], laser_trigger_channel=255, dmd_trigger_channel=128),  # PC home
+    # '2026-06-16 mouse c57 645 Mekano6 B': dict(skip_triggers=[1]),  # TODO (data at pc home)  # PC home
+    '2026-06-16 mouse c57 645 Mekano6 C': dict(skip_triggers=[1]),   #laser_trigger_channel=255, dmd_trigger_channel=128),
+    '2026-06-30 rat LE 803 Mekano6 A': dict(skip_triggers=[1]),
+    '2026-06-30 rat LE 803 Mekano6 B': dict(skip_triggers=[1, 5]),
+    '2026-06-30 rat LE 803 Mekano6 C': dict(skip_triggers=[1]),
+    '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
+    '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[1]),
+    '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[1, 7]),
+    '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[1,]),
+    '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[1],
+                                             align_trials=True),  # TODO the CNPQX recording is not added
+    '2026-07-09 rat LE 0353 Mekano6 A': dict(skip_triggers=[1, 3]),
     '2026-07-09 rat LE 0353 Mekano6 B': dict(skip_triggers=[1]),
 
     # Sessions without usefull data

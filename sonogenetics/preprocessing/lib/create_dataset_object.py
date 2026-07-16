@@ -298,7 +298,12 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                             (laser_burst_onsets >= laser_train_onset-1) &
                             (laser_burst_onsets < laser_train_offset)
                         )[0]
-                        assert len(laser_burst_idx) == 30
+                        if len(laser_burst_idx) != 30:
+                            excluded_train_ids.append(train_id)
+                            continue
+                        else:
+                            print('not skipping')
+                        # assert len(laser_burst_idx) == 30
 
                     elif trial_info['has_laser'] and not aligned_trials.loc[train_id, 'aligned_laser']:
                         excluded_train_ids.append(train_id)

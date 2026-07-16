@@ -103,31 +103,33 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
                 # Detect trigger onsets
                 if trigger_type == 'laser':
-                    idx = np.where(chdata > data_trigger_thresholds['laser'])[0]
-                    t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
-
-                    if idx.size > 0:
-                        trigger_high = np.concat([trigger_high, t])
-
+                    threshold = data_trigger_thresholds['laser']
                 elif trigger_type == 'dmd':
-                    idx = np.where(chdata > data_trigger_thresholds['dmd'])[0]
-                    t = ((idx+i0) / data_sample_rate) * 1e3  # [ms]
-
-                    if idx.size > 0:
-                        trigger_high = np.concat([trigger_high, t])
-
+                    if rec == 'rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX':
+                        threshold = 2500
+                    else:
+                        threshold = data_trigger_thresholds['dmd']
                 else:
                     raise ValueError('error!')
 
-                if visualize_detection:
+
+                idx = np.where(chdata > threshold)[0]
+                t = ((idx + i0) / data_sample_rate) * 1e3  # [ms]
+
+                if idx.size > 0:
+                    trigger_high = np.concat([trigger_high, t])
+
+                if visualize_detection and '_3_' in rec and trigger_type == 'dmd':
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
                     subsample_idx = np.arange(0, x.size, 5).astype(int)
 
                     fig = utils.simple_fig(width=1, height=1, n_rows=1, n_cols=1)
+
                     fig.add_scatter(x=x[subsample_idx], y=chdata[subsample_idx], mode='lines', line=dict(color='black', width=1),
                                     showlegend=False, row=1, col=1)
-                    fig.add_scatter(x=[x[0], x[-1]], y=np.ones(2) * data_trigger_thresholds['laser'], mode='lines',
+
+                    fig.add_scatter(x=[x[0], x[-1]], y=np.ones(2) * threshold, mode='lines',
                                     line=dict(color='red', width=1),
                                     showlegend=False, row=1, col=1)
 

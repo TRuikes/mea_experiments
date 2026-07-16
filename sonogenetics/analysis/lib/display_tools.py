@@ -48,6 +48,9 @@ def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFra
             continue
 
         for cluster_id in data_io.cluster_ids:
+            if '_070' not in cluster_id:
+                continue
+
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
                 subgroup = 'significant'
             else:
