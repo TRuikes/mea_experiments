@@ -51,8 +51,8 @@ data_list = (
     ('2026-07-08 rat LE 3322 Mekano6 B', "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"),
     ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_2_A_20260709_pa_dmd_timing_full_field'),
     ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
-    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
 
 )
 
@@ -62,7 +62,7 @@ def main():
     data_io = DataIO(dataset_dir)
 
     for session_id, rec_id in data_list:
-        data_io.load_session(session_id, load_pickle=True, load_waveforms=False)
+        data_io.load_session(session_id, load_pickle=False, load_waveforms=False)
         data_io.dump_as_pickle()
 
         loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
@@ -94,18 +94,12 @@ def main():
         latencies = []
         labels = []
 
-        # Placeholder to extract data into
-        # bin_centres = np.arange(-t_pre, t_after, stepsize)
-        # n_bins = bin_centres.size
-        # baseline_mask = (bin_centres >= baseline_t0) & (bin_centres < baseline_t1)
-
         stim_durations = train_df.laser_burst_duration.unique()
         assert len(stim_durations) == 1
         stim_duration = stim_durations[0]
 
         for tid, tinfo in train_df.iterrows():
             burst_onsets = data_io.burst_df.query(f'train_id == "{tid}"').laser_burst_onset
-            n_trains = burst_onsets.size
 
             for cid in data_io.cluster_ids:
 
@@ -118,58 +112,42 @@ def main():
                 if not cells_df.loc[cid][tid, 'is_excited'] and not cells_df.loc[cid][tid, 'is_inhibited']:
                     continue
 
+                # if cells_df.loc[cid][tid, 'is_excited'] or cells_df.loc[cid][tid, 'is_inhibited']:
+                #     continue
+
                 if pd.isna(cells_df.loc[cid][tid, 'is_excited']) and pd.isna(cells_df.loc[cid][tid, 'is_inhibited']):
                     continue
 
                 cluster_data: Dict[str, PoissonOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cid}.pkl')
 
-
-                if cluster_data[tid].baseline_firing_rate_mean < 15 / 1e3:
+                if cluster_data[tid] is None:
                     continue
 
-                # spiketrain = data_io.spiketimes[rec_id][cid]
-                # Get spikes per bin
-                # binned_sp = np.zeros((n_trains, n_bins))
-                #
-                # for burst_i, burst_onset in enumerate(burst_onsets):
-                #     for bin_i, bin_centre in enumerate(bin_centres):
-                #         # symmetric bin (recommended)
-                #         t0 = burst_onset + bin_centre
-                #         t1 = burst_onset + bin_centre + binwidth
-                #
-                #         count = np.sum((spiketrain >= t0) & (spiketrain < t1))
-                #         binned_sp[burst_i, bin_i] = count
-                # binned_sp = cluster_data[tid].binned_sp
-                # binned_sp = gaussian_filter1d(binned_sp, sigma=smooth_sigma, axis=1)
-
-                # Get mean firing rate
-                # mean_fr = np.mean(binned_sp, axis=0)
                 mean_fr = cluster_data[tid].firing_rate
-                # mean_fr = gaussian_filter1d(mean_fr, sigma=smooth_sigma)
 
                 bin_centres = cluster_data[tid].bins
                 baseline_mask = (bin_centres >= baseline_t0) & (bin_centres < baseline_t1)
 
-                frates.append(mean_fr)
-                labels.append(cid)
-
-                if cells_df.loc[cid][tid, 'is_inhibited']:
+                if cells_df.loc[cid][tid, 'is_inhibited'] and cluster_data[tid].baseline_firing_rate_mean * 1e3 > 20:
+                    frates.append(mean_fr)
+                    labels.append(cid)
                     latencies.append(cells_df.loc[cid][tid, 'inhibition_start'])
-                    print('in ', cid, tid, f'{latencies[-1]:.2f}',
-                          f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
-
+                    # print('in ', cid, tid, f'{latencies[-1]:.2f}',
+                    #       f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
 
                 elif cells_df.loc[cid][tid, 'is_excited']:
+                        frates.append(mean_fr)
+                        labels.append(cid)
                         latencies.append(cells_df.loc[cid][tid, 'excitation_start'])
-                        print('ex ', cid, tid, f'{latencies[-1]:.2f}', f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
-
-
+                        # print('ex ', cid, tid, f'{latencies[-1]:.2f}', f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
 
                 else:
-                    # raise ValueError('test')
-                    latencies.append(0)
-                    print('non', cid, tid, f'{0}', f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
+                    if cells_df.loc[cid][tid, 'is_inhibited'] and cluster_data[tid].baseline_firing_rate_mean * 1e3 <= 20:
+                        continue
 
+                    raise ValueError('test')
+                    # latencies.append(0)
+                    # print('non', cid, tid, f'{0}', f'{cluster_data[tid].baseline_firing_rate_mean * 1e3:.0f}')
 
         cell_fr = np.array(frates)
         cell_fr = cell_fr / (binwidth / 1000)
@@ -178,7 +156,9 @@ def main():
         # Z-score to baseline window
         # -----------------------------
         if cell_fr.shape[0] == 0:
-            raise ValueError('no cell found')
+            # raise ValueError('no cell found')
+            print('no cells found')
+            continue
         baseline = cell_fr[:, baseline_mask]
 
         baseline_mean = baseline.mean(axis=1, keepdims=True)
@@ -196,8 +176,6 @@ def main():
         cell_fr = cell_fr[sort_idx, :]
         labels = [labels[i] for i in sort_idx]
         latencies = np.array([latencies[i] for i in sort_idx])
-        if np.any(latencies == 0):
-            nonzero_idx = np.where(np.array(latencies) == 0)[0][-1]
 
         # 1. Clip the data to your strict boundaries
         clipped_fr = np.clip(cell_fr, zmin, zmax)
@@ -232,7 +210,7 @@ def main():
         # Plot heatmap
         # -----------------------------
         fig = make_figure(
-            height=3,
+            height=2,
             x_domains={1: [[0.1, 0.9]]},
             y_domains={1: [[0.1, 0.9]]},
             subplot_titles={1: [f'PA power: {laser_power_to_use:.0f}, PA PRR: {laser_ppr_to_use/1e3:.1f} kHz, PA duration: {stim_duration:.0f} ms']}
@@ -289,32 +267,12 @@ def main():
         fig.update_yaxes(
             title_text = 'cell #',
             range=[-0.5, cell_fr.shape[0]-0.5],
-            tickvals=np.arange(0, len(labels)),
-            ticktext=labels
+            # tickvals=np.arange(0, len(labels)),
+            # ticktext=labels
         )
 
-        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}.html'
-
-        with open(savename.as_posix(), "w", encoding="utf-8") as f:
-            f.write(fig.to_html(include_plotlyjs='cdn', full_html=True))
-        # save_fig(fig=fig, savename=savename, display=False, backend='y')
-
-        # fig.update_xaxes(
-        #     tickvals=np.arange(-200, 301, 10),
-        #     title_text='time [ms]',
-        #     range=[-30, 80]
-        # )
-        #
-        # fig.update_yaxes(
-        #     title_text = 'cell #',
-        #     range=[-0.5, cell_fr.shape[0]-0.5],
-        #     tickvals=[0, cell_fr.shape[0]-0.5],
-        #     ticktext=[0, cell_fr.shape[0]]
-        # )
-        #
-        # savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}_zoomed'
-        #
-        # save_fig(fig=fig, savename=savename, display=False, backend='y')
+        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}'
+        save_fig(fig=fig, savename=savename, display=False)
 
 
 

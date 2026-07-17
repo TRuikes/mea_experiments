@@ -1,13 +1,15 @@
 data_list = [
-    '2026-02-11 mouse c57 565 eMSCL A',
+    '2026-05-19 mouse c57 Audrey A',
+    '2026-05-20 mouse c57 Audrey A',
+     '2026-02-11 mouse c57 565 eMSCL A',
     '2026-02-16 mouse c57 566 eMSCL A',
     '2026-02-19 mouse c57 5713 Mekano6 A',
     '2026-03-25 mouse c57 617 Mekano6 B',
     '2026-05-06 mouse c57 611 MscL C',
     '2026-05-13 mouse c57 615 Mekano6 A',
-    # '2026-06-12 mouse c57 649 Mekano6 C', # PC home
-    # '2026-06-12 mouse c57 649 Mekano6 D', # PC home
-    # '2026-06-16 mouse c57 645 Mekano6 B',
+    '2026-06-12 mouse c57 649 Mekano6 C', # PC home
+    '2026-06-12 mouse c57 649 Mekano6 D', # PC home
+    '2026-06-16 mouse c57 645 Mekano6 B', # PC home
     '2026-06-16 mouse c57 645 Mekano6 C',
     '2026-06-30 rat LE 803 Mekano6 A',
     '2026-06-30 rat LE 803 Mekano6 B',

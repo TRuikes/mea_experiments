@@ -96,6 +96,13 @@ class DataIO:
             # --- Load top-level cluster metadata ---
             if "clusters/metadata" in f:
                 cluster_df = hdf5_structured_array_to_df(f["clusters/metadata"])
+
+                # Tiny pathc to reach Audrey's data
+                if 'Audrey' in session_id:
+                    r0 = list(f['recordings'].keys())[0]
+                    cluster_ids = list(f['recordings'][r0]['clusters'].keys())
+                    cluster_df['new_id'] = cluster_ids
+
                 cluster_df.set_index('new_id', inplace=True)
 
             # --- Load recordings ---
