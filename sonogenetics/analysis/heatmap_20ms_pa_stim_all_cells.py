@@ -32,7 +32,6 @@ data_list = (
     # ('2026-05-19 mouse c57 Audrey A', '260519_A_009_acet_lap4_pa_prr_series'),
     # ('2026-05-20 mouse c57 Audrey A', '260520_A_005_noblocker_pa_prr_series'),
     # ('2026-05-20 mouse c57 Audrey A', '260520_A_010_acet_lap4_pa_prr_series'),
-
     # ('2026-02-11 mouse c57 565 eMSCL A', 'rec_2_pilot_021126'),
     # ('2026-02-16 mouse c57 566 eMSCL A', 'rec_1_26-02-16_A_pilot021626_noblocker'),
     # ('2026-02-19 mouse c57 5713 Mekano6 A', 'rec_2_pa_dose_sequence_1'),
@@ -44,16 +43,14 @@ data_list = (
     # ('2026-06-30 rat LE 803 Mekano6 B', 'rec_2_B_20260630_pa_intensity_test'),
     # ('2026-07-01 mouse c57 653 NoVirus C', 'rec_2_C_20260701_pa_intensity_test'),
     # ('2026-07-02 mouse c57 650 Mekano6 A', 'rec_2_A_20260702_pa_intensity_test'),
-    # ('2026-07-02 mouse c57 650 Mekano6 B', 'rec_2_B_20260702_pa_intensity_test'),  # TODO
     ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_2_A_20260708_pa_dmd_timing_full_field'),
     ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_3_A_20260708_pa_dmd_timing_full_field_RSCPP_CNQX'),
     ('2026-07-08 rat LE 3322 Mekano6 B', 'rec_2_B_20260708_pa_dmd_timing_full_field'),
     ('2026-07-08 rat LE 3322 Mekano6 B', "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"),
     ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_2_A_20260709_pa_dmd_timing_full_field'),
     ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
-    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
-
+    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
+    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
 )
 
 

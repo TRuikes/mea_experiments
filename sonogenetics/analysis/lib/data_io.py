@@ -241,6 +241,21 @@ class DataIO:
             for k, v in loaded_instance.items():
                 self.__setattr__(k, v)
 
+    def get_tid_by_specs(self, **kwargs):
+        if not kwargs:
+            raise ValueError('no specs passed')
+
+        # Dynamically build: 'key1 == @kwargs["key1"] and key2 == @kwargs["key2"]'
+        query_string = " and ".join([f"{k} == @kwargs['{k}']" for k in kwargs.keys()])
+
+        df = self.train_df.query(query_string)
+        if len(df) != 1:
+            print('x')
+            return None
+        assert len(df) == 1, f"Expected exactly 1 match, found {len(df)}"
+        return df.index.values[0]
+
+
 if __name__ == "__main__":
     from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
