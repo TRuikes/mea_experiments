@@ -47,7 +47,7 @@ class PoissonOutput:
 
 def first_consecutive_run(indices, min_bin_length=3):
     if len(indices) == 0:
-        return np.array([], dtype=int)
+        return None
 
     # 1. Sort and find unique values just in case
     indices = np.unique(indices)
@@ -64,7 +64,7 @@ def first_consecutive_run(indices, min_bin_length=3):
 
     # 5. Concatenate them back into a single flat array
     if not valid_blocks:
-        return np.array([], dtype=int)
+        return None
 
     return np.concatenate(valid_blocks)
 
@@ -167,7 +167,7 @@ def detect_significant_modulation_poisson(bin_centres, binned_sp, baseline_idx, 
     # Extract inhibition stats
     bins_decrease = test_idx[significant_decrease]
     in_idx = first_consecutive_run(bins_decrease, int(min_duration_ms / stepsize_ms),
-                                   occupancy_threshold=0.7) # indices into significant decrease
+                                   ) # indices into significant decrease
 
     is_inhibited = True if in_idx is not None else False
     inhibition_bins = bins_decrease if is_inhibited else None
@@ -179,7 +179,7 @@ def detect_significant_modulation_poisson(bin_centres, binned_sp, baseline_idx, 
     # Extract excitation stats
     bins_increase = test_idx[significant_increase]
     ex_idx = first_consecutive_run(bins_increase, int(min_duration_ms / stepsize_ms),
-                                   occupancy_threshold=0.7)
+                                   o)
     is_excited = True if ex_idx is not None else False
     excitation_bins = bins_increase if is_excited else None
     excitation_max_fr = np.max(firing_rate_hz[bins_increase]) if is_excited else None
