@@ -61,7 +61,6 @@ def first_consecutive_run(indices, min_bin_length=3):
 
     # 4. Filter for blocks that meet or exceed your minimum length
     valid_blocks = [b for b in blocks if len(b) >= min_bin_length]
-
     # 5. Concatenate them back into a single flat array
     if not valid_blocks:
         return None
