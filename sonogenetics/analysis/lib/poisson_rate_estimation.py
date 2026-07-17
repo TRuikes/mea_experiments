@@ -44,35 +44,29 @@ class PoissonOutput:
         return getattr(self, name)
 
 
-def first_consecutive_run(indices, min_bin_length=3, occupancy_threshold=0.8):
+
+def first_consecutive_run(indices, min_bin_length=3):
     if len(indices) == 0:
-        return None
+        return np.array([], dtype=int)
 
-    # Ensure indices are sorted for the sliding window
-    indices = np.sort(indices)
-    n = len(indices)
+    # 1. Sort and find unique values just in case
+    indices = np.unique(indices)
 
-    # We use two pointers, i (start) and j (end)
-    for i in range(n):
-        for j in range(i + min_bin_length - 1, n):
-            start = indices[i]
-            end = indices[j]
+    # 2. Find where the breaks in consecutive numbers happen
+    # np.diff shows the step size between elements. If step > 1, it's a new block.
+    gaps = np.where(np.diff(indices) > 1)[0] + 1
 
-            # The physical width (number of bins) this window covers
-            span = end - start + 1
+    # 3. Split the indices array into a list of strictly consecutive sub-arrays
+    blocks = np.split(indices, gaps)
 
-            # The number of indices we actually have inside this window
-            actual_count = j - i + 1
+    # 4. Filter for blocks that meet or exceed your minimum length
+    valid_blocks = [b for b in blocks if len(b) >= min_bin_length]
 
-            # We only care if the physical span is at least our minimum bin length
-            if span >= min_bin_length:
-                occupancy = actual_count / span
+    # 5. Concatenate them back into a single flat array
+    if not valid_blocks:
+        return np.array([], dtype=int)
 
-                if occupancy >= occupancy_threshold:
-                    # Return the full continuous range from start to end
-                    return np.arange(start, end + 1)
-
-    return None
+    return np.concatenate(valid_blocks)
 
 
 
