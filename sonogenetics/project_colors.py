@@ -134,10 +134,22 @@ class ProjectColors:
         clrraw = cmaps.grads_rainbow.colors[idx, :]
         return f'rgba({clrraw[0]}, {clrraw[1]}, {clrraw[2]}, {alpha})'
 
+    @staticmethod
+    def laser_delay(cat_name, alpha):
+        if cat_name =='D':
+            return f'rgba( 0, 0, 255, {alpha})'
+        elif cat_name == 'L':
+            return f'rgba( 255, 0, 0, {alpha})'
+        else:
+            names = np.array(['D', 'DL_0', 'DL_40', 'DL_60', 'L'])
+            i = np.where(names == cat_name)[0][0]
+            r, g, b = cmaps.sunsetdark.discrete(5).colors[i]
+            return f'rgba({r}, {g}, {b}, {alpha})'
+
 
 if __name__ == '__main__':
     # p = ProjectColors()
     # cmaps.show_cmaps_all()
 
     clrs = ProjectColors()
-    x = clrs.blocker_color('noblocker', 1)
+    x = clrs.laser_delay('D', 1)
