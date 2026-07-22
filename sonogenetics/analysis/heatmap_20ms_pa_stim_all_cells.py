@@ -96,7 +96,8 @@ def main():
         stim_duration = stim_durations[0]
 
         for tid, tinfo in train_df.iterrows():
-            burst_onsets = data_io.burst_df.query(f'train_id == "{tid}"').laser_burst_onset
+
+
 
             for cid in data_io.cluster_ids:
 
