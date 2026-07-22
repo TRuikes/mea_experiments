@@ -18,15 +18,87 @@ def get_recording_table(trigger_dir, stim_dir):
 
         # If this breaks, its because the files are not exaclyt named the same
         recording_table.at[rec_nr, 'trigger_file'] = trigger_file
-        date_tf, _, _, _, _, strain_tf, animal_id, ret_nr, slice_nr, _, _, recnr_tf, stimtype_tf, lasermode_tf, stimsource_tf, _  = trigger_file.split('_')
-        # If this breaks, its because the files are not exaclyt named the same
-        stim_file = stimfiles_by_prefix[rec_nr].name
+        #date_tf, _, _, _, _, strain_tf, animal_id, ret_nr, slice_nr, _, _, recnr_tf, stimtype_tf, lasermode_tf, stimsource_tf, _  = trigger_file.split('_')
+        # If this breaks, its because the files are not exaclyt named the same => I modified since there are many hundreds of filenames that are not compatible.
+        parts = trigger_file.split("_")
+
+        if len(parts) != 16:
+            print(
+                f"WARNING: Trigger filename has {len(parts)} fields "
+                f"(expected 16):\n    {trigger_file}"
+            )
+
+        # Pad missing fields with placeholders
+        while len(parts) < 16:
+            parts.insert(3, "NA")
+
+        # Still fail if there are too many fields
+        if len(parts) > 16:
+            raise ValueError(
+                f"Trigger filename has {len(parts)} fields "
+                f"(expected 16): {trigger_file}"
+            )
+
+        (
+            date_tf,
+            _,
+            _,
+            _,
+            _,
+            strain_tf,
+            animal_id,
+            ret_nr,
+            slice_nr,
+            _,
+            _,
+            recnr_tf,
+            stimtype_tf,
+            lasermode_tf,
+            stimsource_tf,
+            _
+        ) = parts
+
+        # Extract protocol number and protocol name
+        stimfile_nr, stimtype_tf = stimtype_tf.split("-", 1)
+
+        # Convert to two-digit string to match stimulation filenames
+        stimfile_nr = f"{int(stimfile_nr):02d}"
+
+        # --------------------------------------------------
+        # Sanity checks on trigger filename
+        # --------------------------------------------------
+
+        # Animal ID should be exactly three digits
+        if not (animal_id.isdigit() and len(animal_id) == 3):
+            print(
+                f"WARNING: Unexpected animal_id '{animal_id}' "
+                f"in trigger file:\n    {trigger_file}"
+            )
+
+        # Recording number should be a two-digit integer between 00 and 15
+        if not (
+            recnr_tf.isdigit()
+            and len(recnr_tf) == 2
+            and 0 <= int(recnr_tf) <= 15
+        ):
+            print(
+                f"WARNING: Unexpected recording number '{recnr_tf}' "
+                f"in trigger file:\n    {trigger_file}"
+            )
+
+        stim_file = stimfiles_by_prefix[stimfile_nr].name
         recnr_sf, stimtype_sf, lasermode_sf, stimsource_sf, date_sf, channel_sf, _, _, _ = stim_file.split('_')
 
         # Do some sanity checks
         # if this breaks, it means the filenames between trigger and recording are not 100% exactly the same
-        assert recnr_tf == recnr_sf
+        assert stimfile_nr == recnr_sf
         assert lasermode_tf == lasermode_sf
+        if stimsource_tf != stimsource_sf:
+            print("\nTrigger file :", trigger_file)
+            print("Stim file    :", stim_file)
+            print("stimsource_tf =", repr(stimsource_tf))
+            print("stimsource_sf =", repr(stimsource_sf))
+
         assert stimsource_tf == stimsource_sf
 
         stimtype_tf = stimtype_sf.split('-')[0]
