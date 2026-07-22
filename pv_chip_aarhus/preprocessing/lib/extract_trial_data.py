@@ -4,7 +4,7 @@ import numpy as np
 
 # Polychrome power stimulations are always conducted in this exact order.
 POLYCHROME_POWERS = [12, 25, 50, 100]
-
+LASER_POWERS = [10, 20, 30, 88]  # [mV] ,all area measured powers, 88 is max power
 
 def get_stim_per_mcd_channel(stim_file):
     channel_tables = {}
@@ -105,6 +105,7 @@ def extract_trial_data(filepaths: FilePaths):
 
         if has_laser:
             laser_stim_table = stim_per_mcd_channel[laser_channel]
+            laser_tick = 0
 
             for i, r in laser_stim_table.iterrows():
                 if i == 0:
@@ -144,7 +145,6 @@ def extract_trial_data(filepaths: FilePaths):
                     had_on = False
                     has_delay = False
                     laser_delay, laser_on_duration, laser_off_duration = None, None, None
-                    laser_power = None
 
                     for col_i in range(3):
                         t = r['time'].values[col_i]
@@ -167,7 +167,6 @@ def extract_trial_data(filepaths: FilePaths):
                         elif v > 0:
                             assert had_on == False  # redundant, but a value for v can be occuring once in each row
                             laser_on_duration = t
-                            laser_power = v
                             had_on = True
 
                             if not has_delay:
@@ -183,10 +182,12 @@ def extract_trial_data(filepaths: FilePaths):
                     df.at[trial_i, 'varied_param'] = rec_info['varied_param']
 
                     if rec_info['varied_param'] == 'pow':
-                        df.at[trial_i, 'laser_power'] = 999
+                        df.at[trial_i, 'laser_power'] = LASER_POWERS[laser_tick]
                     else:
-                        df.at[trial_i, 'laser_power'] = laser_power
+                        df.at[trial_i, 'laser_power'] = 30
                     df.at[trial_i, 'rec_nr'] = rec_nr
+
+                    laser_tick += 1
 
 
         if has_pchrome:
