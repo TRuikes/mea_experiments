@@ -19,7 +19,7 @@ def main():
 
         for i, r in data_io.train_df.iterrows():
             if 'sequence_name' in r.keys():
-                data_io.train_df.at[i, 'potocol_name'] = r['sequence_name']
+                data_io.train_df.at[i, 'protocol_name'] = r['sequence_name']
             else:
                 data_io.train_df.at[i, 'protocol_name'] = r['recording_name']
 
@@ -29,9 +29,12 @@ def main():
             else:
                 data_io.burst_df.at[i, 'protocol_name'] = r['recording_name']
 
+        data_io.burst_df['protocol'] = data_io.burst_df['protocol_name']
+        data_io.train_df['protocol'] = data_io.train_df['protocol_name']
+
 
         generate_raster_plots_session(data_io=data_io, sig_only=True)
-        # generate_heatmaps_session(data_io=data_io, sig_only=True)
+        #generate_heatmaps_session(data_io=data_io, sig_only=False)
         #firing_rate_per_protocol_master(data_io=data_io)
 
         print(f'Finished {session_id}\n\n')

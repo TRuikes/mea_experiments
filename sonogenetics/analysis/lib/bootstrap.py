@@ -7,6 +7,7 @@ class BootstrapOutput:
     def __init__(self,
                  bins: np.ndarray,
                  binned_sp: np.ndarray,
+                 spike_times: List,
                  firing_rate: np.ndarray,
                  baseline_firing_rate_mean: float,
                  is_excited: bool,
@@ -27,6 +28,7 @@ class BootstrapOutput:
     ):
         self.bins = bins
         self.binned_sp = binned_sp
+        self.spike_times = spike_times
         self.firing_rate = firing_rate
         self.baseline_firing_rate_mean = baseline_firing_rate_mean
         self.is_excited = is_excited
@@ -72,7 +74,7 @@ class BootstrapOutput:
 
 
 def detect_significant_modulation_bootstrap(
-        bin_centres, binned_sp: np.ndarray,
+        bin_centres, binned_sp: np.ndarray, spike_times,
         baseline_idx, min_duration_ms,
         stepsize_ms, binwidth_ms
 ):
@@ -146,6 +148,7 @@ def detect_significant_modulation_bootstrap(
     return BootstrapOutput(
         bins=bin_centres,
         binned_sp=binned_sp,
+        spike_times=spike_times,
         firing_rate=firing_rate,
         baseline_firing_rate_mean=np.mean(firing_rate[baseline_idx]),
         is_excited=is_excited,

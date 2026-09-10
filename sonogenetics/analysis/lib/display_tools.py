@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # non-interactive backend: safe to call from any thread/process
+
 from sonogenetics.analysis.lib.analysis_tools import detect_preferred_electrode, get_params_protocol, params_abbreviation
 from sonogenetics.analysis.lib.data_io import DataIO
 from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
@@ -5,15 +8,20 @@ from utils import load_obj, make_figure, run_job, update_subplot_titles
 import numpy as np
 from typing import List, Any, Dict
 import pandas as pd
-from pathlib import Path
 from scipy.ndimage import gaussian_filter1d
 from sonogenetics.project_colors import ProjectColors
 from sonogenetics.analysis.lib.bootstrap import BootstrapOutput
 import plotly.io as pio
 from tqdm import tqdm
 from multiprocessing import Pool
+import matplotlib.pyplot as plt
+from matplotlib.patches import Polygon
+from pathlib import Path
+from typing import Dict
 
-DEBUG = True
+
+
+DEBUG = False
 
 def write_figure(json_file_path):
     if json_file_path is None:
@@ -44,12 +52,7 @@ def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFra
     for (rec_id, protocol, ec), df in data_io.train_df.groupby(
             ['rec_id', 'protocol_name', 'electrode']):
 
-        if 'KCL' in protocol:
-            continue
-
         for cluster_id in data_io.cluster_ids:
-            if '_070' not in cluster_id:
-                continue
 
             if ec == pref_ec[rec_id][protocol].loc[cluster_id, 'ec']:
                 subgroup = 'significant'
@@ -58,7 +61,7 @@ def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFra
                     continue
                 subgroup = 'not_selected'
 
-            plot_name = f'{cluster_id}_{ec}'
+            plot_name = f'{cluster_id}_{ec}.png'
             savename = (figure_dir_analysis / data_io.session_id /
                         'raster_plots' / rec_id / protocol / subgroup / plot_name)
 
@@ -78,16 +81,212 @@ def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFra
         debug=DEBUG,
     )
 
-    batch_size = 50
-    for i in range(0, len(plot_data), batch_size):
-        batch = plot_data[i:i+batch_size]
-        with Pool(processes=4) as pool:
-            # Wrap the iterator with tqdm to show progress
-            for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
-                          desc=f"batch {i//batch_size + 1}"):
-                pass  # imap_unordered runs the function and tqdm updates the bar
+    # batch_size = 50
+    # for i in range(0, len(plot_data), batch_size):
+    #     batch = plot_data[i:i+batch_size]
+    #     with Pool(processes=4) as pool:
+    #         # Wrap the iterator with tqdm to show progress
+    #         for _ in tqdm(pool.imap_unordered(write_figure, batch), total=len(batch),
+    #                       desc=f"batch {i//batch_size + 1}"):
+    #             pass  # imap_unordered runs the function and tqdm updates the bar
 
     data_io.unlock_modification()
+
+
+# def plot_raster_single_cluster(data_io: DataIO,
+#                                cluster_id: str,
+#                                recording_id: str,
+#                                protocol: str,
+#                                electrode: str,
+#                                savename: Path,
+#                               ):
+#
+#     # Setup figure layout
+#     fig = make_figure(
+#         width    =1,
+#         height   =1.5,
+#         x_domains={
+#             1: [[0.2, 0.99]],
+#         },
+#         y_domains={
+#             1: [[0.1, 0.9]]
+#         },
+#     )
+#
+#     # Setup variables for plotting
+#     burst_offset   = 0
+#     x_plot, y_plot = [], []
+#     x_lines_laser, y_lines_laser = [], []
+#     x_lines_dmd, y_lines_dmd = [], []
+#
+#     yticks         = []
+#     ytext          = []
+#     pos            = dict(row=1, col=1)
+#
+#     d_select = data_io.burst_df.query(f'electrode == {electrode} and '
+#                                       f'rec_id == "{recording_id}" and '
+#                                       f'protocol_name == "{protocol}"').copy()
+#
+#     if len(d_select) == 0:
+#         print(f'cid: {cluster_id}, rid: {recording_id}, ec: {electrode}')
+#         return
+#         # raise ValueError('selected dataframe is empty')
+#
+#     cluster_data: Dict[str, BootstrapOutput] = load_obj(dataset_dir / 'bootstrapped' / f'bootstrap_{cluster_id}.pkl')
+#
+#     params_to_group_by = get_params_protocol(protocol)
+#
+#     if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in d_select.columns:
+#         d_select['dac_voltage'] = d_select['laser_power']
+#
+#     any_trial_has_laser = False
+#     any_trial_has_dmd = False
+#
+#     for prm_val, df in d_select.groupby(params_to_group_by, dropna=False):
+#         train_plot_height_start = burst_offset
+#
+#         tids = df.train_id.unique()
+#         assert len(tids) == 1
+#         tid = tids[0]
+#
+#         if tid not in cluster_data.keys():
+#             continue
+#
+#         trial_data = cluster_data[tid]
+#
+#         spike_times = trial_data.spike_times
+#         bins = trial_data.bins
+#
+#         ystr = ''
+#         for p, v in zip(params_to_group_by, prm_val):
+#             ystr += f'{params_abbreviation[p]}: {v:.0f} | '
+#
+#         ytext.append(ystr)
+#
+#         yticks.append(burst_offset + len(spike_times) / 2)
+#
+#         for burst_i, sp in enumerate(spike_times):
+#             x_plot.append(np.vstack([sp, sp, np.full(sp.size, np.nan)]).T.flatten())
+#             y_plot.append(np.vstack([np.ones(sp.size) * burst_offset,
+#                                     np.ones(sp.size)* burst_offset +1, np.full(sp.size, np.nan)]).T.flatten())
+#             burst_offset += 1
+#
+#         # the spiketime data should be aligned to the dmd, if there is a dmd (see analyse_responses)
+#         # so if a spiketime is 0, that is relative to the detected trigger
+#         has_laser = data_io.train_df.loc[tid, 'has_laser']
+#         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
+#
+#
+#         # Extract onset delays
+#         if has_laser:
+#             laser_onset_delay = data_io.train_df.loc[tid, 'laser_onset_delay']
+#             laser_burst_duration = data_io.train_df.loc[tid, 'laser_burst_duration']
+#             any_trial_has_laser = True
+#         else:
+#             laser_onset_delay, laser_burst_duration = None, None
+#
+#         if has_dmd:
+#             dmd_onset_delay = data_io.train_df.loc[tid, 'dmd_onset_delay']
+#             dmd_burst_duration = data_io.train_df.loc[tid, 'dmd_burst_duration']
+#             any_trial_has_dmd = True
+#         else:
+#             dmd_onset_delay, dmd_burst_duration = None, None
+#
+#         # Shared Y-coordinates for the bounding boxes
+#         y_box = [train_plot_height_start, train_plot_height_start, burst_offset, burst_offset, train_plot_height_start,
+#                  None]
+#
+#         if has_laser and has_dmd:
+#             assert laser_onset_delay == 0 or dmd_onset_delay == 0
+#
+#         # 1. Handle DMD shading
+#         if has_dmd:
+#             x_lines_dmd.extend([0, dmd_burst_duration, dmd_burst_duration, 0, 0, None])
+#             y_lines_dmd.extend(y_box)
+#
+#         # 2. Handle Laser shading (calculate alignment shift automatically)
+#         if has_laser:
+#             laser_shift = (laser_onset_delay - dmd_onset_delay) if has_dmd else 0
+#
+#             x_lines_laser.extend([laser_shift, laser_shift + laser_burst_duration,
+#                                   laser_shift + laser_burst_duration, laser_shift, laser_shift, None])
+#             y_lines_laser.extend(y_box)
+#
+#     if len(x_plot) == 0:
+#         return
+#
+#     x_plot = np.hstack(x_plot)
+#     y_plot = np.hstack(y_plot)
+#
+#     if any_trial_has_laser:
+#         fig.add_scatter(
+#             x=x_lines_laser, y=y_lines_laser,
+#             mode='lines', line=dict(width=0.00001, color='black'),
+#             fill='toself', fillcolor='rgba(200, 50, 50, 0.3)',
+#             showlegend=False,
+#             **pos,
+#         )
+#
+#     if any_trial_has_dmd:
+#         fig.add_scatter(
+#             x=x_lines_dmd, y=y_lines_dmd,
+#             mode='lines', line=dict(width=0.00001, color='black'),
+#             fill='toself', fillcolor='rgba(50, 250, 250, 0.3)',
+#             showlegend=False,
+#             **pos,
+#         )
+#
+#     fig.add_scatter(
+#         x = x_plot, y = y_plot,
+#         mode = 'lines', line = dict(color='black', width=0.5),
+#         showlegend = False,
+#         **pos,
+#     )
+#
+#     fig.update_xaxes(
+#         tickvals = np.arange(-500, 500, 100),
+#         title_text = f'time [ms]',
+#         range = [bins[0]-1, bins[-1]+1],
+#         **pos,
+#     )
+#
+#     fig.update_yaxes(
+#         range=[0, burst_offset],
+#         tickvals = yticks,
+#         ticktext = ytext,
+#         **pos,
+#     )
+#
+#     # return fig, savename
+#
+#     # print(f'saved: {savename}')
+#     # save_fig(fig, savename, display=False, verbose=False)
+#     # Save as HTML immediately
+#     json_savename = savename.with_suffix(".json")
+#
+#     if not json_savename.parent.exists():
+#         json_savename.parent.mkdir(parents=True, exist_ok=True)
+#     json_savename.write_text(fig.to_json())
+#     return str(json_savename)
+
+
+
+def _split_on_none(xs, ys):
+    """Split flat (x, y) lists containing None separators into a list of
+    (x_segment, y_segment) polygon/line pieces."""
+    segments = []
+    cur_x, cur_y = [], []
+    for x, y in zip(xs, ys):
+        if x is None or y is None:
+            if cur_x:
+                segments.append((cur_x, cur_y))
+            cur_x, cur_y = [], []
+        else:
+            cur_x.append(x)
+            cur_y.append(y)
+    if cur_x:
+        segments.append((cur_x, cur_y))
+    return segments
 
 
 def plot_raster_single_cluster(data_io: DataIO,
@@ -98,18 +297,6 @@ def plot_raster_single_cluster(data_io: DataIO,
                                savename: Path,
                               ):
 
-    # Setup figure layout
-    fig = make_figure(
-        width    =1,
-        height   =1.5,
-        x_domains={
-            1: [[0.2, 0.99]],
-        },
-        y_domains={
-            1: [[0.1, 0.9]]
-        },
-    )
-
     # Setup variables for plotting
     burst_offset   = 0
     x_plot, y_plot = [], []
@@ -118,7 +305,6 @@ def plot_raster_single_cluster(data_io: DataIO,
 
     yticks         = []
     ytext          = []
-    pos            = dict(row=1, col=1)
 
     d_select = data_io.burst_df.query(f'electrode == {electrode} and '
                                       f'rec_id == "{recording_id}" and '
@@ -140,9 +326,13 @@ def plot_raster_single_cluster(data_io: DataIO,
     any_trial_has_dmd = False
 
     for prm_val, df in d_select.groupby(params_to_group_by, dropna=False):
+        if pd.isna(prm_val):
+            continue
+
         train_plot_height_start = burst_offset
 
         tids = df.train_id.unique()
+
         assert len(tids) == 1
         tid = tids[0]
 
@@ -150,6 +340,8 @@ def plot_raster_single_cluster(data_io: DataIO,
             continue
 
         trial_data = cluster_data[tid]
+        if trial_data is None:
+           continue
 
         spike_times = trial_data.spike_times
         bins = trial_data.bins
@@ -173,7 +365,6 @@ def plot_raster_single_cluster(data_io: DataIO,
         has_laser = data_io.train_df.loc[tid, 'has_laser']
         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
 
-
         # Extract onset delays
         if has_laser:
             laser_onset_delay = data_io.train_df.loc[tid, 'laser_onset_delay']
@@ -183,7 +374,10 @@ def plot_raster_single_cluster(data_io: DataIO,
             laser_onset_delay, laser_burst_duration = None, None
 
         if has_dmd:
-            dmd_onset_delay = data_io.train_df.loc[tid, 'dmd_onset_delay']
+            if 'dmd_onset_delay' not in data_io.train_df.columns:
+                dmd_onset_delay = 0
+            else:
+                dmd_onset_delay = data_io.train_df.loc[tid, 'dmd_onset_delay']
             dmd_burst_duration = data_io.train_df.loc[tid, 'dmd_burst_duration']
             any_trial_has_dmd = True
         else:
@@ -215,56 +409,56 @@ def plot_raster_single_cluster(data_io: DataIO,
     x_plot = np.hstack(x_plot)
     y_plot = np.hstack(y_plot)
 
+    # Setup figure (roughly matching the original width=1(unit)x height=1.5(unit) aspect,
+    # scaled up to a reasonable pixel size)
+    fig, ax = plt.subplots(figsize=(12, 9))
+    fig.subplots_adjust(left=0.4, right=0.99, bottom=0.1, top=0.9)
+
+    # Laser shading (drawn as filled rectangles, one per trial)
     if any_trial_has_laser:
-        fig.add_scatter(
-            x=x_lines_laser, y=y_lines_laser,
-            mode='lines', line=dict(width=0.00001, color='black'),
-            fill='toself', fillcolor='rgba(200, 50, 50, 0.3)',
-            showlegend=False,
-            **pos,
-        )
+        for seg_x, seg_y in _split_on_none(x_lines_laser, y_lines_laser):
+            poly = Polygon(
+                np.column_stack([seg_x, seg_y]),
+                closed=True,
+                facecolor=(200 / 255, 50 / 255, 50 / 255, 0.3),
+                edgecolor='none',
+                zorder=1,
+            )
+            ax.add_patch(poly)
 
+    # DMD shading (drawn as filled rectangles, one per trial)
     if any_trial_has_dmd:
-        fig.add_scatter(
-            x=x_lines_dmd, y=y_lines_dmd,
-            mode='lines', line=dict(width=0.00001, color='black'),
-            fill='toself', fillcolor='rgba(50, 250, 250, 0.3)',
-            showlegend=False,
-            **pos,
-        )
+        for seg_x, seg_y in _split_on_none(x_lines_dmd, y_lines_dmd):
+            poly = Polygon(
+                np.column_stack([seg_x, seg_y]),
+                closed=True,
+                facecolor=(50 / 255, 250 / 255, 250 / 255, 0.3),
+                edgecolor='none',
+                zorder=1,
+            )
+            ax.add_patch(poly)
 
-    fig.add_scatter(
-        x = x_plot, y = y_plot,
-        mode = 'lines', line = dict(color='black', width=0.5),
-        showlegend = False,
-        **pos,
-    )
+    # Spike raster (matplotlib respects NaN as a line-break, same as plotly)
+    ax.plot(x_plot, y_plot, color='black', linewidth=0.5, zorder=2)
 
-    fig.update_xaxes(
-        tickvals = np.arange(-500, 500, 100),
-        title_text = f'time [ms]',
-        range = [bins[0]-1, bins[-1]+1],
-        **pos,
-    )
+    # X-axis
+    ax.set_xlim(-100, 200 + 1)
+    ax.set_xticks(np.arange(-100, 201, 100))
+    ax.set_xlabel('time [ms]')
 
-    fig.update_yaxes(
-        range=[0, burst_offset],
-        tickvals = yticks,
-        ticktext = ytext,
-        **pos,
-    )
+    # Y-axis
+    ax.set_ylim(0, burst_offset)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(ytext)
 
-    # return fig, savename
+    savename = Path(savename)
+    if not savename.parent.exists():
+        savename.parent.mkdir(parents=True, exist_ok=True)
 
-    # print(f'saved: {savename}')
-    # save_fig(fig, savename, display=False, verbose=False)
-    # Save as HTML immediately
-    json_savename = savename.with_suffix(".json")
+    fig.savefig(savename, dpi=200)
+    plt.close(fig)
 
-    if not json_savename.parent.exists():
-        json_savename.parent.mkdir(parents=True, exist_ok=True)
-    json_savename.write_text(fig.to_json())
-    return str(json_savename)
+    return str(savename)
 
 
 def generate_heatmaps_session(data_io: DataIO, sig_only=True):
@@ -362,7 +556,8 @@ def heatmap_per_protocol_slave(data_io: DataIO,
         if df.shape[0] != 1:
             print('?')
         assert df.shape[0] == 1
-        tid = df.iloc[0].train_id
+        # tid = df.iloc[0].train_id
+        tid = df.index.values[0]
 
         # Get rename + spike train
         spiketrain = data_io.spiketimes[recording_id][cluster_id]
@@ -488,7 +683,7 @@ def firing_rate_per_protocol_master(data_io: DataIO, sig_only=True):
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol_name', 'electrode']):
         for cluster_id in cluster_ids:
             if cluster_id not in pref_ec[rec_id][protocol].index.values:
                 continue
@@ -649,13 +844,17 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
 
             for clr_value in clr_values:
                 plot_df = cdf.query(f'{clr_name} == {clr_value}')
-                assert plot_df.shape[0] == 1
+                # assert plot_df.shape[0] == 1
+                if plot_df.shape[0] == 0:
+                    continue
 
-
-                train_id = plot_df.iloc[0].train_id
+                train_id = plot_df.index.values[0]
 
 
                 if train_id not in cluster_data.keys():
+                    continue
+
+                if cluster_data[train_id] is None:
                     continue
 
                 bins = cluster_data[train_id].get('bins')
@@ -677,7 +876,7 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
                         r_max[plot_id] = np.max(firing_rate)
 
                 if cfg["clr_field"] == 'laser_burst_duration':
-                    clr = clrs.burst_duration(clr_value)
+                    clr = clrs.burst_duration(clr_value, bd_max=101)
                 elif cfg["clr_field"] == 'laser_pulse_repetition_rate':
                     clr = clrs.laser_prr(clr_value)
                 elif cfg["clr_field"] == 'dac_voltage':

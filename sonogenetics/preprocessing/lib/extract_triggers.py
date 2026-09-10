@@ -119,7 +119,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 if idx.size > 0:
                     trigger_high = np.concat([trigger_high, t])
 
-                if visualize_detection and '_3_' in rec and trigger_type == 'dmd':
+                if visualize_detection and '_3_' in rec and trigger_type == 'laser':
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
                     subsample_idx = np.arange(0, x.size, 5).astype(int)

@@ -29,13 +29,15 @@ def main():
 
         # session_id = data_io.sessions[0]
         print(f'Loading data: {session_id}')
-        data_io.load_session(session_id, load_waveforms=False, load_pickle=False)  # type: ignore
-        data_io.dump_as_pickle()
+        data_io.load_session(session_id, load_waveforms=False, load_pickle=True)  # type: ignore
+
+        # data_io.dump_as_pickle()
 
         data_io.lock_modification()
 
         # Analyse the cell responses following the triggers
         output_dir = dataset_dir / 'bootstrapped'
+
         if not output_dir.exists():
             output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -311,6 +313,7 @@ def calculate_response_statistics(
         result = detect_significant_modulation_bootstrap(
             bin_centres=bin_centres,
             binned_sp=binned_sp,
+            spike_times=spike_times,
             baseline_idx=baseline_idx,
             min_duration_ms=min_modulation_duration,
             stepsize_ms=stepsize,

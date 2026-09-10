@@ -29,7 +29,7 @@ zmax = 12
 
 data_list = {
     '2026-07-08 rat LE 3322 Mekano6 A': ['rec_2_A_20260708_pa_dmd_timing_full_field',  'rec_3_A_20260708_pa_dmd_timing_full_field_RSCPP_CNQX'],
-    '2026-07-08 rat LE 3322 Mekano6 B': ['rec_2_B_20260708_pa_dmd_timing_full_field',  "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"],
+    # '2026-07-08 rat LE 3322 Mekano6 B': ['rec_2_B_20260708_pa_dmd_timing_full_field',  "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"],
     '2026-07-09 rat LE 0353 Mekano6 A': ['rec_2_A_20260709_pa_dmd_timing_full_field', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'],
     '2026-07-09 rat LE 0353 Mekano6 B': ['rec_2_B_20260709_pa_dmd_timing_full_field', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'],
 }
@@ -120,15 +120,17 @@ def main():
                 clusters_to_plot.at[i, 'ec'] = r.ec
 
         for cid, cinfo in clusters_to_plot.iterrows():
-            for rtype, red_ic in zip(['WT', 'CX'], [rid_WT, rid_CX]):
+            for rtype, rec_id in zip(['WT', 'CX'], [rid_WT, rid_CX]):
                 train_df = data_io.train_df.query(
-                    f'rec_id ==  "{red_ic}" and '
+                    f'rec_id ==  "{rec_id}" and '
                     f'laser_burst_duration == {LASER_BURST_DURATION} and '
                     f'laser_pulse_repetition_rate == {LASER_PRR} and '
                     f'laser_power == {LASER_POWER} and '
                     f'has_dmd == False and '
                     f'electrode == {cinfo.ec}'
                 )
+                # if len(train_df) != 1:
+                #     break
                 assert len(train_df) == 1
                 clusters_to_plot.at[cid, f'tid_{rtype}'] = train_df.iloc[0].name
                 if cells_df.loc[cid][train_df.iloc[0].name, 'is_excited'] or cells_df.loc[cid][train_df.iloc[0].name, 'is_inhibited']:
@@ -315,7 +317,7 @@ def main():
             col += 1
 
         savename = figure_dir_analysis / 'heatmap_all_cells_WT_CNQX' / f'{session_id}'
-        save_fig(fig=fig, savename=savename, display=True)
+        save_fig(fig=fig, savename=savename, backend='y')
 
     # Make a grand average figure
     fig = make_figure(
@@ -458,8 +460,8 @@ def main():
             col=col+1,
         )
 
-    savename = figure_dir_analysis / 'heatmap_all_cells_WT_CNQX' / f'all'
-    save_fig(fig=fig, savename=savename, display=True)
+    savename = figure_dir_analysis / 'heatmap_all_cells_WT_CNQX' / f'all_{LASER_POWER}'
+    save_fig(fig=fig, savename=savename, backend='yes')
 
 if __name__ == '__main__':
     main()

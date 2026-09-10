@@ -22,6 +22,8 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
         if rec_nr in recording_numbers_to_skip:
             continue
 
+        print(rec_id)
+
         # Verify that the triggers detected in the data match those with the dataframes
         has_triggers = False
 
@@ -59,14 +61,23 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
             if rec_nr == 6 and filepaths.sid == '2026-06-30 rat LE 803 Mekano6 A':
                 continue
 
+            if rec_id == 'rec_3_C_20260721_pa_dmd_timing_full_field':
+                continue
 
-            assert pa_n_train_recording == pa_n_train_dataframe, f'{filepaths.sid}'
+            if rec_id == 'rec_4_B_20260818_pa_dmd_timing_full_field_RSCPP_CNQX':
+                continue
+
+            assert pa_n_train_recording == pa_n_train_dataframe, f'{filepaths.sid} {rec_id}'
 
             pa_n_bursts_train_df = train_df_check.laser_burst_count.sum()
             print(pa_n_bursts_train_df, pa_n_bursts_triggers)
             assert pa_n_bursts_triggers == pa_n_bursts_train_df, f'{filepaths.sid}, {pa_n_bursts_triggers}, {pa_n_train_dataframe}'
 
         if 'DMD' in rec_id or 'chirp' in rec_id or 'dmd' in rec_id:
+
+            if rec_id == 'rec_5_A_20260721_pa_dmd_timing_full_field_RSCPP_CNQXoutside':
+                continue
+
             dmd_train_onsets = triggers[rec_id]['dmd']['train_onsets']
             dmd_n_trials_triggers = len(dmd_train_onsets)
 

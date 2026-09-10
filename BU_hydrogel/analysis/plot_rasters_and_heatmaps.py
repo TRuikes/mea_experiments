@@ -1,4 +1,5 @@
-from BU_hydrogel.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis, data_list
+from BU_hydrogel.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
+from BU_hydrogel.analysis.data_list import data_list
 from BU_hydrogel.analysis.lib.data_io import DataIO
 from BU_hydrogel.analysis.lib.display_tools import generate_raster_plots_session, generate_heatmaps_session, firing_rate_per_protocol_master, firing_rate_per_param
 
@@ -33,7 +34,7 @@ def main():
         # generate_heatmaps_session(data_io=data_io, sig_only=True)
         # firing_rate_per_protocol_master(data_io=data_io)  # doesn't work for BU
 
-        firing_rate_per_param(data_io, data_io.cluster_ids[5], 99, 99)
+        # firing_rate_per_param(data_io, data_io.cluster_ids[5], 99, 99)
 
         print(f'Finished {session_id}\n\n')
 

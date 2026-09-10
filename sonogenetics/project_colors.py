@@ -67,6 +67,8 @@ class ProjectColors:
     def burst_duration(bd, *, alpha=None, bd_min=10, bd_max=50):
         if bd_min is not None:
             bd = int((bd - bd_min) / (bd_max - bd_min) * 100)
+        if bd == 100:
+            bd = 99
 
         # default opacity if not specified
         if alpha is None:

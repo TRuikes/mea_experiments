@@ -260,10 +260,11 @@ if __name__ == "__main__":
     from sonogenetics.analysis.lib.analysis_params import dataset_dir, figure_dir_analysis
 
     data_io = DataIO(dataset_dir)
-    session_id = '2026-07-08 rat LE 3322 Mekano6 A'
+    session_id = '2024-10-24 rat LE 9999 Axorus A'
 
     figure_dir_analysis = figure_dir_analysis / session_id
     print(session_id)
-    data_io.load_session(session_id, load_pickle=False, load_waveforms=False)
+    data_io.load_session(session_id, load_pickle=True, load_waveforms=False)
     for r in data_io.recording_ids:
         print(r)
+        print(data_io.train_df)

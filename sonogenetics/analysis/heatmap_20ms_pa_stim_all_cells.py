@@ -28,6 +28,20 @@ zmax = 12
 
 
 data_list = (
+    # ('2024-10-24 rat P23H 9999 Axorus A', '241024_A_1_noblocker'),
+    # ('2024-11-08 mouse c57 9999 Axorus A', '241108_A_2_noblocker_pa'),
+    # ('2024-12-11 mouse c57 9999 Axorus A', '241211_A_4_noblocker_pa'),
+    # ('2024-12-13 rat LE 9999 Axorus A', ''),
+    # ('2025-05-20 rat LE 9999 Axorus A', ''),
+    # ('2025-05-27 rat LE 9999 Axorus A', ''),
+    # ('2025-06-06 rat LE 9999 Axorus A', ''),
+
+    ('2026-07-21 rat LE 9999 NoVirus A', 'rec_3_A_20260721_pa_dmd_timing_full_field'),
+    ('2026-07-21 rat LE 9999 NoVirus A', 'rec_4_A_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    ('2026-07-21 rat LE 9382 NoVirus B', 'rec_3_B_20260721_pa_dmd_timing_full_field'),
+    ('2026-07-21 rat LE 9382 NoVirus B', 'rec_4_B_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    ('2026-07-21 mouse c57 647 NoVirus C', 'rec_3_C_20260721_pa_dmd_timing_full_field'),
+
     # ('2026-05-19 mouse c57 Audrey A', '260519_A_005_noblocker_pa_prr_series'),
     # ('2026-05-19 mouse c57 Audrey A', '260519_A_009_acet_lap4_pa_prr_series'),
     # ('2026-05-20 mouse c57 Audrey A', '260520_A_005_noblocker_pa_prr_series'),
@@ -43,14 +57,14 @@ data_list = (
     # ('2026-06-30 rat LE 803 Mekano6 B', 'rec_2_B_20260630_pa_intensity_test'),
     # ('2026-07-01 mouse c57 653 NoVirus C', 'rec_2_C_20260701_pa_intensity_test'),
     # ('2026-07-02 mouse c57 650 Mekano6 A', 'rec_2_A_20260702_pa_intensity_test'),
-    ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_2_A_20260708_pa_dmd_timing_full_field'),
-    ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_3_A_20260708_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    ('2026-07-08 rat LE 3322 Mekano6 B', 'rec_2_B_20260708_pa_dmd_timing_full_field'),
-    ('2026-07-08 rat LE 3322 Mekano6 B', "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"),
-    ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_2_A_20260709_pa_dmd_timing_full_field'),
-    ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
-    ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_2_A_20260708_pa_dmd_timing_full_field'),
+    # ('2026-07-08 rat LE 3322 Mekano6 A', 'rec_3_A_20260708_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-08 rat LE 3322 Mekano6 B', 'rec_2_B_20260708_pa_dmd_timing_full_field'),
+    # ('2026-07-08 rat LE 3322 Mekano6 B', "rec_3_B_20260708_pa_dmd_timing_full_field_RSCPP_CNQX"),
+    # ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_2_A_20260709_pa_dmd_timing_full_field'),
+    # ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
+    # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
 )
 
 
@@ -59,29 +73,59 @@ def main():
     data_io = DataIO(dataset_dir)
 
     for session_id, rec_id in data_list:
-        data_io.load_session(session_id, load_pickle=False, load_waveforms=False)
+        data_io.load_session(session_id, load_pickle=True, load_waveforms=False)
         data_io.dump_as_pickle()
 
         loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
         cells_df = pd.read_csv(loadname, header=[0, 1], index_col=0)
+
         pref_ec = detect_preferred_electrode(data_io, cells_df)
 
+        # Patch PRRS
         if session_id == '2026-02-11 mouse c57 565 eMSCL A':
             laser_ppr_to_use = 4000
         elif session_id in ['2026-02-16 mouse c57 566 eMSCL A', '2026-02-19 mouse c57 5713 Mekano6 A']:
             laser_ppr_to_use = 6000
+        elif 'Axorus' in session_id:
+            laser_ppr_to_use = {
+                '2024-10-24 rat P23H 9999 Axorus A': 6546,
+                '2024-11-08 mouse c57 9999 Axorus A' : 5904,
+                '2024-12-11 mouse c57 9999 Axorus A': 1926,
+            }[session_id]
+            data_io.train_df['laser_pulse_repetition_rate'] = data_io.train_df.repetition_frequency.round(0)
 
         else:
             laser_ppr_to_use = LASER_PRR
 
+        # Patch Power
         if session_id == '2026-02-16 mouse c57 566 eMSCL A':
             laser_power_to_use = 6000
+
+        elif 'Axorus' in session_id:
+            laser_power_to_use = {
+                '2024-10-24 rat P23H 9999 Axorus A':  1.4,
+                '2024-11-08 mouse c57 9999 Axorus A': 5.3,
+                '2024-12-11 mouse c57 9999 Axorus A': 3.4,
+            }[session_id]
+            data_io.train_df['laser_power'] = data_io.train_df['e_pulse'].round(1)
+            data_io.train_df['laser_burst_duration'] = data_io.train_df['burst_duration']
+
         else:
             laser_power_to_use = LASER_POWER
 
+        # Patch burstdurations
+        if session_id in ['2024-11-08 mouse c57 9999 Axorus A',
+                          '2024-12-11 mouse c57 9999 Axorus A']:
+            laser_bd_to_use = {
+                '2024-11-08 mouse c57 9999 Axorus A': 10,
+                '2024-12-11 mouse c57 9999 Axorus A': 10,
+            }[session_id]
+        else:
+            laser_bd_to_use = LASER_BURST_DURATION
+
         train_df = data_io.train_df.query(
             f'rec_id ==  "{rec_id}" and '
-            f'laser_burst_duration == {LASER_BURST_DURATION} and '
+            f'laser_burst_duration == {laser_bd_to_use} and '
             f'laser_pulse_repetition_rate == {laser_ppr_to_use} and '
             f'laser_power == {laser_power_to_use} and '
             f'has_dmd == False'
@@ -268,9 +312,9 @@ def main():
             # ticktext=labels
         )
 
-        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}'
-        save_fig(fig=fig, savename=savename, display=False)
-
+        savename = figure_dir_analysis / 'heatmap_all_cells' / f'{session_id}_{rec_id}_{LASER_POWER}'
+        save_fig(fig=fig, savename=savename, display=False, backend='y')
+        print(f'saved: {savename}')
 
 
 

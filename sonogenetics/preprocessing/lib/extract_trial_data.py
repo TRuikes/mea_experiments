@@ -44,6 +44,7 @@ def extract_trial_data(filepaths: FilePaths):
                 recording_name = rr
 
         if recording_name is None:
+            print(r)
             break
 
 
@@ -130,6 +131,7 @@ def extract_trial_data(filepaths: FilePaths):
             # df.at[i, 'irradiance_large_fiber_diameter'] = power / large_area  # W / mm2
 
     for i, r in df.iterrows():
+
         if 'dmd_burst_duration' in r.keys() and pd.notna(r.dmd_burst_duration) and r.dmd_burst_duration > 0:
             df.at[i, 'has_dmd'] = True
         else:

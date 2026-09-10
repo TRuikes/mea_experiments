@@ -1,11 +1,11 @@
-from sonogenetics.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
+from BU_hydrogel.preprocessing.params import (data_sample_rate, data_type, data_nb_channels,
                                          data_trigger_channels, data_voltage_resolution,
                                          data_trigger_thresholds)
-from sonogenetics.preprocessing.lib.filepaths import FilePaths
+from BU_hydrogel.preprocessing.lib.filepaths import FilePaths
 import utils
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import numpy as np
-
 
 def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=False,
                      recording_numbers_to_skip=None):
@@ -105,29 +105,42 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     raise ValueError('error!')
 
                 if visualize_detection:
+
                     # Plot trigger onsets
-                    x = (np.arange(i0, i1, 1) / data_sample_rate)
+                    x = np.arange(i0, i1, 1) / data_sample_rate
                     subsample_idx = np.arange(0, x.size, 5).astype(int)
 
-                    fig = utils.simple_fig(width=1, height=1, n_rows=1, n_cols=1)
-                    fig.add_scatter(x=x[subsample_idx], y=chdata[subsample_idx], mode='lines', line=dict(color='black', width=1),
-                                    showlegend=False, row=1, col=1)
-                    fig.add_scatter(x=[x[0], x[-1]], y=np.ones(2) * data_trigger_thresholds['laser'], mode='lines',
-                                    line=dict(color='red', width=1),
-                                    showlegend=False, row=1, col=1)
+                    # Create figure and axis
+                    fig, ax = plt.subplots(figsize=(6, 4))  # Adjust figsize as needed
 
+                    # Main channel data line
+                    ax.plot(x[subsample_idx], chdata[subsample_idx], color='black', linewidth=1)
+
+                    # Threshold line (spans full x-range)
+                    ax.axhline(y=data_trigger_thresholds['laser'], color='red', linewidth=1)
+
+                    # Trigger markers (if present)
                     if idx.size > 0:
-                        fig.add_scatter(
-                            x=x[idx], y=chdata[idx], mode='markers', marker=dict(color='green', size=1),
-                            showlegend=False, row=1, col=1,
-                        )
+                        ax.scatter(x[idx], chdata[idx], color='green', s=1)
 
-                    xticks = np.arange(i0/data_sample_rate, i1/data_sample_rate, 2)
-                    xticks = [f'{xx:.0f}' for xx in xticks]
-                    fig.update_xaxes(tickvals=xticks, title_text=f'time [s]')
-                    fig.update_yaxes(tickvals=np.arange(0, 500, 4500), title_text='voltage [mV]')
-                    savename = filepaths.proc_pp_figure_output / 'triggers' / rec / trigger_type / f'{i}'
-                    utils.save_fig(fig, savename, display=False, verbose=False)
+                    # Labels and Ticks
+                    ax.set_xlabel('time [s]')
+                    ax.set_ylabel('voltage [mV]')
+
+                    # X-ticks every 2 seconds
+                    xticks = np.arange(i0 / data_sample_rate, i1 / data_sample_rate, 2)
+                    ax.set_xticks(xticks)
+
+                    # Y-ticks
+                    ax.set_yticks(np.arange(0, 500, 4500))
+
+                    # Ensure output directories exist and save figure
+                    savename = filepaths.proc_pp_figure_output / 'triggers' / rec / trigger_type / f'{i}.png'
+                    savename.parent.mkdir(parents=True, exist_ok=True)
+
+                    plt.tight_layout()
+                    plt.savefig(savename, dpi=300)
+                    plt.close(fig)  # Close the figure to free up memory (equivalent to display=False)
 
             if trigger_high.size == 0:
                 print(F'{rec} does not have {trigger_type}')

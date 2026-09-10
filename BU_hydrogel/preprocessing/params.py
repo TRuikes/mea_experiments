@@ -1,11 +1,11 @@
-dataset_dir = r'E:\bu_hudrogel'
+dataset_dir = r'C:\Mathilde\Hydrogel Project'
 
 data_trigger_channels = dict(
     dmd=127,
     laser=128,
 )
 data_trigger_thresholds = dict(
-    laser=1000,
+    laser=2000,
     dmd=1000,
 
 )
