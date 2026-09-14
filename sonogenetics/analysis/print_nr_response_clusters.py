@@ -93,6 +93,12 @@ def main():
 
             results.at[i, 'response_type'] = rype
 
+        savename = dataset_dir / 'response_types' / f'{session_id}_cell_response_types.csv'
+        if not savename.parent.is_dir():
+            savename.parent.mkdir(parents=True)
+            
+        results.to_csv(savename, index=True)
+
 
 
         print_str = ''
