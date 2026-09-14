@@ -5,6 +5,7 @@ import threading
 import pickle
 import numpy as np
 from typing import List, no_type_check
+from sonogenetics.analysis.lib.analysis_params import dataset_dir
 
 
 def hdf5_structured_array_to_df(arr: np.ndarray) -> pd.DataFrame:
@@ -254,6 +255,9 @@ class DataIO:
             return None
         assert len(df) == 1, f"Expected exactly 1 match, found {len(df)}"
         return df.index.values[0]
+
+def get_dataio() -> DataIO:
+    return DataIO(dataset_dir)
 
 
 if __name__ == "__main__":
