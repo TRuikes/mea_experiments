@@ -8,7 +8,7 @@ dataset_sessions = {
     # '2026-02-16 mouse c57 566 eMSCL A': dict(skip_triggers=[]),  # good
     # '2026-05-06 mouse c57 611 MscL A': dict(skip_triggers=[1]),  # check
     # '2026-05-06 mouse c57 611 MscL C': dict(skip_triggers=[1, 5, 6]),  #
-    '2026-08-25 mouse c57 754 eMSCL A' : dict(skip_triggers=[1, 2]),
+    #'2026-08-25 mouse c57 754 eMSCL A' : dict(skip_triggers=[1, 2]),
     # '2026-08-25 mouse c57 754 eMSCL B' : dict(skip_triggers=[1, 2]),
     # '2026-08-25 mouse c57 754 eMSCL C' : dict(skip_triggers=[1, 2]),
     # '2026-08-26 mouse c57 755 eMSCL B' : dict(skip_triggers=[1, 2]),
@@ -32,6 +32,11 @@ dataset_sessions = {
     #                                          align_trials=True),  # TODO the CNPQX recording is not added
     # '2026-07-09 rat LE 0353 Mekano6 A': dict(skip_triggers=[1, 3]),
     # '2026-07-09 rat LE 0353 Mekano6 B': dict(skip_triggers=[1]),
+     '2026-09-08 mouse c57 750 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),  #Problem with DMD?
+    '2026-09-08 mouse c57 750 Mekano6 B': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),  #Problem with DMD?
+    '2026-09-08 mouse c57 750 Mekano6 C': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
+    '2026-09-09 mouse c57 758 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
+  5: dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
 
     # Control (no virus)
     # '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
@@ -40,7 +45,7 @@ dataset_sessions = {
     # '2026-07-21 mouse c57 647 NoVirus C': dict(skip_triggers=[1, 2]),
     # '2026-08-18 rat LE 3243 NoVirus B' : dict(skip_triggers=[1, 2]),
     # '2026-08-18 rat LE 3243 NoVirus C' : dict(skip_triggers=[1, 2]),  # skip, has only CNPQX?
-
+    #'2026-09-09 mouse c57 758 NoVirus B': dict(skip_triggers=[1,2]),   #Problem with DMD?
 
 
     # Sessions without usefull data
