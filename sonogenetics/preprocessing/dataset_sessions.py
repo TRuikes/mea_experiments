@@ -32,11 +32,14 @@ dataset_sessions = {
     #                                          align_trials=True),  # TODO the CNPQX recording is not added
     # '2026-07-09 rat LE 0353 Mekano6 A': dict(skip_triggers=[1, 3]),
     # '2026-07-09 rat LE 0353 Mekano6 B': dict(skip_triggers=[1]),
-     '2026-09-08 mouse c57 750 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),  #Problem with DMD?
-    '2026-09-08 mouse c57 750 Mekano6 B': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),  #Problem with DMD?
-    '2026-09-08 mouse c57 750 Mekano6 C': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
-    '2026-09-09 mouse c57 758 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
-  5: dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),   #Problem with DMD?
+    #  '2026-09-08 mouse c57 750 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
+    # '2026-09-08 mouse c57 750 Mekano6 B': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
+    # '2026-09-08 mouse c57 750 Mekano6 C': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
+    # '2026-09-09 mouse c57 758 Mekano6 A': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
+    # '2026-09-09 mouse c57 758 Mekano6 C': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
+    '2026-09-15 mouse c57 752 Mekano6 A': dict(skip_triggers=[1,2]),
+    '2026-09-15 mouse c57 752 Mekano6 B': dict(skip_triggers=[1,2]),
+    '2026-09-15 mouse c57 752 Mekano6 C': dict(skip_triggers=[1,2]), #Problem with rec 3 and 4?
 
     # Control (no virus)
     # '2026-07-01 mouse c57 653 NoVirus C': dict(skip_triggers=[1]),
@@ -45,7 +48,7 @@ dataset_sessions = {
     # '2026-07-21 mouse c57 647 NoVirus C': dict(skip_triggers=[1, 2]),
     # '2026-08-18 rat LE 3243 NoVirus B' : dict(skip_triggers=[1, 2]),
     # '2026-08-18 rat LE 3243 NoVirus C' : dict(skip_triggers=[1, 2]),  # skip, has only CNPQX?
-    #'2026-09-09 mouse c57 758 NoVirus B': dict(skip_triggers=[1,2]),   #Problem with DMD?
+    # '2026-09-09 mouse c57 758 NoVirus B': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
 
 
     # Sessions without usefull data

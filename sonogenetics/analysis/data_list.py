@@ -36,10 +36,13 @@ data_list = [
     #'2026-07-08 rat LE 3322 Mekano6 B',
     #'2026-07-09 rat LE 0353 Mekano6 A',
     #'2026-07-09 rat LE 0353 Mekano6 B',
-    '2026-09-08 mouse c57 750 Mekano6 A',
-    '2026-09-08 mouse c57 750 Mekano6 B',
-    '2026-09-08 mouse c57 750 Mekano6 C',
-    '2026-09-09 mouse c57 758 Mekano6 A',
-    '2026-09-09 mouse c57 758 Mekano6 C',
+    #'2026-09-08 mouse c57 750 Mekano6 A',
+    #'2026-09-08 mouse c57 750 Mekano6 B',
+    #'2026-09-08 mouse c57 750 Mekano6 C',
+    #'2026-09-09 mouse c57 758 Mekano6 A',
+    #'2026-09-09 mouse c57 758 Mekano6 C',
+    '2026-09-15 mouse c57 752 Mekano6 A',
+    '2026-09-15 mouse c57 752 Mekano6 B',
+    #'2026-09-15 mouse c57 752 Mekano6 C',
 
 ]

@@ -22,6 +22,9 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
         if rec_nr in recording_numbers_to_skip:
             continue
 
+        if 'checkerboard' in rec_id or 'chirp' in rec_id:
+            continue
+
         print(rec_id)
 
         # Verify that the triggers detected in the data match those with the dataframes

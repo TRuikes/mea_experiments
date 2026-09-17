@@ -141,5 +141,50 @@ def extract_trial_data(filepaths: FilePaths):
             df.at[i, 'has_laser'] = True
         else:
             df.at[i, 'has_laser'] = False
-            
+
+
+    # Insert a trial for each chirp/checkerboard recording
+    n_rec = len(filepaths.recording_names)
+    chirp_tick, chck_tick = 0, 0
+    for rec_i, rec_id in enumerate(filepaths.recording_names):
+        if rec_id not in df.recording_name.unique():
+            if rec_i >= n_rec:
+                raise ValueError('implement this')
+            else:
+                next_rec = None
+                for next_rec in filepaths.recording_names[rec_i:]:
+                    if next_rec in df.recording_name.unique():
+                        break
+
+                assert next_rec is not None
+                if 'checkerboard' in rec_id:
+                    train_id = f'check_{chck_tick:02d}'
+                    protocol_name = 'checkerboard'
+                    chck_tick += 1
+                elif 'chirp' in rec_id:
+                    train_id = f'chirp_{chck_tick:02d}'
+                    protocol_name = 'chirp'
+                    chirp_tick += 1
+                # next_rec = filepaths.recording_names[rec_i + 1]
+
+                tid = df.query(f'recording_name == "{next_rec}"').index.values[0]
+                pos = df.index.get_loc(tid)
+                new_row = {
+                    'has_dmd': True,
+                    'has_laser': False,
+                    'protocol_name': protocol_name,
+                    'recording_name': rec_id,
+                    'train_id': train_id,
+                    'Recording Number': rec_i + 1,
+                    'dmd_burst_count': 1,
+                }
+                new_row_df = pd.DataFrame([new_row], index=[train_id])
+
+                df = pd.concat([
+                    df.iloc[:pos],
+                    new_row_df,
+                    df.iloc[pos:]
+                ])
+
+
     df.to_csv(filepaths.proc_pp_trials)

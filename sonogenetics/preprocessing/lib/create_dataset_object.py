@@ -139,6 +139,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
         # -----------------------------
         # 1) Per recording data
         # -----------------------------
+        chirp_tick, chk_tick = 0, 0  # tickers to keep track of unique chirp and checkerboard ids
         for rec_id in filepaths.recording_names:
 
             # Exclude this recording if listed so in dataset_sessions
@@ -148,9 +149,9 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
             print(f"Loading {rec_id}")
             train_rec_df = train_df.loc[train_df['Recording Number'] == rec_nr]
-            if train_rec_df.empty:
-                continue
-
+            # if train_rec_df.empty and 'checkerboard' not in rec_id and 'chirp' not in rec_id:
+            #     continue
+            assert len(train_rec_df) > 0, "No recording numbers found in recording name"
             if rec_id == 'rec_3_B_20260325_dmd_full_field':
                 train_rec_df = train_rec_df.iloc[1:]
 
@@ -174,6 +175,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
             if train_rec_df['has_dmd'].sum() > 0:
                 dmd_train_onsets = triggers[rec_id]["dmd"]["train_onsets"]
+                dmd_train_offsets = triggers[rec_id]["dmd"]["train_offsets"]
                 dmd_burst_onsets = triggers[rec_id]["dmd"]["burst_onsets"]
                 dmd_burst_offsets = triggers[rec_id]["dmd"]["burst_offsets"]
 
@@ -206,6 +208,10 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
 
 
             excluded_train_ids = []
+
+            # Checkerboard and Chirp data do not go through this loop,
+            # their trials are not registered in the 'train_rec_df'
+            # see after this loop
             for train_id, trial_info in train_rec_df.iterrows():
 
                 # Patching corrupted data

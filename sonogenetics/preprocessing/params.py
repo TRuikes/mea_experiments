@@ -18,3 +18,5 @@ data_voltage_resolution = (2*4096) / (2**16)
 nb_bytes_by_datapoint = 2
 
 manuall_edited_sessions = []
+
+
