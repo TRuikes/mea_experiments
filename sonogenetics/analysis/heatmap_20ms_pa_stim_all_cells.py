@@ -11,7 +11,7 @@ from typing import Dict
 MIN_D = 3000
 LASER_POWER = 5000
 LASER_PRR = 5000
-LASER_BURST_DURATION = 20
+LASER_BURST_DURATION = 50
 
 t_pre = 30
 t_after = 200  # to focus on 0-50 ms
@@ -36,12 +36,17 @@ data_list = (
     # ('2025-05-27 rat LE 9999 Axorus A', ''),
     # ('2025-06-06 rat LE 9999 Axorus A', ''),
 
-    ('2026-07-21 rat LE 9999 NoVirus A', 'rec_3_A_20260721_pa_dmd_timing_full_field'),
-    ('2026-07-21 rat LE 9999 NoVirus A', 'rec_4_A_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    ('2026-07-21 rat LE 9382 NoVirus B', 'rec_3_B_20260721_pa_dmd_timing_full_field'),
-    ('2026-07-21 rat LE 9382 NoVirus B', 'rec_4_B_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
-    ('2026-07-21 mouse c57 647 NoVirus C', 'rec_3_C_20260721_pa_dmd_timing_full_field'),
-
+    # ('2026-07-21 rat LE 9999 NoVirus A', 'rec_3_A_20260721_pa_dmd_timing_full_field'),
+    # ('2026-07-21 rat LE 9999 NoVirus A', 'rec_4_A_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-21 rat LE 9382 NoVirus B', 'rec_3_B_20260721_pa_dmd_timing_full_field'),
+    # ('2026-07-21 rat LE 9382 NoVirus B', 'rec_4_B_20260721_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-07-21 mouse c57 647 NoVirus C', 'rec_3_C_20260721_pa_dmd_timing_full_field'),
+    # ('2026-09-15 mouse c57 752 Mekano6 A', 'rec_4_A_20260915_pa_dmd_timing_full_field'),
+    # ('2026-09-15 mouse c57 752 Mekano6 A', 'rec_5_A_20260915_pa_dmd_timing_full_field_LAP4'),
+    # ('2026-09-15 mouse c57 752 Mekano6 B', 'rec_4_B_20260915_pa_dmd_timing_full_field'),
+    # ('2026-09-15 mouse c57 752 Mekano6 B', 'rec_5_B_20260915_pa_dmd_timing_full_field_LAP4'),
+    # ('2026-09-15 mouse c57 752 Mekano6 C', 'rec_5_C_20260915_pa_dmd_timing_full_field'),
+    # ('2026-09-15 mouse c57 752 Mekano6 C', 'rec_6_C_20260915_pa_dmd_timing_full_field_LAP4'),
     # ('2026-05-19 mouse c57 Audrey A', '260519_A_005_noblocker_pa_prr_series'),
     # ('2026-05-19 mouse c57 Audrey A', '260519_A_009_acet_lap4_pa_prr_series'),
     # ('2026-05-20 mouse c57 Audrey A', '260520_A_005_noblocker_pa_prr_series'),
@@ -65,6 +70,22 @@ data_list = (
     # ('2026-07-09 rat LE 0353 Mekano6 A', 'rec_4_A_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
     # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_2_B_20260709_pa_dmd_timing_full_field'),
     # ('2026-07-09 rat LE 0353 Mekano6 B', 'rec_3_B_20260709_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-08-25 mouse c57 754 eMSCL A', 'rec_3_A_20260825_pa_dmd_timing_full_field'),
+    # ('2026-08-25 mouse c57 754 eMSCL A', 'rec_4_A_20260825_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-08-25 mouse c57 754 eMSCL B', 'rec_3_B_20260825_pa_dmd_timing_full_field'),
+    # ('2026-08-25 mouse c57 754 eMSCL B', 'rec_4_B_20260825_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-08-25 mouse c57 754 eMSCL C', 'rec_3_C_20260825_pa_dmd_timing_full_field'),
+    # ('2026-08-26 mouse c57 755 eMSCL A', 'rec_3_A_20260826_pa_dmd_timing_full_field'),
+    # ('2026-08-26 mouse c57 755 eMSCL A', 'rec_4_A_20260826_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-08-26 mouse c57 755 eMSCL B', 'rec_3_B_20260826_pa_dmd_timing_full_field'),
+    # ('2026-08-26 mouse c57 755 eMSCL B', 'rec_4_B_20260826_pa_dmd_timing_full_field_RSCPP_CNQX'),
+    # ('2026-08-26 mouse c57 755 eMSCL C', 'rec_3_C_20260826_pa_dmd_timing_full_field')
+    # ('2026-09-08 mouse c57 750 Mekano6 A', 'rec_5_A_20260908_pa_dmd_timing_full_field'),
+    # ('2026-09-08 mouse c57 750 Mekano6 A', 'rec_6_A_20260908_pa_dmd_timing_full_field_CNQX_CPP_LAP4'),
+    # ('2026-09-08 mouse c57 750 Mekano6 B', 'rec_4_B_20260908_pa_dmd_timing_full_field'),
+    # ('2026-09-09 mouse c57 758 Mekano6 A', 'rec_4_A_20260909_pa_dmd_timing_full_field'),
+    ('2026-09-09 mouse c57 758 Mekano6 A', 'rec_5_A_20260909_pa_dmd_timing_full_field_CNQX_CPP_LAP4'),
+    # ('2026-09-09 mouse c57 758 Mekano6 C', 'rec_4_C_20260909_pa_dmd_timing_full_field'),
 )
 
 

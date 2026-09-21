@@ -1,5 +1,7 @@
 # Dataset dir is the topfolder containing all folders with sessions data
-dataset_dir = r'C:\thijs\sono_data'  # pc work
+# dataset_dir = r'C:\thijs\sono_data'  # pc work
+dataset_dir = r'D:\Thijs\sono_data - backup'
+
 # dataset_dir = r'E:\sono'  # Pc home thijs
 
 data_trigger_channels = dict(

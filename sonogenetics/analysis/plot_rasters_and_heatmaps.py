@@ -33,9 +33,9 @@ def main():
         data_io.train_df['protocol'] = data_io.train_df['protocol_name']
 
 
-        #generate_raster_plots_session(data_io=data_io, sig_only=True)
+        generate_raster_plots_session(data_io=data_io, sig_only=True)
         generate_heatmaps_session(data_io=data_io, sig_only=False)
-        #firing_rate_per_protocol_master(data_io=data_io)
+        firing_rate_per_protocol_master(data_io=data_io)
 
         print(f'Finished {session_id}\n\n')
 
