@@ -208,7 +208,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 train_onsets = trigger_high[trial_onsets_idx]
 
                 if 'checkerboard' in rec or 'chirp' in rec:
-                    assert len(train_onsets) == 1
+                    if rec == 'rec_2_B_20260915_dmd_chirp':
+                        assert len(train_onsets) == 2
+                    else:
+                        assert len(train_onsets) == 1
                     train_offsets = np.array([trigger_high[-1]])
                 else:
                     train_offsets = np.array([-99])

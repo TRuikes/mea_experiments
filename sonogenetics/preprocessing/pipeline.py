@@ -16,6 +16,9 @@ for sid, s_specs in dataset_sessions.items():
 
     # Load the filepaths for the dataset
     filepaths = FilePaths(sid)
+    if not filepaths.raw_dir.exists():
+        print(f'NO RAW DATA FOUND for session {sid}')
+        continue
 
     # # Verify all files are there for this session
     filepaths.check_data()

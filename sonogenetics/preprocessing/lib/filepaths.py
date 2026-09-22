@@ -99,26 +99,29 @@ class FilePaths:
             self.processed_dir = self.dataset_dir / sid / 'processed'
             self.raw_dir = self.dataset_dir / sid / 'raw'
 
-            self.recording_nrs = detect_rec_nrs(self.raw_dir)
+            if self.raw_dir.exists():
+                self.recording_nrs = detect_rec_nrs(self.raw_dir)
 
-            # detect raw files
-            self.raw_mcds = [f for f in self.raw_dir.iterdir() if f.suffix == '.mcd']
-            self.raw_raws = [f for f in self.raw_dir.iterdir() if f.suffix == '.raw']
+                # detect raw files
+                self.raw_mcds = [f for f in self.raw_dir.iterdir() if f.suffix == '.mcd']
+                self.raw_raws = [f for f in self.raw_dir.iterdir() if f.suffix == '.raw']
 
-            raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
+                raw_trials = [f for f in self.raw_dir.iterdir() if '_trials.csv' in f.name and '~lock' not in f.name]
 
-            # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
-            # sort_idx = np.argsort(raw_t_nrs)
-            # self.raw_trials = [raw_trials[s] for s in sort_idx]
-            self.raw_trials = raw_trials
+                # raw_t_nrs = [int(f.name.split('_')[2]) for f in raw_trials]
+                # sort_idx = np.argsort(raw_t_nrs)
+                # self.raw_trials = [raw_trials[s] for s in sort_idx]
+                self.raw_trials = raw_trials
 
-            raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
-            assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
-            self.mea_position_file = raw_mea_position[0]
+                raw_mea_position = [f for f in self.raw_dir.iterdir() if 'MEA_position' in f.name and f.suffix == '.csv']
+                assert len(raw_mea_position) == 1, f'Check MEA position files found in {self.raw_dir}'
+                self.mea_position_file = raw_mea_position[0]
 
-            # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
-            # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
-            # self.laser_calibration_file = files[0]
+                # files = [f for f in self.raw_dir.iterdir() if f.suffix == '.json' and 'laser_calibration' in f.name]
+                # assert len(files) == 1, f'Check laser calibration files found in {self.raw_dir}'
+                # self.laser_calibration_file = files[0]
+
+                self.get_recording_names_from_rawfiles()
 
             # define processed files
             self.sorted_dir = self.dataset_dir / sid / 'processed' / 'sorted'
@@ -166,7 +169,6 @@ class FilePaths:
             self.dataset_file = self.dataset_out_dir / f'{self.sid}.h5'
             self.dataset_file_waveforms = self.dataset_out_dir / f'{self.sid}_waveforms.h5'
 
-            self.get_recording_names_from_rawfiles()
 
 
     def check_data(self):
