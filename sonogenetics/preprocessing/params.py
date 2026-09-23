@@ -1,6 +1,8 @@
 # Dataset dir is the topfolder containing all folders with sessions data
 # dataset_dir = r'C:\thijs\sono_data'  # pc work
-dataset_dir = r'E:\sono'  # Pc home thijs
+dataset_dir = r'D:\Thijs\sono_data - backup'
+
+# dataset_dir = r'E:\sono'  # Pc home thijs
 
 data_trigger_channels = dict(
     dmd=127,
@@ -18,3 +20,5 @@ data_voltage_resolution = (2*4096) / (2**16)
 nb_bytes_by_datapoint = 2
 
 manuall_edited_sessions = []
+
+

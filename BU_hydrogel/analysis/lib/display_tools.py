@@ -31,6 +31,7 @@ def write_figure(json_file_path):
 
 def generate_raster_plots_session(data_io: DataIO, sig_only=False) -> pd.DataFrame:
 
+
     print(f'saving data in: {figure_dir_analysis / data_io.session_id / "raster plots"}')
 
     loadname = dataset_dir / f'{data_io.session_id}_cells.csv'
@@ -131,7 +132,10 @@ def plot_raster_single_cluster(data_io: DataIO,
     if 'dac_voltage' in params_to_group_by and 'dac_voltage' not in d_select.columns:
         d_select['dac_voltage'] = d_select['laser_power']
 
-    for prm_val, df in d_select.groupby(params_to_group_by):
+    any_trial_has_laser = False
+    any_trial_has_dmd = False
+
+    for prm_val, df in d_select.groupby(params_to_group_by, dropna=False):
         train_plot_height_start = burst_offset
 
         tids = df.train_id.unique()
@@ -161,29 +165,46 @@ def plot_raster_single_cluster(data_io: DataIO,
                                     np.ones(sp.size)* burst_offset +1, np.full(sp.size, np.nan)]).T.flatten())
             burst_offset += 1
 
+        # the spiketime data should be aligned to the dmd, if there is a dmd (see analyse_responses)
+        # so if a spiketime is 0, that is relative to the detected trigger
         has_laser = data_io.train_df.loc[tid, 'has_laser']
-        if 'laser_burst_duration' in data_io.train_df.columns:
-            bd_laser = data_io.train_df.loc[tid, 'laser_burst_duration']
-        else:
-            bd_laser = -1
-        if has_laser and bd_laser > 0:
-            x_lines_laser.extend([0, bd_laser, bd_laser, 0, 0, None])
-            y_lines_laser.extend([train_plot_height_start, train_plot_height_start,
-                                  burst_offset, burst_offset, train_plot_height_start, None])
-
         has_dmd = data_io.train_df.loc[tid, 'has_dmd']
 
-        if has_dmd:
-            bd_dmd = data_io.train_df.loc[tid, 'dmd_burst_duration']
-            if bd_dmd > 0:
-                if has_laser:
-                    ldelay = data_io.train_df.loc[tid, 'laser_onset_delay']
-                else:
-                    ldelay = 0
 
-                x_lines_dmd.extend([-ldelay, bd_dmd, bd_dmd, -ldelay, -ldelay, None])
-                y_lines_dmd.extend([train_plot_height_start, train_plot_height_start,
-                                      burst_offset, burst_offset, train_plot_height_start, None])
+        # Extract onset delays
+        if has_laser:
+            laser_onset_delay = data_io.train_df.loc[tid, 'laser_onset_delay']
+            laser_burst_duration = data_io.train_df.loc[tid, 'laser_burst_duration']
+            any_trial_has_laser = True
+        else:
+            laser_onset_delay, laser_burst_duration = None, None
+
+        if has_dmd:
+            dmd_onset_delay = data_io.train_df.loc[tid, 'dmd_onset_delay']
+            dmd_burst_duration = data_io.train_df.loc[tid, 'dmd_burst_duration']
+            any_trial_has_dmd = True
+        else:
+            dmd_onset_delay, dmd_burst_duration = None, None
+
+        # Shared Y-coordinates for the bounding boxes
+        y_box = [train_plot_height_start, train_plot_height_start, burst_offset, burst_offset, train_plot_height_start,
+                 None]
+
+        if has_laser and has_dmd:
+            assert laser_onset_delay == 0 or dmd_onset_delay == 0
+
+        # 1. Handle DMD shading
+        if has_dmd:
+            x_lines_dmd.extend([0, dmd_burst_duration, dmd_burst_duration, 0, 0, None])
+            y_lines_dmd.extend(y_box)
+
+        # 2. Handle Laser shading (calculate alignment shift automatically)
+        if has_laser:
+            laser_shift = (laser_onset_delay - dmd_onset_delay) if has_dmd else 0
+
+            x_lines_laser.extend([laser_shift, laser_shift + laser_burst_duration,
+                                  laser_shift + laser_burst_duration, laser_shift, laser_shift, None])
+            y_lines_laser.extend(y_box)
 
     if len(x_plot) == 0:
         return
@@ -191,7 +212,7 @@ def plot_raster_single_cluster(data_io: DataIO,
     x_plot = np.hstack(x_plot)
     y_plot = np.hstack(y_plot)
 
-    if has_laser:
+    if any_trial_has_laser:
         fig.add_scatter(
             x=x_lines_laser, y=y_lines_laser,
             mode='lines', line=dict(width=0.00001, color='black'),
@@ -200,7 +221,7 @@ def plot_raster_single_cluster(data_io: DataIO,
             **pos,
         )
 
-    if has_dmd:
+    if any_trial_has_dmd:
         fig.add_scatter(
             x=x_lines_dmd, y=y_lines_dmd,
             mode='lines', line=dict(width=0.00001, color='black'),
@@ -307,8 +328,10 @@ def heatmap_per_protocol_slave(data_io: DataIO,
     # -----------------------------
     # Parameters
     # -----------------------------
-    t_pre = 100
-    t_after = 200
+    #t_pre = 100
+    #t_after = 200
+    t_pre = 30
+    t_after = 60                          #to focus on 0-50 ms
     stepsize = 5
     binwidth = 30
 
@@ -462,7 +485,7 @@ def firing_rate_per_protocol_master(data_io: DataIO, sig_only=True):
     data_io.lock_modification()
     tasks: List[Dict[str, Any]] = []
 
-    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol_name', 'electrode']):
+    for (rec_id, protocol, ec), df in data_io.train_df.groupby(['rec_id', 'protocol', 'electrode']):
         for cluster_id in cluster_ids:
             if cluster_id not in pref_ec[rec_id][protocol].index.values:
                 continue
@@ -592,7 +615,7 @@ def firing_rate_per_protocol_slave(data_io: DataIO,
 
         tdf = data_io.train_df.query(
             f'rec_id == "{recording_id}" and '
-            f'protocol_name == "{protocol}" and '
+            f'protocol == "{protocol}" and '
             f'electrode == {electrode} and '
             f'{fixed_name} == {fixed_val}')
 

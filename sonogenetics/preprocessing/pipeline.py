@@ -16,6 +16,9 @@ for sid, s_specs in dataset_sessions.items():
 
     # Load the filepaths for the dataset
     filepaths = FilePaths(sid)
+    if not filepaths.raw_dir.exists():
+        print(f'NO RAW DATA FOUND for session {sid}')
+        continue
 
     # # Verify all files are there for this session
     filepaths.check_data()
@@ -31,7 +34,7 @@ for sid, s_specs in dataset_sessions.items():
     else:
         dmd_trigger_channel = None
 
-    extract_triggers(filepaths, update=False,
+    extract_triggers(filepaths, update=True,
                      visualize_detection=False,
                      recording_numbers_to_skip=s_specs['skip_triggers'],
                      laser_trigger_channel=laser_trigger_channel,

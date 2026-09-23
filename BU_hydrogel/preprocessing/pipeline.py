@@ -20,7 +20,7 @@ for sid, s_specs in dataset_sessions.items():
     filepaths.check_data()
 
     # Extract stimulation triggers
-    extract_triggers(filepaths, update=True, visualize_detection=False,
+    extract_triggers(filepaths, update=True, visualize_detection=True,
                      recording_numbers_to_skip=s_specs['skip_triggers'])
 
     # Extract trial data

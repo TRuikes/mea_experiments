@@ -7,6 +7,7 @@ class BootstrapOutput:
     def __init__(self,
                  bins: np.ndarray,
                  binned_sp: np.ndarray,
+                 spike_times: List,
                  firing_rate: np.ndarray,
                  baseline_firing_rate_mean: float,
                  is_excited: bool,
@@ -27,6 +28,7 @@ class BootstrapOutput:
     ):
         self.bins = bins
         self.binned_sp = binned_sp
+        self.spike_times = spike_times
         self.firing_rate = firing_rate
         self.baseline_firing_rate_mean = baseline_firing_rate_mean
         self.is_excited = is_excited
@@ -72,7 +74,9 @@ class BootstrapOutput:
 
 
 def detect_significant_modulation_bootstrap(
-        bin_centres, binned_sp: np.ndarray, baseline_idx, min_duration_ms, stepsize_ms, binwidth_ms
+        bin_centres, binned_sp: np.ndarray, spike_times,
+        baseline_idx, min_duration_ms,
+        stepsize_ms, binwidth_ms
 ):
     # Bootstrap confidence intervals for each bin
     response_window = [0, 200]
@@ -107,12 +111,21 @@ def detect_significant_modulation_bootstrap(
     firing_rate_ci_high = ci_high / (binwidth_ms / 1000)
     firing_rate_ci_low = ci_low / (binwidth_ms / 1000)
 
+    # if ci_high is 0, set it to -0.1
     # # Detect which bins are decrease relative to baseline
-    in_idx = np.where((ci_high < ci_baseline[0]) & (bin_centres >= response_window[0]) &
-                      (bin_centres < response_window[1]))[0]
-    in_idx = first_consecutive_run(in_idx, int(min_duration_ms / min_duration_ms))
+    in_idx = np.where(
+        # 1. The bin centres must be within the response window
+        (bin_centres >= response_window[0]) & (bin_centres < response_window[1]) &
 
-    is_inhibited = True if in_idx is not None else False
+        # 2. AND either of the CI conditions must be met
+        ((ci_high < ci_baseline[0]) | ((ci_high == 0) & (ci_baseline[1] > 0)))
+    )[0]
+
+    min_nr_idx = int(min_duration_ms / stepsize_ms)
+    in_idx = first_consecutive_run(in_idx, min_nr_idx)
+
+    # require at least 5 Hz baseline firing rate before we can detect inhibtion
+    is_inhibited = True if in_idx is not None and np.mean(firing_rate[baseline_idx]) > 5 else False
     inhibition_bins = in_idx if is_inhibited else None
     inhibition_min_fr = np.min(firing_rate[in_idx]) if is_inhibited else None
     inhibition_start = bin_centres[in_idx[0]] if is_inhibited else None
@@ -123,8 +136,7 @@ def detect_significant_modulation_bootstrap(
     # # Detect which bins are increased relative to baseline
     ex_idx = np.where((ci_low > ci_baseline[1]) & (bin_centres >= response_window[0]) &
                       (bin_centres < response_window[1]))[0]
-    ex_idx = first_consecutive_run(ex_idx, int(min_duration_ms / stepsize_ms),
-                                   occupancy_threshold=0.8)
+    ex_idx = first_consecutive_run(ex_idx, min_nr_idx)
 
     is_excited = True if ex_idx is not None else False
     excitation_bins = ex_idx if is_excited else None
@@ -136,6 +148,7 @@ def detect_significant_modulation_bootstrap(
     return BootstrapOutput(
         bins=bin_centres,
         binned_sp=binned_sp,
+        spike_times=spike_times,
         firing_rate=firing_rate,
         baseline_firing_rate_mean=np.mean(firing_rate[baseline_idx]),
         is_excited=is_excited,

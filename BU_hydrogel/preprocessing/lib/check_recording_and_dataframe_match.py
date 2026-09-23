@@ -12,6 +12,7 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
     train_df = pd.read_csv(filepaths.proc_pp_trials, index_col=0, header=0)
     triggers = utils.load_nested_dict(filepaths.proc_pp_triggers)
 
+    print('Checking recording and dataframe match')
 
     for rec_id in filepaths.recording_names:
         if rec_id in manual_curated_ids:
@@ -22,6 +23,7 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
         if rec_nr in recording_numbers_to_skip:
             continue
 
+        print(f'\t{rec_id}')
         # Verify that the triggers detected in the data match those with the dataframes
         has_triggers = False
 
@@ -47,7 +49,7 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
             #     print(f'{np.mean(dt):.1f}')
 
 
-            print(f'\tAdding PA triggers')
+            print(f'\t\tAdding PA triggers')
             has_triggers = True
 
             pa_n_train_dataframe = train_df_check.has_laser.sum()
@@ -63,12 +65,14 @@ def check_recording_and_dataframe_match(filepaths, recording_numbers_to_skip):
             dmd_burst_onsets = triggers[rec_id]['dmd']['burst_onsets']
             dmd_n_bursts_triggers = len(dmd_burst_onsets)
 
-            print(f'\tAdding DMD triggers')
             has_triggers = True
 
             # Check DMD triggers
 
             assert dmd_n_trials_triggers == train_df_check.shape[0]
             assert dmd_n_bursts_triggers == train_df_check.dmd_burst_count.sum()
+            print(f'\t\tChecked DMD triggers ({dmd_n_trials_triggers} trials, {dmd_n_bursts_triggers} bursts)')
 
         assert has_triggers
+
+        print(f'\t\tAll good =)\n')

@@ -44,35 +44,28 @@ class PoissonOutput:
         return getattr(self, name)
 
 
-def first_consecutive_run(indices, min_bin_length=3, occupancy_threshold=0.8):
+
+def first_consecutive_run(indices, min_bin_length=3):
     if len(indices) == 0:
         return None
 
-    # Ensure indices are sorted for the sliding window
-    indices = np.sort(indices)
-    n = len(indices)
+    # 1. Sort and find unique values just in case
+    indices = np.unique(indices)
 
-    # We use two pointers, i (start) and j (end)
-    for i in range(n):
-        for j in range(i + min_bin_length - 1, n):
-            start = indices[i]
-            end = indices[j]
+    # 2. Find where the breaks in consecutive numbers happen
+    # np.diff shows the step size between elements. If step > 1, it's a new block.
+    gaps = np.where(np.diff(indices) > 1)[0] + 1
 
-            # The physical width (number of bins) this window covers
-            span = end - start + 1
+    # 3. Split the indices array into a list of strictly consecutive sub-arrays
+    blocks = np.split(indices, gaps)
 
-            # The number of indices we actually have inside this window
-            actual_count = j - i + 1
+    # 4. Filter for blocks that meet or exceed your minimum length
+    valid_blocks = [b for b in blocks if len(b) >= min_bin_length]
+    # 5. Concatenate them back into a single flat array
+    if not valid_blocks:
+        return None
 
-            # We only care if the physical span is at least our minimum bin length
-            if span >= min_bin_length:
-                occupancy = actual_count / span
-
-                if occupancy >= occupancy_threshold:
-                    # Return the full continuous range from start to end
-                    return np.arange(start, end + 1)
-
-    return None
+    return np.concatenate(valid_blocks)
 
 
 
@@ -173,7 +166,7 @@ def detect_significant_modulation_poisson(bin_centres, binned_sp, baseline_idx, 
     # Extract inhibition stats
     bins_decrease = test_idx[significant_decrease]
     in_idx = first_consecutive_run(bins_decrease, int(min_duration_ms / stepsize_ms),
-                                   occupancy_threshold=0.7) # indices into significant decrease
+                                   ) # indices into significant decrease
 
     is_inhibited = True if in_idx is not None else False
     inhibition_bins = bins_decrease if is_inhibited else None
@@ -185,7 +178,7 @@ def detect_significant_modulation_poisson(bin_centres, binned_sp, baseline_idx, 
     # Extract excitation stats
     bins_increase = test_idx[significant_increase]
     ex_idx = first_consecutive_run(bins_increase, int(min_duration_ms / stepsize_ms),
-                                   occupancy_threshold=0.7)
+                                   o)
     is_excited = True if ex_idx is not None else False
     excitation_bins = bins_increase if is_excited else None
     excitation_max_fr = np.max(firing_rate_hz[bins_increase]) if is_excited else None

@@ -500,7 +500,7 @@ def save_fig(fig: go.Figure, savename: Path, formats=None, scale=None, verbose=T
                 file=file,
                 format=f,
                 scale=scale if f == 'png' else 1,  # not used when exporting to svg
-                engine='kaleido',
+                # engine='kaleido',
                 # width=300,
                 # height=180,
             )

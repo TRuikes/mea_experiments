@@ -89,6 +89,32 @@ class DataIO:
             #     rn = r.recording_name
             #     burst_df.at[i, 'recording_name'] = str(rn).split("'")[1]
 
+            train_rows = []
+
+            for tid, tdf in burst_df.groupby("train_id"):
+                # Start a dictionary for this specific train_id row
+                row_dict = {"train_id": tid}
+
+                for c in tdf.columns:
+                    if c in ['burst_id'] or 'burst_onset' in c or 'burst_offset' in c:
+                        continue
+                    assert len(tdf[c].unique()) == 1, f"Column '{c}' has non-unique values for train_id {tid}"
+
+                    val = tdf.iloc[0][c]
+                    if isinstance(val, bool):
+                        val = float(val)  # True → 1.0, False → 0.0
+
+                    # Save to the row dictionary instead of the DataFrame
+                    row_dict[c] = val
+
+                train_rows.append(row_dict)
+
+            # Build the DataFrame all at once at the very end
+            train_df = pd.DataFrame(train_rows)
+            if not train_df.empty:
+                train_df.set_index("train_id", inplace=True)
+
+            self.train_df = train_df
             self.burst_df = burst_df
             self.cluster_df = cluster_df
             self.spiketimes = spiketimes
@@ -112,6 +138,8 @@ class DataIO:
             cluster_df=self.cluster_df,
             burst_df=self.burst_df,
             recording_ids=self.recording_ids,
+            train_df=self.train_df,
+            cluster_ids=self.cluster_df.index.values,
         )
         with open(self.pickle_file, 'wb') as f:
             pickle.dump(data_to_pickle, f)
@@ -125,13 +153,15 @@ class DataIO:
                 self.__setattr__(k, v)
 
 if __name__ == '__main__':
-    data_dir = Path(r'C:\axorus\dataset')
+    data_dir = Path(r'C:\thijs\sono_data\dataset')
     data_io = DataIO(data_dir)
 
     for sid in data_io.sessions:
+        if 'Axorus' not in sid:
+            continue
         print(sid)
-        data_io.load_session(sid, load_waveforms=False, load_pickle=True)
-        data_io.dump_as_pickle()
+        data_io.load_session(sid, load_waveforms=False, load_pickle=False)
+
 
 
 

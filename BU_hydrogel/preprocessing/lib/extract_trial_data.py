@@ -5,6 +5,7 @@ import numpy as np
 
 
 def extract_trial_data(filepaths: FilePaths):
+
     if len(filepaths.raw_trials) == 1:
         df = pd.read_csv(filepaths.raw_trials[0], index_col=0, header=0)
     else:
@@ -26,7 +27,7 @@ def extract_trial_data(filepaths: FilePaths):
         print(f'EXTRACT TRIAL DATA: SHOULD CHEC KTHIS')
 
     train_i = 0
-    df = df.reset_index(drop=True)
+    df = df.reset_index(drop = True)
 
     for i, r in df.iterrows():
 
@@ -41,6 +42,11 @@ def extract_trial_data(filepaths: FilePaths):
         for rr in filepaths.recording_names:
             if f'_{rec_nr:01.0f}_' in rr:
                 recording_name = rr
+
+        if recording_name is None:
+            break
+
+
         assert recording_name is not None
 
         df.at[i, 'recording_name'] = recording_name
@@ -109,10 +115,11 @@ def extract_trial_data(filepaths: FilePaths):
                 diameter = 200 / 1e3  # mm
                 large_diameter = 300 / 1e3  # mm
             elif '_C8' in fiber_connection:
-                diameter = 25 / 1e3  # mm
+                diameter = 25  / 1e3  # mm
                 large_diameter = 50 / 1e3  # mm
             else:
                 raise ValueError(f'implement this: {fiber_connection}')
+
 
             area = np.pi * (diameter / 2) ** 2
             large_area = np.pi * (large_diameter / 2) ** 2

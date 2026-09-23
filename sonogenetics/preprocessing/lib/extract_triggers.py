@@ -40,7 +40,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
         n_samples = int(data.size / data_nb_channels)
         rec_duration = (n_samples / data_sample_rate) / 60  # [min]
 
-        print(f'\treading data ({rec_duration:.0f} min)')
+        print(f'\t\treading data ({rec_duration:.0f} min)')
 
         trigger_types = ['laser', 'dmd']
         # if 'PA' in rec or 'pa' in rec:
@@ -60,9 +60,6 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     trigger_channel = data_trigger_channels[trigger_type]
 
             elif trigger_type == 'dmd':
-                if 'checkerboard' in rec:
-                    continue
-
                 if dmd_trigger_channel is not None:
                     trigger_channel = dmd_trigger_channel
                 else:
@@ -70,7 +67,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
             else:
                 raise ValueError('error!')
 
-            print(f'\t\treading {trigger_type}')
+            print(f'\t\t\treading {trigger_type}')
 
             trigger_high = np.array([])
 
@@ -78,16 +75,14 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
             channel_index = np.arange(trigger_channel - 1, data.size, data_nb_channels)
 
             # Load the data into memory in chunks
-            chunksize_s = 10
+            chunksize_s = 15
             chunksize = chunksize_s * data_sample_rate
             n_chunks = int(np.ceil(channel_index.size / chunksize))
 
-            print(f'\t\treading data in {n_chunks} chunks')
-
             if visualize_detection:
-                print(f'\t\tsaving figures in {filepaths.proc_pp_figure_output}')
+                print(f'\t\t\tsaving figures in {filepaths.proc_pp_figure_output}')
 
-            for i in tqdm(range(n_chunks), desc=f'reading chunks'):
+            for i in tqdm(range(n_chunks), desc=f'\t\t\treading chunks'):
                 i0 = int(i * chunksize)
                 i1 = int(i0 + chunksize)
                 if i1 > channel_index.size - 1:
@@ -119,10 +114,10 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                 if idx.size > 0:
                     trigger_high = np.concat([trigger_high, t])
 
-                if visualize_detection and '_3_' in rec and trigger_type == 'dmd':
+                if visualize_detection and trigger_type != 'laser':
                     # Plot trigger onsets
                     x = (np.arange(i0, i1, 1) / data_sample_rate)
-                    subsample_idx = np.arange(0, x.size, 5).astype(int)
+                    subsample_idx = np.arange(0, x.size, 1).astype(int)
 
                     fig = utils.simple_fig(width=1, height=1, n_rows=1, n_cols=1)
 
@@ -147,7 +142,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     utils.save_fig(fig, savename, display=False, verbose=False, backend='image')
 
             if trigger_high.size == 0:
-                print(F'{rec} does not have {trigger_type}')
+                print(f'\t\t\t{rec} does not have {trigger_type}')
                 continue
 
             # Process laser trigger times
@@ -205,18 +200,33 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
                     train_onsets = np.hstack(valid_train_onsets)
                     burst_onsets = valid_burst_onsets
                     burst_offsets = valid_burst_offsets
+                train_offsets = np.array([-99])
+
 
             else:
                 trial_onsets_idx = np.concatenate([np.array([0]), np.where(dt > 1500)[0] + 1])
                 train_onsets = trigger_high[trial_onsets_idx]
 
-            print(f'RESULTS EXTRACT TRIGGER')
-            print(f'{rec} {trigger_type}')
-            print(f'n train: {train_onsets.size}')
-            print(f'n burst: {burst_onsets.size}\n\n')
+                if 'checkerboard' in rec or 'chirp' in rec:
+                    if rec == 'rec_2_B_20260915_dmd_chirp':
+                        assert len(train_onsets) == 2
+                    else:
+                        assert len(train_onsets) == 1
+                    train_offsets = np.array([trigger_high[-1]])
+                else:
+                    train_offsets = np.array([-99])
+
+            print(f'\n\t\tRESULTS EXTRACT TRIGGER {trigger_type}')
+
+            if 'checkerboard' in rec or 'chirp' in rec:
+                print(f'\t\tonset: {train_onsets[0] / (1e3 *60)} min, offset: {train_offsets[0] / (1e3 * 60)} min')
+            else:
+                print(f'\t\tn train: {train_onsets.size}')
+                print(f'\t\tn burst: {burst_onsets.size}\n\n')
 
             trigger_data[rec][trigger_type] = dict(
                 train_onsets=train_onsets,
+                train_offsets=train_offsets,
                 burst_onsets=burst_onsets,
                 burst_offsets=burst_offsets,
             )
