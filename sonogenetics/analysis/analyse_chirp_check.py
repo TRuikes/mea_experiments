@@ -7,12 +7,13 @@ import math
 import matplotlib.pyplot as plt
 from sonogenetics.analysis.lib.analysis_params import figure_dir_analysis
 from pathlib import Path
-from sonogenetics.analysis.lib.sta_analysis import get_checkerboard_sta, plot_sta
-from matplotlib.gridspec import GridSpec
+# from sonogenetics.analysis.lib.sta_analysis import get_checkerboard_sta, plot_full_sta_single_cell, plot_sta_all_cells_with_rf
+import utils
+from sonogenetics.analysis.lib.chirp_analysis import get_chirp_responses, plot_chirp_responses
 
-
-CHECKERBOARD_FILE = Path(r'C:\thijs\sono_data\dmd_stimfiles\checkerboard.npy')
-BINSOURCE_FILE = Path(r'C:\thijs\sono_data\dmd_stimfiles\binarysource1000Mbits')
+dmd_stimfile_dir = Path(r'E:\sono\dmd_stimfiles')
+CHECKERBOARD_FILE = dmd_stimfile_dir / 'checkerboard.npy'
+BINSOURCE_FILE = dmd_stimfile_dir / 'binarysource1000Mbits'
 
 chirp_temporal_dim = 40
 
@@ -33,6 +34,9 @@ non_repeated_sequence_portion = (
     0.5,
 )  # portion holding the random sequence (first half)
 
+chirp_to_skip = (
+'rec_2_B_20260915_dmd_chirp',
+)
 
 
 def main():
@@ -42,31 +46,63 @@ def main():
     for sid in data_list:
 
         data_io.load_session(sid, load_pickle=False)
+        data_io.dump_as_pickle()
 
-
-        checkerboard_recordings = [r for r in data_io.recording_ids if 'checkerboard' in r]
-        for rec in checkerboard_recordings:
-            anlayse_checkerboard_responses(data_io, rec)
-
-        # chirp_recordings = [r for r in data_io.recording_ids if 'chirp' in r]
-        # for rec in chirp_recordings:
+        # checkerboard_recordings = [r for r in data_io.recording_ids if 'checkerboard' in r]
+        # for rec in checkerboard_recordings:
+        #     if rec in [
+        #         'rec_10_A_20260702_pa_intensity_checkerboard_KCl'
+        #     ]:
+        #         continue
+        #     anlayse_checkerboard_responses(data_io, rec)
+        #
         #     checkerboard = checkerboard_from_binary(
         #         data_io=data_io,
         #         rec_id=rec,
         #         binary_source_path=BINSOURCE_FILE
         #     )
         #
-        #     res = get_checkerboard_sta(
-        #         data_io=data_io,
-        #         rec_id=rec,
-        #         checkerboard=checkerboard,
-        #         checkerboard_params=checkerboard_params,
-        #         non_repeated_sequence_portion=non_repeated_sequence_portion,
-        #         chirp_temporal_dim=chirp_temporal_dim,
-        #     )
+        #     sta_savename = dataset_dir / 'sta' / f'{data_io.session_id}-{rec}.pkl'
+        #     if not sta_savename.parent.exists():
+        #         sta_savename.parent.mkdir(parents=True)
         #
-        #     for cid, sta_output in res.items():
-        #         plot_sta(sta_output)
+        #     if sta_savename.exists():
+        #         res = utils.load_obj(sta_savename)['res']
+        #
+        #     else:
+        #         res = get_checkerboard_sta(
+        #             data_io=data_io,
+        #             rec_id=rec,
+        #             checkerboard=checkerboard,
+        #             checkerboard_params=checkerboard_params,
+        #             non_repeated_sequence_portion=non_repeated_sequence_portion,
+        #             chirp_temporal_dim=chirp_temporal_dim,
+        #         )
+        #         utils.save_obj({'res': res}, sta_savename)
+        #
+        #
+        #
+        #     plot_sta_all_cells_with_rf(res)
+
+            # Plot individual stas for each cluster
+            # tasks = []
+            # for sta_output in res:
+            #     tasks.append({'sta_output': sta_output})
+            #
+            # # Run the joblist
+            # utils.run_job(
+            #     job_fn=plot_full_sta_single_cell,
+            #     tasks=tasks,
+            #     num_threads=10,
+            #     debug=False,
+            # )
+
+        chirp_recordings = [r for r in data_io.recording_ids if 'chirp' in r]
+        for rec_id in chirp_recordings:
+            if rec_id in chirp_to_skip:
+                continue
+            get_chirp_responses(data_io=data_io, rec_id=rec_id, overwrite=True)
+            plot_chirp_responses(data_io=data_io, rec_id=rec_id)
 
 
 def checkerboard_from_binary(
@@ -110,8 +146,6 @@ def checkerboard_from_binary(
 
         checkerboard[frame, :, :] = image
     return checkerboard
-
-
 
 
 def anlayse_checkerboard_responses(data_io, rec_id):
@@ -168,7 +202,7 @@ def anlayse_checkerboard_responses(data_io, rec_id):
 
     # Setup matplotlib subplot grid
     size = int(math.sqrt(len(data_io.cluster_ids))) + 1
-    fig, axes = plt.subplots(size, size, figsize=(size * 2, size * 2), sharex=True, sharey=True)
+    fig, axes = plt.subplots(size, size, figsize=(7, 7), sharex=True, sharey=True)
     axes_flat = axes.flatten()
 
     for i in tqdm(range(size ** 2), desc="Plotting rasters for all cells"):
@@ -202,13 +236,14 @@ def anlayse_checkerboard_responses(data_io, rec_id):
     plt.tight_layout()
 
     # Save figure output
-    savename = figure_dir_analysis / 'checkerboard' / f'{data_io.session_id}-{rec_id}.png'
+    savename = figure_dir_analysis / f'{data_io.session_id}' / rec_id / 'checkerboard_responses'
     print(f'saving {savename}')
     if not savename.parent.exists():
         savename.parent.mkdir(parents=True)
 
     plt.savefig(savename, dpi=300)
     plt.close(fig)
+
 
 def _even_odd_corr(rep_psths):
     """Pearson correlation between the mean of even-indexed and odd-indexed PSTH rows."""

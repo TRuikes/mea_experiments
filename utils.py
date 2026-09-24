@@ -128,7 +128,10 @@ def simple_fig(n_cols=1, n_rows=1, width=1, x_offset=None, height=0.5, equal_wid
 
     return fig
 
-def make_figure(width=1, height=1, x_domains=None, y_domains=None, **kwargs) -> go.Figure:
+def make_figure(width=1, height=1, x_domains=None, y_domains=None,
+                subplot_title_fontsize=12,
+                subplot_title_xshift=-0.05,
+                **kwargs) -> go.Figure:
     for i, k in kwargs.items():
         assert i in ['subplot_titles', 'specs', 'equal_width_height', 'equal_width_height_axes', 'bg_color',
                      'xticks', 'yticks'], f'{i}'
@@ -230,10 +233,10 @@ def make_figure(width=1, height=1, x_domains=None, y_domains=None, **kwargs) -> 
             if 'subplot_titles' in kwargs.keys():
                 # print(kwargs['subplot_titles'], ax_tick-1)
                 fig.add_annotation(
-                    x=x_domains[row_i+1][col_i][0]-0.05,
+                    x=x_domains[row_i+1][col_i][0]+subplot_title_xshift,
                     y=y_domains[row_i+1][col_i][1]+0.01,
                     text=kwargs['subplot_titles'][row_i+1][col_i],
-                    font=dict(size=12, family=font_famliy, color=font_color,),
+                    font=dict(size=subplot_title_fontsize, family=font_famliy, color=font_color,),
                     showarrow=False,
                     xanchor='left', yanchor='bottom',
                     xref='paper', yref='paper',
@@ -434,6 +437,8 @@ def update_subplot_titles(
         x_domains=None,
         y_domains=None,
         subplot_titles=None,
+        fontsize=12,
+        y_shift=0.01
 ):
     fig.layout.annotations = []
 
@@ -449,13 +454,13 @@ def update_subplot_titles(
 
     for (row, col), title in subplot_titles.items():
         x = x_domains[row][col-1][0]
-        y = y_domains[row][col-1][1] + 0.01
+        y = y_domains[row][col-1][1] + y_shift
 
         fig.add_annotation(
             x=x,
             y=y,
             text=title,
-            font=dict(size=12, family='arial', color='black', ),
+            font=dict(size=fontsize, family='arial', color='black', ),
             showarrow=False,
             xanchor='left', yanchor='bottom',
             xref='paper', yref='paper',
