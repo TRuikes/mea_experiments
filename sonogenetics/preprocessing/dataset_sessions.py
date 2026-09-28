@@ -24,7 +24,7 @@ dataset_sessions = {
     # '2026-06-30 rat LE 803 Mekano6 A': dict(skip_triggers=[]), # chirp done
     # '2026-06-30 rat LE 803 Mekano6 B': dict(skip_triggers=[5]),  #  chirp done
     # '2026-06-30 rat LE 803 Mekano6 C': dict(skip_triggers=[]),  # chirp done
-    # '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[]),  # chirp done
+    '2026-07-02 mouse c57 650 Mekano6 A': dict(skip_triggers=[]),  # chirp done
     # '2026-07-02 mouse c57 650 Mekano6 B': dict(skip_triggers=[7]),  # chirp done
     # '2026-07-08 rat LE 3322 Mekano6 A': dict(skip_triggers=[]),  # chirp done
     # '2026-07-08 rat LE 3322 Mekano6 B': dict(skip_triggers=[],
@@ -34,7 +34,7 @@ dataset_sessions = {
      # '2026-09-08 mouse c57 750 Mekano6 A': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128),  # chirp done
     # '2026-09-08 mouse c57 750 Mekano6 B': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128),  # chirp done
     # '2026-09-08 mouse c57 750 Mekano6 C': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128),  # chirp done
-    # '2026-09-09 mouse c57 758 Mekano6 A': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128), # chirp done
+    '2026-09-09 mouse c57 758 Mekano6 A': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128), # chirp done
     # '2026-09-09 mouse c57 758 Mekano6 C': dict(skip_triggers=[], laser_trigger_channel=255, dmd_trigger_channel=128), # chirp done
     # '2026-09-15 mouse c57 752 Mekano6 A': dict(skip_triggers=[]),  # chirp done
     # '2026-09-15 mouse c57 752 Mekano6 B': dict(skip_triggers=[]),  # chirp done, problem with chirp rec
@@ -48,7 +48,6 @@ dataset_sessions = {
     # '2026-08-18 rat LE 3243 NoVirus B' : dict(skip_triggers=[1, 2]),
     # '2026-08-18 rat LE 3243 NoVirus C' : dict(skip_triggers=[1, 2]),  # skip, has only CNPQX?
     # '2026-09-09 mouse c57 758 NoVirus B': dict(skip_triggers=[1,2], laser_trigger_channel=255, dmd_trigger_channel=128),
-
 
     # Sessions without usefull data
     # '2026-05-06 mouse c57 611 MscL C': dict(skip_triggers=[6]),  #

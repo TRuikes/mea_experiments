@@ -27,13 +27,13 @@ session_ids = [
     # '2026-09-15 mouse c57 752 Mekano6 A',
     # '2026-09-15 mouse c57 752 Mekano6 B',
     # '2026-09-15 mouse c57 752 Mekano6 C',
-
-    '2026-08-25 mouse c57 754 eMSCL A',
-    '2026-08-25 mouse c57 754 eMSCL B',
-    '2026-08-25 mouse c57 754 eMSCL C',
-    '2026-08-26 mouse c57 755 eMSCL A',
-    '2026-08-26 mouse c57 755 eMSCL B',
-    '2026-08-26 mouse c57 755 eMSCL C',
+    #
+    # '2026-08-25 mouse c57 754 eMSCL A',
+    # '2026-08-25 mouse c57 754 eMSCL B',
+    # '2026-08-25 mouse c57 754 eMSCL C',
+    # '2026-08-26 mouse c57 755 eMSCL A',
+    # '2026-08-26 mouse c57 755 eMSCL B',
+    # '2026-08-26 mouse c57 755 eMSCL C',
 ]
 
 laser_bust_duration = 100
@@ -66,7 +66,7 @@ def plot(data_io: DataIO, rec_id: str):
 
     # Define the output directory and full path
     output_dir = (
-            figure_dir_analysis / "dmd_pa_firing_contrasts" / data_io.session_id / rec_id
+            figure_dir_analysis / data_io.session_id / rec_id / "dmd_pa_firing_contrasts"
     )
     output_dir.mkdir(parents=True, exist_ok=True)  # Ensure folder exists
     print(f'saving data in: {output_dir}')

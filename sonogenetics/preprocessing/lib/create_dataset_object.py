@@ -292,7 +292,7 @@ def create_dataset_object(filepaths: FilePaths, include_waveforms=True,
                             (dmd_burst_onsets >= dmd_train_onset - 1) &
                             (dmd_burst_onsets < dmd_train_offset)
                         )[0]
-                        if len(dmd_bursts_idx) != 30:
+                        if len(dmd_bursts_idx) != 30 and 'checkerboard' not in rec_id and 'chirp' not in rec_id:
                             excluded_train_ids.append(train_id)
                             continue
 

@@ -11,10 +11,12 @@ import numpy as np
 from tqdm import tqdm
 
 session_ids = [
-    '2026-06-30 rat LE 803 Mekano6 A',
-    '2026-06-30 rat LE 803 Mekano6 B',
-    '2026-06-30 rat LE 803 Mekano6 C',
-    '2026-07-02 mouse c57 650 Mekano6 A',
+    # '2026-06-30 rat LE 803 Mekano6 A',
+    # '2026-06-30 rat LE 803 Mekano6 B',
+    # '2026-06-30 rat LE 803 Mekano6 C',
+    # '2026-07-02 mouse c57 650 Mekano6 A',
+    '2026-07-02 mouse c57 650 Mekano6 B',
+
 ]
 
 def main():
@@ -202,11 +204,16 @@ def main():
             ax.legend()
 
             # Save the figure
-            savename = figure_dir_analysis / 'dmd_pa_firing_contrasts' / sid / f'{cid}.png'
+            output_dir = (
+                    figure_dir_analysis / data_io.session_id /  "dmd_pa_firing_contrasts"
+            )
+            savename = output_dir / f'laser_bd_20' / f"{cid}.png"  # Add file extension (e.g., .png or .pdf)
+
             if not savename.parent.exists():
                 savename.parent.mkdir(parents=True)
             plt.savefig(savename, dpi=200, bbox_inches='tight', format='png')
             plt.close()
+            print(savename)
 
 
 if __name__ == '__main__':
