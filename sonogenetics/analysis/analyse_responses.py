@@ -45,6 +45,13 @@ def main():
         num_threads: int = 20
         tasks: List[Dict[str, Any]] = []
 
+        # calculate_response_statistics(
+        #     data_io=data_io,
+        #     cluster_id='uid_2026-07-02 mouse c57 650 Mekano6 A_040',
+        #     savefile='test',
+        #     debug_tid='tid_2026-07-02 mouse c57 650 Mekano6 A_065'
+        # )
+
         for cluster_id in data_io.cluster_df.index.values:
             savefile: Path = output_dir / f'bootstrap_{cluster_id}.pkl'
             if savefile.exists() and not OVERWRITE:
@@ -198,6 +205,8 @@ def calculate_response_statistics(
         savefile: Path to save the bootstrap results.
         debug_tid: set to a trial id to only analyse that trial
     """
+    if cluster_id == 'uid_2026-07-02 mouse c57 650 Mekano6 A_040.png':
+        print('hi')
 
     # Setup parameters for inhibition/excitation detection
     t_pre: int = 100        # time in [ms] before stimulation onset to include

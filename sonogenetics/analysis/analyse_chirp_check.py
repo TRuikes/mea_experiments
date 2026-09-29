@@ -1,4 +1,4 @@
-from tqdm import tqdm
+[from tqdm import tqdm
 import numpy as np
 from sonogenetics.analysis.lib.analysis_params import dataset_dir
 from sonogenetics.analysis.data_list import data_list
