@@ -7,20 +7,22 @@ data_list = [
     # '2026-05-20 mouse c57 Audrey A',
     # '2026-07-01 mouse c57 653 NoVirus C',
     # '2026-07-21 rat LE 9999 NoVirus A',
-    # '2026-07-21 rat LE 9382 NoVirus B',
-    # '2026-07-21 mouse c57 647 NoVirus C',
-    # '2026-08-18 rat LE 3243 NoVirus B',
+    # '2026-07-21 rat LE 9382 NoVirus B',  # A
+    # '2026-07-21 mouse c57 647 NoVirus C', # A
+    '2026-08-18 rat LE 3243 NoVirus B',  # A
+    '2026-08-18 rat LE 3243 NoVirus C', # A
+    # '2026-09-09 mouse c57 758 NoVirus B'
 
     # MSCL
     # '2026-02-11 mouse c57 565 eMSCL A',
     # '2026-02-16 mouse c57 566 eMSCL A',
     # '2026-05-06 mouse c57 611 MscL C',
     # '2026-08-25 mouse c57 754 eMSCL A',
-    # '2026-08-25 mouse c57 754 eMSCL B',
-    # '2026-08-25 mouse c57 754 eMSCL C',
-    # '2026-08-26 mouse c57 755 eMSCL A',
-    # '2026-08-26 mouse c57 755 eMSCL B',
-    # '2026-08-26 mouse c57 755 eMSCL C',
+    '2026-08-25 mouse c57 754 eMSCL B',  # A
+    '2026-08-25 mouse c57 754 eMSCL C',  # A
+    '2026-08-26 mouse c57 755 eMSCL A',  # A
+    '2026-08-26 mouse c57 755 eMSCL B',  # A
+    '2026-08-26 mouse c57 755 eMSCL C',  # A
 
     # Mekano 6
     # '2026-02-19 mouse c57 5713 Mekano6 A',
@@ -32,7 +34,7 @@ data_list = [
     # '2026-06-30 rat LE 803 Mekano6 A',
     # '2026-06-30 rat LE 803 Mekano6 B',
     # '2026-06-30 rat LE 803 Mekano6 C',
-    '2026-07-02 mouse c57 650 Mekano6 A',
+    # '2026-07-02 mouse c57 650 Mekano6 A',
     # '2026-07-02 mouse c57 650 Mekano6 B',
 
     # ---
@@ -43,7 +45,7 @@ data_list = [
     # '2026-09-08 mouse c57 750 Mekano6 A',
     # '2026-09-08 mouse c57 750 Mekano6 B',
     # '2026-09-08 mouse c57 750 Mekano6 C',
-    '2026-09-09 mouse c57 758 Mekano6 A',
+    # '2026-09-09 mouse c57 758 Mekano6 A',
     # '2026-09-09 mouse c57 758 Mekano6 C',
     # '2026-09-15 mouse c57 752 Mekano6 A',
     # '2026-09-15 mouse c57 752 Mekano6 B',

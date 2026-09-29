@@ -6,7 +6,8 @@ import utils
 
 
 
-dmd_stimfile_dir = Path(r'E:\sono\dmd_stimfiles')
+# dmd_stimfile_dir = Path(r'E:\sono\dmd_stimfiles')
+dmd_stimfile_dir = Path(r'C:\thijs\sono_data\dmd_stimfiles')
 
 chirp_params = {
     'vec_file': '0_chirp_MEA1_50Hz.vec',
