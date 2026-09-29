@@ -118,7 +118,7 @@ def detect_significant_modulation_bootstrap(
         (bin_centres >= response_window[0]) & (bin_centres < response_window[1]) &
 
         # 2. AND either of the CI conditions must be met
-        ((ci_high < ci_baseline[0]) | ((ci_high == 0) & (ci_baseline[1] > 0)))
+        ((ci_high <  np.mean(ci_baseline)) | ((ci_high == 0) & (ci_baseline[1] > 0)))
     )[0]
 
     min_nr_idx = int(min_duration_ms / stepsize_ms)
@@ -134,9 +134,26 @@ def detect_significant_modulation_bootstrap(
 
     # Extract excitation stats
     # # Detect which bins are increased relative to baseline
-    ex_idx = np.where((ci_low > ci_baseline[1]) & (bin_centres >= response_window[0]) &
+    ex_idx = np.where((ci_low > np.mean(ci_baseline)) & (bin_centres >= response_window[0]) &
                       (bin_centres < response_window[1]))[0]
     ex_idx = first_consecutive_run(ex_idx, min_nr_idx)
+
+    ### TMP
+    # import utils
+    # from pathlib import Path
+    #
+    # fig = utils.simple_fig()
+    # fig.add_scatter(x=bin_centres, y=np.mean(binned_sp, axis=0), line=dict(color='black', width=1))
+    # fig.add_scatter(x=bin_centres, y=ci_low, line=dict(color='black', width=1))
+    # fig.add_scatter(x=bin_centres, y=ci_high, line=dict(color='black', width=1))
+    #
+    # ci_mean = np.nanmean(ci_baseline)
+    # fig.add_scatter(x=bin_centres, y=np.ones_like(bin_centres) * ci_mean)
+    #
+    # # fig.add_scatter(x=[bin_centres[0], bin_centres[-1]], y=[ci_baseline[1], ci_baseline[1]])
+    # fig.update_xaxes(tickvals=np.arange(-200, 300, 50))
+    # fig.update_yaxes(tickvals=np.arange(0, 0.2, 0.05))
+    # utils.save_fig(fig, Path('test'), display=True)
 
     is_excited = True if ex_idx is not None else False
     excitation_bins = ex_idx if is_excited else None

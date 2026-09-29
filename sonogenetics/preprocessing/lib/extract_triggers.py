@@ -42,7 +42,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
         print(f'\t\treading data ({rec_duration:.0f} min)')
 
-        trigger_types = ['laser', 'dmd']
+        trigger_types = ['dmd', 'laser']
         # if 'PA' in rec or 'pa' in rec:
         #     trigger_types.append('laser')
         #
@@ -75,7 +75,7 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
             channel_index = np.arange(trigger_channel - 1, data.size, data_nb_channels)
 
             # Load the data into memory in chunks
-            chunksize_s = 15
+            chunksize_s = 5
             chunksize = chunksize_s * data_sample_rate
             n_chunks = int(np.ceil(channel_index.size / chunksize))
 
@@ -147,6 +147,9 @@ def extract_triggers(filepaths: FilePaths, update=False, visualize_detection=Fal
 
             # Process laser trigger times
             dt = np.diff(trigger_high)  # time difference between triggers, in ms
+            idx = np.where(np.diff(trigger_high) > 0.08)
+            np.diff(trigger_high[idx[:4]])
+
             max_noise_dropout = 15
 
             burst_onsets_idx = np.concatenate([np.array([0]), np.where(dt > max_noise_dropout)[0] + 1])

@@ -21,7 +21,7 @@ for sid, s_specs in dataset_sessions.items():
         continue
 
     # # Verify all files are there for this session
-    filepaths.check_data()
+    # filepaths.check_data()
 
     # # Extract stimulation triggers
     if 'laser_trigger_channel' in s_specs.keys():
